@@ -2995,6 +2995,30 @@ try {
         card.append(el('div', 'sub', rows.length + (rows.length === 1 ? ' change' : ' changes')
             + (began ? ' \u00b7 timed from the last goal' : ' \u00b7 timed from the first change')));
 
+        /**
+         * Undo the last press, focused, so U then Enter is the whole gesture.
+         *
+         * The Studio has had a one-click "Undo last press" all along; this page
+         * had four steps for the same act — open the log, find the last row,
+         * Delete, confirm — and this is the page where possession is actually
+         * pressed. The two-step design here is deliberate rather than an
+         * oversight (a blind key that deletes is not the same risk as a button
+         * beside a visible count), so this keeps the log opening and only
+         * removes the aiming: what is about to go is on screen while the
+         * button that removes it holds focus.
+         */
+        if (rows.length) {
+            var quick = el('button', 'chip', '\u21b6 Undo last press');
+            quick.type = 'button';
+            quick.title = 'Remove the most recent change of possession in this point.';
+            quick.addEventListener('click', function () {
+                correct({ undo: true }, sc);
+            });
+            card.append(quick);
+            // After append, or focus lands on a node with no layout.
+            window.setTimeout(function () { quick.focus(); }, 0);
+        }
+
         if (!rows.length) {
             card.append(el('p', 'muted', 'Nothing recorded for this point.'));
         }
@@ -3147,7 +3171,9 @@ try {
         if (key === 'i') { toggleStoppage(); return; }
         // U opens the log rather than deleting outright: one key still reaches
         // the fix at the speed the mistake was made, but nothing goes without
-        // being seen and confirmed first.
+        // being seen first. The log opens with "Undo last press" focused, so
+        // the whole gesture is U then Enter — as fast as the Studio's single
+        // click, without becoming a blind keypress that deletes.
         if (key === 'u') { openLog(); return; }
         setDefence(key === 'd');
     });
@@ -4105,7 +4131,7 @@ try {
                     ['O', 'The offence has the disc'],
                     ['D', 'The defence has the disc \u2014 a break chance'],
                     ['I', 'Toggle a stoppage'],
-                    ['U', 'Open the possession log, to undo a wrong entry']
+                    ['U', 'Possession log \u2014 opens with Undo last press focused, so U then Enter undoes']
                 ]
             }
         ].forEach(function (group) {

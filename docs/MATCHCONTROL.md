@@ -190,7 +190,29 @@ It should say which it is doing, in words, on the screen. A clock that is the ov
 - **A sleeping phone.** It comes back with a stale view. It must reconcile to the store rather than push what it remembers — the same rule as every declared value: shared wins, local only fills a gap.
 - **Nobody pressing anything.** The overlay must be able to say the clock is not running rather than draw a stopped one, which is the honest version of the §7 gap.
 
-## 10. Open questions
+## 10. Undo, and the keys it lives under — logged, not settled
+
+Surveyed rather than designed, so the state is written down before somebody assumes it is consistent.
+
+**Every surface has an undo, and they are not the same thing.** The Studio's card undo restores a snapshot; its possession undo removes the last press; match control's removes the last point. Three actions, one word. Each is right for its own risk, and nothing shares an implementation.
+
+**The two desks already share a key set** — `O` and `D` for possession, `I` for a stoppage, `U` — and both document it in a **Keys** dialog. But `U` does two different things:
+
+| | Studio | Commentary desk |
+|---|---|---|
+| `U` | undoes the last press **directly** | opens the possession **log** |
+
+That is deliberate, and the reason survives examination: the operator is looking at the possession bar with its press count, while the commentator is looking at the pitch. A blind key that deletes is not the same risk as a button beside a visible number. The desk's log now opens with **"↶ Undo last press" focused**, so the gesture is `U` then `Enter` — as quick as the Studio's, without becoming a blind delete.
+
+**So the rule that actually holds is not "same key, same action".** It is *same key, same intent — undo — with the confirmation matched to how blind the press is.* That is a defensible rule and it was nowhere written down; it was only recoverable by reading two comment blocks in two files.
+
+**Known gaps, none urgent:**
+
+- **Match control has no keyboard at all.** Reasonable for a phone, and it is the intended device — but a tablet with a keyboard attached is a plausible way to drive it, and `U` should undo there too when that happens.
+- **Two surfaces have no undo.** Prepared notes fall back to the browser's own textarea undo; line selection has none, because re-clicking a player toggles them off, which covers most of it and is not the same thing.
+- **Nothing shares an undo implementation**, so a future fourth surface will invent a fourth one.
+
+## 11. Open questions
 
 - **Does the keeper also hold the ratio and line size?** They already exist as declared values and are currently the desk's. The person with the paper scoresheet is the one who can actually see the circled ratio, which argues for moving them — but the desk is who needs them. Probably both, since they are already capability-gated declared values and reconcile cleanly.
 - **Do timeouts belong to match control or to the desks?** §7 says both should *see* them; who *records* one in standalone is open. It stops the clock, which argues for match control; it is announced, which argues for the desk noticing.

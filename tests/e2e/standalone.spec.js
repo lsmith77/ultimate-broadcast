@@ -610,6 +610,205 @@ test.describe('squads kept here, because nothing upstream keeps one', () => {
   });
 });
 
+test.describe('a public demonstration', () => {
+  // The two stores this project leaves open on purpose — the room code is a
+  // namespace, not a credential — and the one setting that closes them when the
+  // installation is on the open internet.
+  const fs = require('node:fs');
+  const path = require('node:path');
+
+  let CONFIG;
+  let original;
+  test.beforeAll(({}, testInfo) => {
+    CONFIG = path.join(testInfo.config.metadata.root, 'conf', 'local-config.php');
+    original = fs.readFileSync(CONFIG, 'utf8');
+  });
+  test.afterAll(() => { if (CONFIG) { fs.writeFileSync(CONFIG, original); } });
+
+  /**
+   * Turn the flag on, in the file the installation actually reads — and wait
+   * for the server to agree.
+   *
+   * The wait is not politeness. `conf/local-config.php` is a PHP file, so it is
+   * compiled and cached, and opcache revalidates a cached file only every
+   * couple of seconds by default. A request made immediately after the write
+   * gets the OLD settings. That is true of the real deployment too: changing
+   * this file takes a moment to take effect, and somebody who edits it and
+   * refreshes at once will conclude it did not work.
+   *
+   * Polled on a page that renders the flag rather than on a fixed delay, so it
+   * costs nothing when the cache has already turned over.
+   */
+  const setDemo = async (request, on) => {
+    fs.writeFileSync(CONFIG, on
+      ? original.replace(/^return \[/m, "return [\n  'demo' => true,")
+      : original);
+
+    await expect
+      .poll(async () => (await (await request.get('/app.php?view=commentator&game=702'))
+        .text()).includes('Demonstration'),
+      { timeout: 15000, message: 'the installation picks up local-config.php' })
+      .toBe(on);
+  };
+
+  test('closes the two stores that take unauthenticated writes',
+    async ({ browser, request }) => {
+    const anon = await browser.newContext();
+    const origin = new URL(BASE).origin;
+    const write = () => anon.request.post(`${origin}/app.php?view=notes`, {
+      data: { code: 'DDDDD', player: 1, text: 'a stranger wrote this' },
+    });
+
+    await setDemo(request, false);
+    expect((await write()).status(), 'open by default, which is the design').toBe(200);
+
+    await setDemo(request, true);
+    const refused = await write();
+    expect(refused.status(), 'and closed on a demonstration').toBe(403);
+    expect((await refused.json()).error).toMatch(/read-only/i);
+
+    const line = await anon.request.post(`${origin}/app.php?view=lines`, {
+      data: { game: 702, code: 'DDDDD', team: 300, players: [1] },
+    });
+    expect(line.status(), 'the shared line too').toBe(403);
+    await anon.close();
+    await setDemo(request, false);
+  });
+
+  test('leaves every read alone, or it would showcase nothing', async ({ page, request }) => {
+    await setDemo(request, true);
+    // The whole point: a visitor still sees the desk, the rosters and the
+    // score. Only saving is refused.
+    await page.goto('/app.php?view=commentator&game=702');
+    await expect(page.locator('.roster').first()).toBeVisible();
+    await expect(page.locator('.flashline.on')).toContainText('Demonstration');
+    await setDemo(request, false);
+  });
+
+  test('an administrator still writes, or nobody could set the demo up',
+    async ({ page, request }) => {
+      await setDemo(request, true);
+      await page.goto('/app.php?view=login');
+      await page.locator('#password').fill(
+        require('../standalone-setup.js').ADMIN_PASSWORD,
+      );
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+
+      const ok = await page.request.post('/app.php?view=notes', {
+        data: { code: 'DDDDD', player: 2, text: 'the operator wrote this' },
+      });
+      expect(ok.status()).toBe(200);
+      await setDemo(request, false);
+    });
+
+  test('the guided tour writes nothing and needs nobody', async ({ browser, request }) => {
+    // It drives every state from one real payload, in the browser. That is what
+    // makes it the one showcase safe to hand a stranger — and it must not
+    // depend on being signed in, or the demo needs the password it exists to
+    // avoid handing out.
+    await setDemo(request, true);
+    const anon = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const visitor = await anon.newPage();
+    await visitor.goto(
+      `${new URL(BASE).origin}/app.php?view=scoreboard&game=702&demo=1&step=1000`,
+    );
+
+    await expect(visitor.locator('#demoLabel')).toBeVisible();
+    const first = await visitor.locator('#homeScore').textContent();
+    await expect
+      .poll(() => visitor.locator('#homeScore').textContent(),
+        { timeout: 20000, message: 'the score moves on its own' })
+      .not.toBe(first);
+
+    await anon.close();
+    await setDemo(request, false);
+  });
+
+  test('every game row offers match control, and not a host that is not there',
+    async ({ page }) => {
+      // Two bugs in one cell. It linked UltiOrganizer's own Scorekeeper —
+      // which standalone is a 404, the same class of dead link the login
+      // affordance had — and it never offered THIS project's match control at
+      // all, so the surface that actually keeps the score was unreachable from
+      // the page that tells an operator where everything is.
+      await page.goto('/app.php?view=index');
+      const row = page.locator('tbody tr').first();
+      await expect(row.locator('a', { hasText: 'Match control' }))
+        .toHaveAttribute('href', /\/k\/\d+$/);
+      await expect(row.locator('a', { hasText: 'Scorekeeper' }),
+        'and no link to an UltiOrganizer that is not there').toHaveCount(0);
+    });
+
+  test('the introduction offers a mixed game, and can be brought back',
+    async ({ browser }) => {
+      // The introduction is the only thing telling a visitor what any of this
+      // is, so the two ways it fails are: nothing to click, and dismissed for
+      // good with no way back.
+      const anon = await browser.newContext();
+      const visitor = await anon.newPage();
+      await visitor.goto(`${new URL(BASE).origin}/app.php?view=index`);
+
+      const intro = visitor.locator('#intro');
+      await expect(intro).toBeVisible();
+
+      // 703 in the shipped capture is the mixed semi-final. Offered separately
+      // because the gender ratio and the matching bands do not appear at all in
+      // an open game, and a visitor would conclude they do not exist.
+      const mixed = intro.locator('a', { hasText: 'a mixed game' });
+      await expect(mixed).toHaveAttribute('href', /\/s\/703\/overlay\?demo=1$/);
+      await expect(intro.locator('a', { hasText: /^a game$/ }))
+        .toHaveAttribute('href', /\/s\/\d+\/overlay\?demo=1$/);
+
+      // Dismiss, and get it back. Removing it outright meant the only route
+      // back was clearing site data.
+      await visitor.locator('#introClose').click();
+      await expect(intro).toBeHidden();
+
+      await visitor.reload();
+      await expect(visitor.locator('#intro'), 'and it stays dismissed').toBeHidden();
+
+      await visitor.locator('#aboutBtn').click();
+      await expect(visitor.locator('#intro')).toBeVisible();
+
+      await visitor.reload();
+      await expect(visitor.locator('#intro'), 'and stays back').toBeVisible();
+      await anon.close();
+    });
+
+  test('a logged-out visitor sees the stage tour actually move', async ({ browser }) => {
+    // The introduction on the Studio tells a visitor to add ?demo=1 to a stage
+    // URL, so this asserts exactly that sentence: no session, no operator, and
+    // something moving on the screen.
+    const anon = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const visitor = await anon.newPage();
+    await visitor.goto(`${new URL(BASE).origin}/app.php?view=stage&game=702&demo=1&step=1000`);
+
+    const frame = visitor.frameLocator('iframe').first();
+    await expect(frame.locator('#homeScore'),
+      'the stage has a scoreboard on it').toBeVisible({ timeout: 15000 });
+
+    const first = await frame.locator('#homeScore').textContent();
+    await expect
+      .poll(() => frame.locator('#homeScore').textContent(),
+        { timeout: 20000, message: 'and it is playing a game' })
+      .not.toBe(first);
+    await anon.close();
+  });
+
+  test('the stage ships the tour too, and only when asked', async ({ request }) => {
+    // The stage is the surface a visitor actually looks at, and it could only
+    // ever show whatever the recording was frozen at. The driver is loaded on
+    // demand, like the scoreboard's: a broadcast page must not carry a demo
+    // script it will never run.
+    const tour = await (await request.get('/app.php?view=stage&game=702&demo=1')).text();
+    expect(tour, 'the driver is there').toContain('shared/demo.js');
+
+    const plain = await (await request.get('/app.php?view=stage&game=702')).text();
+    expect(plain, 'and not otherwise').not.toContain('shared/demo.js');
+  });
+});
+
 test.describe('keeping score', () => {
   const { ADMIN_PASSWORD } = require('../standalone-setup.js');
   const SCORE = '/app.php?view=score';

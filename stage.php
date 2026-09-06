@@ -40,6 +40,24 @@ use Overlays\Show;
 $prefix = defined('UO_URL_PREFIX') ? UO_URL_PREFIX : '/';
 $base = rtrim($prefix, '/');
 $apiBase = $base . '/index.php?view=live/api';
+
+/**
+ * The guided tour.
+ *
+ * `?demo=1` on the scoreboard has always driven every display state from ONE
+ * real payload, mutating copies of it in the browser — hold, break, timeout,
+ * cap, halftime, a running clock. Nothing is written anywhere, which makes it
+ * the one showcase that cannot be abused on a public installation.
+ *
+ * The stage did not have it, so the surface a visitor actually looks at could
+ * only ever show whatever the recording happened to be frozen at. It runs the
+ * same script here: the frames feed the same handler the poll loop feeds, so
+ * every inline card moves with the scoreboard rather than only the bug.
+ */
+$demo = filter_input(INPUT_GET, 'demo') === '1';
+$demoStep = filter_input(INPUT_GET, 'step', FILTER_VALIDATE_INT, [
+    'options' => ['default' => 5000, 'min_range' => 1000, 'max_range' => 300000],
+]);
 $assetBase = \Overlays\Mode::assetBase($base);
 
 /** Whitelisted so a URL parameter can never reach a class attribute verbatim. */
@@ -106,6 +124,9 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/overlay-client.js'), ENT_QUOTES) ?>"></script>
+<?php if ($demo) : ?>
+<script src="<?= htmlspecialchars($assetUrl('shared/demo.js'), ENT_QUOTES) ?>"></script>
+<?php endif; ?>
 <script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/field.js'), ENT_QUOTES) ?>"></script>
@@ -121,6 +142,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         // The scoreboard is a card on this stage AND a page of its own, so its
         // URL is asked for rather than derived. See the note at its src().
         scoreboardUrl: <?= $json(\Overlays\Mode::viewUrl('scoreboard', $base)) ?>,
+        demo: <?= $json($demo) ?>,
+        demoStep: <?= (int) $demoStep ?>,
         possessionBase: <?= $json($assetBase) ?>,
         assetBase: <?= $json($assetBase) ?>,
         showUrl: <?= $json($store->publicUrl($assetBase)) ?>,
@@ -667,6 +690,10 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 // No &bg=: the stage already paints the chroma background, and a
                 // card painting its own would punch an opaque rectangle through it.
                 url += '&ribbon=1';
+                // The bug is a separate document, so the tour has to be handed
+                // to it explicitly — otherwise the one card everybody looks at
+                // is the one still showing a frozen score.
+                if (CONFIG.demo) { url += '&demo=1&step=' + CONFIG.demoStep; }
                 return url;
             }
         },
@@ -1536,6 +1563,22 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 // A missing or unreadable file is auto mode, not a failure: a
                 // tournament with no operator must still get a working stage.
                 if (!state || !Array.isArray(state.cards)) { state = CONFIG.fallback; }
+
+                // An EMPTY stage is a different thing from an unconfigured one,
+                // and normally it is exactly right: an operator who took
+                // everything off air wants everything off air.
+                //
+                // For the tour it is wrong. `?demo=1` is a showcase handed to
+                // somebody who has never seen this before, and a blank frame
+                // teaches them the software is broken. So the tour falls back to
+                // the default layout when there is nothing to show — which
+                // cannot affect a broadcast, because ?demo=1 is never on a
+                // broadcast URL and the poll loop it replaces never starts.
+                if (CONFIG.demo && !state.cards.some(function (c) { return c.visible; })) {
+                    state = { rev: state.rev, game: state.game, logo: state.logo,
+                        cards: CONFIG.fallback.cards };
+                }
+
                 lastShow = state;
                 setLogoCorner(state.logo);
 
@@ -1580,6 +1623,28 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
     function startGamePoll(game) {
         if (client) { client.stop(); }
+
+        // The tour: one real fetch for the shape, then the script drives it
+        // into the same handler the poll would have used. The poll never
+        // starts, so nothing overwrites a frame.
+        if (CONFIG.demo) {
+            var api = window.Provider.fromConfig({
+                apiBase: CONFIG.apiBase, captureBase: CONFIG.captureBase,
+                rosterUrl: CONFIG.rosterUrl
+            });
+            api.game(game).then(function (base) {
+                var demo = runOverlayDemo(base, function (frame) {
+                    payload = frame;
+                    noteGoals(frame);
+                    measureBug();
+                    applyShow(lastShow);
+                }, { stepMs: CONFIG.demoStep });
+                window.addEventListener('beforeunload', function () { demo.stop(); });
+            }).catch(function () { /* the stage keeps whatever it has */ });
+
+            return;
+        }
+
         client = new OverlayDataClient({
             gameId: game, apiBase: CONFIG.apiBase, captureBase: CONFIG.captureBase
         })

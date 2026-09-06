@@ -4,8 +4,6 @@ These overlays are built for an UltiOrganizer installation with Live! by BULA un
 
 One of those is not a renderer at all. **Match control keeps the score and the clock here**, in this project's own store, which means the live half of a broadcast does not depend on a recording being current — a standalone installation replays who is playing and keeps what is happening.
 
-[ultimate-broadcast.org](https://ultimate-broadcast.org) is a running one, if you would rather click than read.
-
 This document is the current state: what works, how to run it, what is missing, and what the next step is. The reasoning that produced the design is in the code, next to the code.
 
 ## 1. Why it exists

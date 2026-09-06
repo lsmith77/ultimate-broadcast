@@ -256,7 +256,50 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     <span class="who" id="who"><span class="dot"></span>Checking…</span>
     <span id="authAction"></span>
     <button id="keysBtn" type="button" title="Keyboard shortcuts">Keys</button>
+<?php if (\Overlays\Mode::ownsLogin()) : ?>
+    <button id="aboutBtn" type="button" title="What this is, and what to try">About</button>
+<?php endif; ?>
 </header>
+<?php if (\Overlays\Mode::ownsLogin()) : ?>
+<!--
+  What this is, for somebody who arrived at a URL and has never seen it.
+  Standalone only: hosted, this page sits inside an UltiOrganizer installation
+  and whoever reached it already knows what they are looking at.
+
+  Dismissable and remembered per browser, because it is an introduction rather
+  than a notice — an operator who reads it once should not read it every time
+  they open the page on a broadcast day.
+-->
+<aside class="intro" id="intro">
+    <button type="button" class="introclose" id="introClose" aria-label="Hide this">×</button>
+    <h2>Broadcast graphics for Ultimate</h2>
+    <p>
+        This turns a game's score, clock and rosters into overlays a video switcher can put
+        on air — and gives the people running the stream somewhere to control them from.
+        It normally runs on top of
+        <a href="https://github.com/layoutd/live-by-bula" rel="noopener">Live! by BULA</a>;
+        this installation is running <strong>standalone</strong>, with no tournament
+        software behind it.
+    </p>
+    <p class="introwhat">You can look at all of it without signing in:</p>
+    <ul>
+        <li><strong>Stage</strong> — the full-frame graphics layer a switcher points at.
+            Add <code>?demo=1</code> to a stage or scoreboard URL to watch a whole game
+            play out: holds, breaks, a timeout, the cap, a running clock. No sign-in,
+            and nothing is written anywhere.</li>
+        <li><strong>Commentary desk</strong> at <code>/c/&lt;game&gt;</code> — rosters and
+            prepared notes, never on air.</li>
+        <li><strong>Match control</strong> at <code>/k/&lt;game&gt;</code> — the score and
+            clock, kept from a phone, offline-tolerant.</li>
+    </ul>
+    <p class="introdemo" id="introDemo"></p>
+    <p class="introfoot">
+        <a href="https://github.com/lsmith77/ultimate-broadcast" rel="noopener">Source and
+        documentation on GitHub</a>
+    </p>
+</aside>
+<?php endif; ?>
+
 <main>
 <p class="lede">Browser-source URLs for a video switcher (OBS, Magewell Director Mini, Yolobox).</p>
 
@@ -341,6 +384,55 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     // login, and the words differ as much as the URL does.
     var LOGIN_URL = <?= json_encode(\Overlays\Mode::loginUrl($base), JSON_UNESCAPED_SLASHES) ?>;
     var LOGIN_IS_OURS = <?= \Overlays\Mode::ownsLogin() ? 'true' : 'false' ?>;
+    // A public demonstration: the two stores that take unauthenticated writes
+    // do not take them here. See Overlays\Mode::isDemo().
+    var IS_DEMO = <?= \Overlays\Mode::isDemo() ? 'true' : 'false' ?>;
+
+    /**
+     * Hide the introduction for good, per browser.
+     *
+     * localStorage rather than a cookie or a stored setting: it is a preference
+     * of one person's browser about one page, it must survive a reload, and it
+     * must not be shared with the other people looking at the same installation
+     * on a broadcast day. Wrapped because a browser with site data blocked
+     * throws on access rather than returning nothing.
+     */
+    (function () {
+        var intro = document.getElementById('intro');
+        var close = document.getElementById('introClose');
+        var about = document.getElementById('aboutBtn');
+        if (!intro || !close) { return; }
+        var KEY = 'uo-overlays-intro-hidden';
+
+        function remember(hidden) {
+            try {
+                if (hidden) { window.localStorage.setItem(KEY, '1'); }
+                else { window.localStorage.removeItem(KEY); }
+            } catch (e) { /* a browser with site data blocked; the page still works */ }
+        }
+
+        // HIDDEN rather than removed, so About can bring it back. Removing it
+        // meant the only way to read it again was to clear site data, which is
+        // not a thing anybody is going to do to re-read an introduction.
+        function show(on) {
+            intro.hidden = !on;
+            if (about) { about.setAttribute('aria-expanded', on ? 'true' : 'false'); }
+        }
+
+        var hidden = false;
+        try { hidden = window.localStorage.getItem(KEY) === '1'; } catch (e) { hidden = false; }
+        show(!hidden);
+
+        close.addEventListener('click', function () { show(false); remember(true); });
+        if (about) {
+            about.addEventListener('click', function () {
+                var showing = !intro.hidden;
+                show(showing ? false : true);
+                remember(showing);
+                if (!showing) { intro.scrollIntoView({ block: 'nearest' }); }
+            });
+        }
+    }());
     // The event editor, or null under a host — there the schedule belongs to
     // UltiOrganizer and event.php answers 404.
     var EVENT_URL = <?= json_encode(
@@ -1707,6 +1799,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             a.rel = 'noopener';
             a.title = 'Point the switcher here — a stage pinned to this game';
             urlBar.append(a);
+            // The guided tour, one link away from the URL it demonstrates.
+            //
+            // It drives every state a stage can reach — hold, break, timeout,
+            // cap, halftime, a running clock — from one real payload, mutating
+            // copies of it in the browser. It writes nothing anywhere, which is
+            // what makes it safe to hand a stranger and useful before a game
+            // has started: there is no other way to see a moving clock without
+            // one.
+            var tour = el('a', 'url ghosturl', 'demo ↗');
+            tour.href = u + '?demo=1';
+            tour.target = '_blank';
+            tour.rel = 'noopener';
+            tour.title = 'Watch the stage play a whole game through, from one '
+                + 'real payload. Nothing is written and no score changes.';
+            urlBar.append(tour);
         } else {
             urlBar.append(el('span', 'muted', 'select a game first'));
         }
@@ -1972,6 +2079,12 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 ? (LOGIN_IS_OURS ? 'Signed in' : 'Logged in as Live! admin')
                 : 'Read-only'));
 
+        if (IS_DEMO && !state.admin) {
+            // Said where somebody looks to find out why a control is inert, and
+            // said as a fact about the installation rather than as an error.
+            who.append(el('span', 'muted', ' · demonstration, read-only'));
+        }
+
         action.replaceChildren();
 
         // The event editor, standalone only. Hosted there is nothing to edit
@@ -2089,6 +2202,74 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         return wrap;
     }
 
+    /**
+     * Direct demo links, once the game list has arrived.
+     *
+     * Written here rather than into the markup because the intro is rendered by
+     * the server, which does not know the games — this page fetches them. And
+     * because "add ?demo=1 to a URL" is an instruction, while a link is a thing
+     * somebody clicks: the whole point of the introduction is that a visitor who
+     * has never seen this before finds out what it does in one click.
+     *
+     * A MIXED game is offered separately when the event has one, because the
+     * mixed-specific graphics — the gender ratio, the matching bands on a line —
+     * simply do not appear in an open game, and a visitor looking at an open
+     * game would reasonably conclude they do not exist.
+     */
+    function introLinks() {
+        var box = document.getElementById('introDemo');
+        if (!box || !gamesList.length) { return; }
+
+        function pick(wantMixed) {
+            var found = null;
+            gamesList.forEach(function (g) {
+                var mixed = window.Ratio.isMixed(seriesIndex[String(g.pool)]);
+                if (mixed !== wantMixed) { return; }
+                // An ongoing game first: it has a score and a clock, so the
+                // graphics have something to draw. A scheduled one is a correct
+                // but very quiet demonstration.
+                if (!found || (g.status === 'ongoing' && found.status !== 'ongoing')) {
+                    found = g;
+                }
+            });
+
+            return found;
+        }
+
+        var open = pick(false);
+        var mixed = pick(true);
+        var origin = window.location.origin + BASE;
+
+        box.replaceChildren(el('span', null, 'Try it now: '));
+        [
+            [open, 'a game', ''],
+            [mixed, 'a mixed game', ' — adds the gender ratio and the matching bands']
+        ].forEach(function (entry) {
+            var game = entry[0];
+            if (!game) { return; }
+            if (box.childNodes.length > 1) { box.append(document.createTextNode(' · ')); }
+            var a = el('a', null, entry[1]);
+            a.href = origin + '/s/' + game.game_id + '/overlay?demo=1';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.title = 'The stage for ' + (game.gamename || ('game ' + game.game_id))
+                + ', playing itself through' + entry[2];
+            box.append(a);
+        });
+
+        // The desk is worth a click of its own: it is the surface that shows
+        // what the other two cannot, and it is never on air.
+        if (open || mixed) {
+            var g = mixed || open;
+            box.append(document.createTextNode(' · '));
+            var desk = el('a', null, 'the commentary desk');
+            desk.href = origin + '/c/' + g.game_id;
+            desk.target = '_blank';
+            desk.rel = 'noopener';
+            box.append(desk);
+        }
+    }
+
     function renderAll() {
         renderAuth();
         renderStage();
@@ -2135,6 +2316,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 if (g.time) { days[String(g.time).slice(0, 10)] = true; }
             });
             singleDay = Object.keys(days).length <= 1;
+
+            introLinks();
 
             show = results[4];
             renderAll();

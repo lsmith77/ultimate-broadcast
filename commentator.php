@@ -725,6 +725,18 @@ try {
   Import result. A live region rather than an alert: it confirms something the
   reader just asked for and must not interrupt them to do it.
 -->
+<?php if (\Overlays\Mode::isDemo() && !\Overlays\Auth::isAdmin()) : ?>
+<!--
+  A public demonstration. Said BEFORE anybody types rather than after their
+  first save fails: a page of prepared notes typed into a demo and then refused
+  reads as a broken page rather than as a policy, and that is the moment
+  somebody gives up on the project. Server-rendered because it is a fact about
+  the installation, not a state this page can enter.
+-->
+<div class="flashline on" role="status">Demonstration — every surface works, but
+prepared notes and the shared line cannot be saved.</div>
+<?php endif; ?>
+
 <div id="importFlash" class="flashline" role="status" aria-live="polite"></div>
 
 <main id="body"><p class="muted">Loading…</p></main>
@@ -757,6 +769,10 @@ try {
         // Standalone only: the endpoint 404s under a host on purpose, and
         // asking for it there would be a wasted request per team per load.
         rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('roster', $base)) ?>,
+        // A public demonstration: notes and the shared line are read-only for
+        // anyone who is not an administrator, because this is the desk where
+        // those two stores are written. See Overlays\Mode::isDemo().
+        demo: <?= $json(\Overlays\Mode::isDemo() && !\Overlays\Auth::isAdmin()) ?>,
         gameId: <?= $json($gameId ?: null) ?>,
         mode: <?= $json($mode) ?>,
         linesUrl: <?= $json(\Overlays\Mode::viewUrl('lines', $base)) ?>,

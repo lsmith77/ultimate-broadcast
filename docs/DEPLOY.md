@@ -158,6 +158,28 @@ Team and game ids are yours to choose and must not change afterwards: `conf/scor
 
 One thing worth knowing if you edit `conf/local-config.php` by hand: it is a PHP file, so it is compiled and cached, and opcache revalidates a cached file only every couple of seconds. Edit it and refresh immediately and it looks like the edit did nothing. The editor calls `opcache_invalidate()` itself, so saving through the page takes effect at once.
 
+### Demonstration mode, for an installation on the open internet
+
+```
+php install/make-config.php --demo --capture=fixtures/payloads/dev --force
+```
+
+It changes one thing, and it is not cosmetic. `notes.php` and `lines.php` take **unauthenticated** writes by design — the room code is a namespace rather than a credential, so a commentator can join without an operator in the loop — and on a public installation that means anyone who guesses five characters can write into the prepared notes. `--demo` closes both to anyone who is not signed in. Reads are untouched, so every surface still shows what it does, and the desk says so before anybody starts typing.
+
+An administrator still writes normally, so the person running the demonstration can still set it up.
+
+### The guided tour
+
+`?demo=1` on the scoreboard or the stage plays a whole game through — hold, break, timeout, cap, halftime, a running clock — from **one real payload**, mutating copies of it in the browser. Nothing is written anywhere, so it is the one showcase that is safe to hand a stranger, and it is the only way to see a moving clock without a game in progress. The Studio links it beside each stage URL.
+
+### What a visitor sees first
+
+The Studio carries a short introduction, standalone only: what this is, that it is running without tournament software behind it, the three surfaces worth clicking, and a link to the repository. Hosted it does not render — whoever reached that page came through an UltiOrganizer installation and knows what they are looking at.
+
+It carries **direct demo links** rather than instructions, filled in from the event's own game list once it loads: a game, a **mixed** game where the event has one, and the commentary desk. The mixed one is offered separately because the gender ratio and the matching bands do not appear at all in an open game, and a visitor looking at an open game would reasonably conclude they do not exist.
+
+Dismissing it is remembered per browser, so an operator reads it once rather than every morning — and the **About** button in the header brings it back, because removing it outright left clearing site data as the only way to read it again.
+
 ### The switcher check, before anything matters
 
 `?view=live/overlays/tests/selftest` on the switcher itself, watching the **program output** rather than a laptop. Four panels move independently — a JS timer, requestAnimationFrame, pure CSS, and a network poll — so whichever are frozen tell you which layer that device is not running. "The overlay does not update" has at least five distinct causes and this separates them.

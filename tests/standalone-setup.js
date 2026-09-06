@@ -129,6 +129,11 @@ function build() {
   // The capture, plus the config that makes the pages read it. Both or
   // neither: a config naming a capture that is not there would make every
   // page fail in a way that looks like a routing bug.
+  //
+  // `demo` is deliberately NOT set here. The suite exercises the writes that
+  // demo mode closes — notes, lines — so turning it on for every run would
+  // make those tests pass for the wrong reason. The demo tests write the flag
+  // themselves and take it away again.
   if (existsSync(CAPTURE)) {
     mkdirSync(path.join(root, 'fixtures', 'payloads'), { recursive: true });
     cpSync(CAPTURE, path.join(root, 'fixtures', 'payloads', 'dev'), { recursive: true });

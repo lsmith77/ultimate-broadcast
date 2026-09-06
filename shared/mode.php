@@ -128,6 +128,38 @@ final class Mode
     }
 
     /**
+     * Is this installation a public demonstration?
+     *
+     * `'demo' => true` in `conf/local-config.php`. It changes exactly one
+     * thing, and it is not cosmetic: **the two stores that take unauthenticated
+     * writes stop taking them.**
+     *
+     * `notes.php` and `lines.php` are open on purpose — the room code is a
+     * namespace rather than a credential, so a commentator can join a room
+     * without an operator being in the loop, and `docs/COMMENTATOR.md` makes
+     * the case. On a tournament network that is a fair trade against the
+     * friction it removes.
+     *
+     * On a public installation it is not. Anyone who guesses five characters
+     * can type into the prepared notes, which are notes about named people and
+     * the one store this project treats as sensitive. A demonstration wants
+     * visitors to see every surface working; it does not want them writing to
+     * one another's.
+     *
+     * An administrator still writes normally, so the person running the demo
+     * can still set it up.
+     */
+    public static function isDemo(): bool
+    {
+        if (!is_file(self::LOCAL_CONFIG)) {
+            return false;
+        }
+        $config = require self::LOCAL_CONFIG;
+
+        return is_array($config) && !empty($config['demo']);
+    }
+
+    /**
      * Where a person goes to sign in.
      *
      * Hosted that is Live!'s own admin page, because Live! owns the session and

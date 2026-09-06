@@ -217,11 +217,11 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     <div class="panel hide" id="more">
         <section>
             <h2>Possession</h2>
-            <p class="why" id="possWhy">Who has the disc. Feeds break chance and the
-                clean-hold count on air.</p>
+            <p class="why" id="possWhy">Which side has the disc — the receiving team
+                is the offence. Feeds break chance and the clean-hold count on air.</p>
             <div class="row">
-                <button class="opt" id="possHome" type="button">Home</button>
-                <button class="opt" id="possAway" type="button">Away</button>
+                <button class="opt" id="possOff" type="button">Offence</button>
+                <button class="opt" id="possDef" type="button">Defence</button>
                 <button class="opt ghost" id="possUndo" type="button">↶</button>
             </div>
         </section>
@@ -260,6 +260,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-client.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script>
 (function () {
     'use strict';
@@ -305,7 +306,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
        -------------------------------------------------------------- */
 
     var MORE_KEY = 'uo-score-more-' + CONFIG.gameId;
-    var poss = { enabled: false, defence: null, stoppage: null, ratio1: null,
+    var poss = { enabled: false, events: [], stoppage: null, ratio1: null,
         size: null, canTrack: false };
 
     /** The possession store, addressed with the scorekeeping code. */
@@ -334,16 +335,32 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     function absorbPossession(b) {
         poss = {
             enabled: Boolean(b.enabled),
-            // The current holder is the last declaration in the log.
-            defence: (b.events || []).length
-                ? Boolean((b.events || [])[(b.events || []).length - 1].defence)
-                : null,
+            events: b.events || [],
             stoppage: b.stoppage || null,
             ratio1: b.ratio1 || null,
             size: b.size === undefined ? null : b.size,
             canTrack: Boolean(b.canTrack)
         };
         paintMore();
+    }
+
+    /**
+     * Who has the disc, through `shared/possession.js`.
+     *
+     * Read from the module rather than from the log directly, for two reasons
+     * this page got wrong on its own: an event records the defence as `d`, not
+     * as `defence`, so reading the wrong key made every press look like no
+     * change at all; and the holder is the last declaration **for the point
+     * being played**, not the last in the log, so after a goal the panel would
+     * otherwise show whoever had it during the previous point.
+     *
+     * A point with no events yet is the receiving team's, which is why nothing
+     * resets at a goal — the new score simply has no events.
+     */
+    function defenceHasDisc() {
+        var s = keeper.view();
+
+        return window.Possession.defenceHasDisc(poss.events, s.home, s.away);
     }
 
     function readPossession() {
@@ -370,12 +387,17 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     function paintMore() {
         var s = keeper.view();
 
-        el('possHome').classList.toggle('on', poss.defence === false);
-        el('possAway').classList.toggle('on', poss.defence === true);
+        // OFFENCE and DEFENCE, not home and away — which is what the store
+        // records and what the desk's own control says. Whose offence it is
+        // changes at every goal and is not a thing anybody has to re-declare,
+        // so naming the sides here would have asked for the wrong fact.
+        var d = defenceHasDisc();
+        el('possOff').classList.toggle('on', !d);
+        el('possDef').classList.toggle('on', d);
         el('possWhy').textContent = poss.enabled
-            ? 'Who has the disc. Feeds break chance and the clean-hold count on air.'
+            ? 'Which side has the disc — the receiving team is the offence.'
             : 'Possession tracking is off — the operator switches it on in the Studio.';
-        ['possHome', 'possAway', 'possUndo'].forEach(function (id) {
+        ['possOff', 'possDef', 'possUndo'].forEach(function (id) {
             el(id).disabled = !poss.enabled || !s.canWrite;
         });
 
@@ -421,10 +443,10 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
         function fail(e) { window.alert(e.message || 'That did not save.'); }
 
-        el('possHome').addEventListener('click', function () {
+        el('possOff').addEventListener('click', function () {
             possess({ score: scoreKey(), defence: false }).catch(fail);
         });
-        el('possAway').addEventListener('click', function () {
+        el('possDef').addEventListener('click', function () {
             possess({ score: scoreKey(), defence: true }).catch(fail);
         });
         el('possUndo').addEventListener('click', function () {

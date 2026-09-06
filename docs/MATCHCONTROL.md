@@ -24,6 +24,8 @@
 
 **Timeouts are recorded here now, and were recorded nowhere before.** UltiOrganizer keeps them as game events, so a standalone installation had no way to note one and the allowance drawn on air never moved however many were called. They live in the score store, numbered **per side** by the same rule that makes a goal safe to retry — "home's second timeout" written twice is one timeout — and `shared/score-source.js` puts them into `gameevents`, which is the shape `shared/timeouts.js` already counts from. Switching the scoreboard's source switches the timeouts with it, because a board showing this project's score beside Live!'s timeouts would be two answers about one game.
 
+**Possession is offence and defence, not home and away.** The store records which SIDE has the disc relative to the point being played, and whose offence it is changes at every goal without anybody re-declaring it. Naming the teams there would have asked the scorekeeper for the wrong fact — and did, in the first version of this panel.
+
 **The panel is behind a toggle.** The two big buttons are the job; eight more controls in front of them is how somebody presses the wrong one at 13-12. Whoever wants it opens it once and the phone remembers.
 
 **The phone says when it is not the source.** A banner across the top, shown whether or not that phone may write. The failure it prevents is somebody keeping a whole game's score carefully into a store nothing reads, which looks exactly like working until somebody watches the broadcast.

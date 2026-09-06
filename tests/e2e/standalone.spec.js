@@ -1082,6 +1082,87 @@ test.describe('the rest of what only a person at the pitch knows', () => {
       await phone.close();
     });
 
+  test('pressing possession changes what the panel shows, and what the desk reads',
+    async ({ page, browser }) => {
+      // The test that was missing. The endpoint answering 200 proves nothing
+      // about the panel: it read `defence` off an event the store writes as
+      // `d`, so every press looked like no change at all — and it read the last
+      // event in the whole log rather than the last one for the point being
+      // played, so after a goal it showed the previous point's holder.
+      //
+      // So this presses the button and asserts BOTH ends: what the scorekeeper
+      // sees, and what `shared/possession.js` — the reading every other surface
+      // does — makes of the log afterwards.
+      await nominate(page, 963);
+
+      const phone = await browser.newContext();
+      const keeper = await phone.newPage();
+      const origin = new URL(page.url()).origin;
+      await keeper.goto(`${origin}/app.php?view=matchcontrol&game=963`);
+      await keeper.locator('#code').fill('QQQQQ');
+      await keeper.locator('#useCode').click();
+      if (await keeper.locator('#more').isHidden()) {
+        await keeper.locator('#moreBtn').click();
+      }
+
+      // A point starts with the receiving team on offence and nobody having
+      // said otherwise, so the offence is lit before anything is pressed.
+      await expect(keeper.locator('#possOff')).toHaveClass(/\bon\b/);
+      await expect(keeper.locator('#possDef')).not.toHaveClass(/\bon\b/);
+
+      await keeper.locator('#possDef').click();
+      await expect(keeper.locator('#possDef'), 'the press is reflected')
+        .toHaveClass(/\bon\b/);
+      await expect(keeper.locator('#possOff')).not.toHaveClass(/\bon\b/);
+
+      // And the log says the same thing to everybody else.
+      const read = async () => {
+        const body = await (await phone.request.get(
+          `${origin}/app.php?view=possession&game=963&code=QQQQQ`)).json();
+
+        return body.events;
+      };
+      const Possession = require('../../shared/possession.js');
+      expect(Possession.defenceHasDisc(await read(), 0, 0),
+        'the desk reads a turnover too').toBe(true);
+
+      await keeper.locator('#possOff').click();
+      await expect(keeper.locator('#possOff')).toHaveClass(/\bon\b/);
+      expect(Possession.defenceHasDisc(await read(), 0, 0)).toBe(false);
+      await phone.close();
+    });
+
+  test('possession follows the point, so a goal starts it clean',
+    async ({ page, browser }) => {
+      // Events are filed under the score they were declared at. Reading the
+      // last event in the log rather than the last for THIS point meant the
+      // panel carried the previous point's holder across a goal — and the
+      // scorekeeper would have pressed to "correct" something already correct.
+      await nominate(page, 964);
+
+      const phone = await browser.newContext();
+      const keeper = await phone.newPage();
+      const origin = new URL(page.url()).origin;
+      await keeper.goto(`${origin}/app.php?view=matchcontrol&game=964`);
+      await keeper.locator('#code').fill('QQQQQ');
+      await keeper.locator('#useCode').click();
+      if (await keeper.locator('#more').isHidden()) {
+        await keeper.locator('#moreBtn').click();
+      }
+
+      await keeper.locator('#possDef').click();
+      await expect(keeper.locator('#possDef')).toHaveClass(/\bon\b/);
+
+      // Somebody scores. The next point has no declarations yet, which IS the
+      // state a point starts in.
+      await keeper.locator('#homeBtn').click();
+      await expect(keeper.locator('#homeScore')).toHaveText('1');
+      await expect(keeper.locator('#possOff'), 'a fresh point is the offence\'s')
+        .toHaveClass(/\bon\b/);
+      await expect(keeper.locator('#possDef')).not.toHaveClass(/\bon\b/);
+      await phone.close();
+    });
+
   test('the advanced panel is behind a toggle, and remembers being opened',
     async ({ page, browser }) => {
       // Not the job. The two big buttons are the job, and eight more controls in

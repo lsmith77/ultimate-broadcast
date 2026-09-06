@@ -258,6 +258,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 <script src="<?= htmlspecialchars($assetUrl('shared/field.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/stoppage.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/timeouts.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/overlay-client.js'), ENT_QUOTES) ?>"></script>
 <?php if ($demo) : ?>
@@ -559,6 +560,43 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
      */
     function possessionFileUrl() {
         return CONFIG.possessionBase + '/conf/possession-' + (CONFIG.gameId) + '.json';
+    }
+
+    /**
+     * The locally kept score, when an operator has switched this game to it.
+     *
+     * Polled on the fast channel rather than the game payload's, and read
+     * straight off disk as a static file, for exactly the reason the store
+     * exists: Live! caches a game for thirty seconds, so a goal is on air
+     * somewhere between at once and half a minute late. This is about a second.
+     *
+     * A failed read is not an error to show. It means "not switched", which is
+     * the normal case, and a scoreboard must not put a diagnostic on the
+     * broadcast canvas because a file it optionally reads was not there.
+     */
+    var localScore = null;
+
+    function scoreFileUrl() {
+        return CONFIG.possessionBase + '/conf/score-' + (CONFIG.gameId) + '.json';
+    }
+
+    function pollScore() {
+        fetch(scoreFileUrl() + '?_=' + Date.now(), { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (state) {
+                var was = localScore && localScore.rev;
+                var wasOn = window.ScoreSource.active(localScore);
+                localScore = state;
+                var isOn = window.ScoreSource.active(state);
+                // Repaint when the score moved, and when the SWITCH moved —
+                // otherwise turning it off leaves the local score on screen
+                // until the next upstream poll, up to thirty seconds later.
+                if (isOn !== wasOn || (isOn && state.rev !== was)) {
+                    if (lastPayload) { render(lastPayload); }
+                }
+            })
+            .then(function () { setTimeout(pollScore, CONFIG.possessionPoll); });
     }
 
     function pollDeclared() {
@@ -955,7 +993,18 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         }
     }
 
+    /**
+     * The last thing upstream said, kept so the fast score channel can repaint
+     * without waiting for the slow one.
+     */
+    var lastPayload = null;
+
     function render(payload) {
+        lastPayload = payload;
+        // Before anything reads it: every derivation below — the score, the
+        // clock, hold and break, the point number — then works on one payload
+        // without knowing or caring which answer it holds.
+        payload = window.ScoreSource.merge(payload, localScore);
         var result = payload.game_result || {};
         var info = payload.game_info || {};
         var pool = payload.poolinfo || {};
@@ -1076,7 +1125,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
     // Declared possession runs on its own clock, independent of the game poll:
     // it is a different channel at a different pace, and it must keep working
     // when the game payload is stale.
-    if (!CONFIG.demo) { pollDeclared(); }
+    if (!CONFIG.demo) { pollDeclared(); pollScore(); }
 
     /**
      * Everything the board remembers about the game it is showing.

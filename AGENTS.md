@@ -4,7 +4,7 @@ Guidance for coding agents working on the broadcast overlays. Keep this file sho
 
 ## Project overview
 
-Broadcast graphics for Ultimate tournaments, extending Live! by BULA (which runs on UltiOrganizer 4). Three surfaces: the **scoreboard** bug, the **studio** (a full-frame stage plus the page that controls it), and the **commentator** second screen. See `docs/README.md`.
+Broadcast graphics for Ultimate tournaments, extending Live! by BULA (which runs on UltiOrganizer 4). Four surfaces: the **scoreboard** bug, the **studio** (a full-frame stage plus the page that controls it), the **commentator** second screen, and **match control** — the score and clock, kept from a phone. See `docs/README.md`.
 
 Installed by dropping this directory into `live/overlays/` of a Live! install. It is its own repository; the host is not.
 
@@ -167,7 +167,7 @@ Fixtures: `fixtures/dev-fixture.sql` (idempotent — two 28-player squads, one f
 - `docs/UPSTREAM.md` — the digest of asks against UltiOrganizer and Live!, one entry per ask linking to its full case in `STUDIO.md` or `COMMENTATOR.md`.
 - `docs/SETUP.md` — a concept, nothing built: configurable per-rig profiles covering setup, in-game reminders and teardown. The idea worth keeping is that a checklist earns its place only where the software can *verify* an item or where getting it wrong puts something false on air; ten such items are already machine-checkable and surfaced nowhere. Its most valuable item is at teardown: how many post-production anchors this game will need, which depends on how it was scored and is unrecoverable once everyone has left.
 - `docs/RELAY.md` — **a future direction, not scheduled**: whether the state could live in the browsers with a server that only relays. `STANDALONE.md` is the near-term path and is server-based on purpose. Worth reading for two things — that the existing stores are already nearly CRDTs, and the two-tier rule about which surfaces may take dependencies.
-- `docs/MATCHCONTROL.md` — a concept, nothing built: where score and clock are kept and by whom, at crew sizes one to four, in both modes. The rule worth knowing before touching goal entry is that a goal is written as the point it creates, never as `+1`.
+- `docs/MATCHCONTROL.md` — **built**: the score and clock store, the phone surface at `/k/<game>`, and the Studio switch that decides whether the scoreboard reads it or upstream. §0 is what exists. The rule to know before touching goal entry is that a goal is written as **the point it creates**, never as `+1` — that is what makes a retry safe, and the offline outbox rests entirely on it. It writes to this project only: UltiOrganizer's API is read-only, so a score kept here is parallel to the tournament record and never replaces it.
 - `docs/STANDALONE.md` — running the overlays without UltiOrganizer. **Milestones 1–3 are built**: `shared/provider.js` is the one way to read Live!, `shared/auth.php` the one place anything asks whether a request may reach air, and `app.php` a front controller for a host that has no host. Read it before adding anything that reaches for UltiOrganizer, and use `Overlays\Mode` rather than writing `/live/overlays/` into a page — that assumption was in every one of them and broke the moment this directory was served from a document root.
 
 Keep them in sync with the code. When a doc and the code disagree, the doc is a bug — this project's docs are load-bearing, because most of what they record is *why* something is the way it is, which the code cannot say.

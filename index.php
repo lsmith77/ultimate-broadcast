@@ -187,7 +187,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     .picker .cell:disabled { cursor: not-allowed; opacity: .55; }
 
     /* Possession: two states, one key each, sized to be hit without looking. */
-    .stagebar.possession { border-top: 1px solid #1e293b; padding-top: .75rem; margin-top: .25rem; }
+    .stagebar.possession,
+    .stagebar.scorekeeper { border-top: 1px solid #1e293b; padding-top: .75rem; margin-top: .25rem; }
     .poss { background: #0b1220; border: 1px solid #334155; color: #cbd5e1; font: inherit;
             font-weight: 700; font-size: .82rem; padding: .4rem .9rem; border-radius: 5px;
             cursor: pointer; white-space: nowrap; }
@@ -485,6 +486,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     // jerseys minutes before the pull.
 
     var COLORS_URL = <?= json_encode(\Overlays\Mode::viewUrl('colors', $base), JSON_UNESCAPED_SLASHES) ?>;
+    var SCORE_URL = <?= json_encode(\Overlays\Mode::viewUrl('score', $base), JSON_UNESCAPED_SLASHES) ?>;
 
     var state = { games: {}, admin: false, writable: false };
     var teamIndex = {};
@@ -988,6 +990,22 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         return window.Tracking.client({ endpoint: POSSESSION_URL, game: game });
     }
 
+    /**
+     * Follow the stage when it changes game.
+     *
+     * The score switch belongs to a game, not to the stage, so moving the stage
+     * to a different game must re-read it — otherwise the button keeps
+     * reporting the previous game's answer, which is the sort of stale control
+     * that gets pressed.
+     */
+    var scoreStateGame = null;
+
+    function syncScoreState() {
+        if (scoreStateGame === (show.game || null)) { return; }
+        scoreStateGame = show.game || null;
+        loadScoreState().then(renderStage);
+    }
+
     function postPossession(change) {
         if (!show.game) {
             return Promise.reject(new Error('Pick a game first.'));
@@ -1194,6 +1212,172 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         return bar;
     }
 
+    /**
+     * What the score store says about this game, refreshed with the bar.
+     *
+     * Only `enabled` matters to the Studio: the score itself is the overlay's
+     * business, and an operator who wants to see it looks at the programme
+     * output, which is where they are already looking.
+     */
+    var scoreState = { enabled: false, code: null, nominated: false };
+
+    function loadScoreState() {
+        if (!show.game) {
+            scoreState = { enabled: false, code: null, nominated: false };
+
+            return Promise.resolve();
+        }
+
+        return fetch(SCORE_URL + '&game=' + encodeURIComponent(show.game),
+            { credentials: 'same-origin' })
+            .then(readJson)
+            .then(function (body) {
+                // `code` comes back only to an administrator — the endpoint
+                // decides that, not this page — and `nominated` is the yes/no
+                // everyone else gets.
+                scoreState = {
+                    enabled: Boolean(body.enabled),
+                    code: body.code || null,
+                    nominated: Boolean(body.nominated)
+                };
+            })
+            .catch(function () { scoreState = { enabled: false, code: null, nominated: false }; });
+    }
+
+    /** Any administrator write to the score store, with the state absorbed. */
+    function postScore(body) {
+        return fetch(SCORE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+            .then(readJson)
+            .then(function (state) {
+                scoreState = {
+                    enabled: Boolean(state.enabled),
+                    code: state.code || null,
+                    nominated: Boolean(state.nominated)
+                };
+
+                return state;
+            });
+    }
+
+    function setScoreSource(on) {
+        postScore({ game: show.game, enabled: on })
+            .then(function (state) {
+                // Re-render FIRST: renderStage() rebuilds the bar, and the flash
+                // node lives in it, so a message set before the rebuild is
+                // discarded by it. This confirmation never appeared until the
+                // scorekeeping code needed the same trick and exposed it.
+                renderStage();
+                flash(state.enabled
+                    ? 'The scoreboard now reads match control.'
+                    : 'The scoreboard reads upstream again.');
+            })
+            .catch(function (e) { alert(e.message); });
+    }
+
+    /**
+     * Match control: who may keep the score, and whether the board reads it.
+     *
+     * Its own bar rather than a corner of the possession one, because it is a
+     * different job handed to a different person — and because until this
+     * existed there was **no way to nominate a scorekeeping code at all**.
+     * `score.php` has always accepted one and `matchcontrol.php` has always
+     * told the scorekeeper to "ask the operator to set one", but the operator
+     * had nothing to set it with, so the only person who could keep score was
+     * an administrator (who may write without a code). Found by trying to use
+     * the first real deployment.
+     *
+     * Deliberately mirrors the commentator link bar: same masking, same
+     * generator, same reasoning. Two codes that behave differently would be two
+     * things to remember on a day when nobody has the attention to spare.
+     */
+    function scorekeeperBar() {
+        // Re-reads when the stage moves to a different game, because both the
+        // code and the switch belong to a game rather than to the stage.
+        syncScoreState();
+
+        var bar = el('div', 'stagebar scorekeeper');
+        bar.append(el('span', 'muted', 'Match control'));
+
+        var codeIn = document.createElement('input');
+        codeIn.type = 'text';
+        codeIn.className = 'codein';
+        codeIn.maxLength = 5;
+        codeIn.placeholder = '—————';
+        codeIn.value = scoreState.code || '';
+        codeIn.disabled = !showCanEdit() || !show.game;
+        codeIn.setAttribute('aria-label', 'Scorekeeping code');
+        codeIn.title = 'The 5-character code a scorekeeper enters at /k/<game>. '
+            + 'Only that code may keep score; clear the field to take it back.';
+        codeIn.addEventListener('change', function () {
+            var v = codeIn.value.toUpperCase().trim();
+            postScore({ game: show.game, code: v || null })
+                .then(function (state) {
+                    // Not echoed back, like the commentator code: they just
+                    // typed it, and repeating it only puts it on screen twice.
+                    renderStage();
+                    flash(state.nominated ? 'That code can now keep score.'
+                        : 'Scorekeeping revoked.');
+                })
+                .catch(function (e) { alert(e.message); });
+        });
+        bar.append(codeIn);
+
+        // Masked for the same reason as the commentator code, and with more at
+        // stake: this one writes the score that reaches air.
+        var peek = el('button', 'undo peek');
+        window.Secret.guard(codeIn, peek, { label: 'scorekeeping code' });
+        bar.append(peek);
+
+        var gen = el('button', 'undo', '↺ New code');
+        gen.type = 'button';
+        gen.disabled = !showCanEdit() || !show.game;
+        gen.title = 'Generate one to read out to whoever is keeping score.';
+        gen.addEventListener('click', function () {
+            postScore({ game: show.game, code: 'new' })
+                .then(function (state) { renderStage(); flash('Code is ' + state.code + '.'); })
+                .catch(function (e) { alert(e.message); });
+        });
+        bar.append(gen);
+
+        // Where the scoreboard reads its score from.
+        //
+        // Here rather than anywhere else because it is a decision about what
+        // reaches air. The reason to switch it is latency: Live! serves a game
+        // with a flat 30-second cache, so a goal is on screen somewhere between
+        // at once and half a minute late, and no polling rate improves that. A
+        // score kept in match control is on the overlay in about a second.
+        //
+        // The cost is that somebody then has to keep it — which is why the
+        // scorekeeper's own page says, in a banner, when this is off.
+        var srcOn = Boolean(scoreState.enabled);
+        var src = el('button', 'autobtn' + (srcOn ? ' on' : ''));
+        src.type = 'button';
+        src.disabled = !showCanEdit() || !show.game;
+        src.textContent = srcOn ? 'Score from: match control' : 'Score from: upstream';
+        src.title = srcOn
+            ? 'The scoreboard is reading the score somebody is keeping in match '
+                + 'control. Switch back and it reads Live! again, up to 30s behind.'
+            : 'Read the score from match control instead, which is about a second '
+                + 'behind rather than up to thirty. Somebody has to be keeping it.';
+        src.setAttribute('aria-pressed', srcOn ? 'true' : 'false');
+        src.addEventListener('click', function () { setScoreSource(!srcOn); });
+        bar.append(src);
+
+        // Says whether anybody CAN keep score, which is the question an operator
+        // about to switch the source is actually asking. Switching to a source
+        // nobody can write is how a scoreboard freezes on 0-0.
+        if (!scoreState.nominated) {
+            bar.append(el('span', 'connected', 'no code set'));
+        }
+
+        return bar;
+    }
+
     function possessionBar() {
         var bar = el('div', 'stagebar possession');
         var on = Boolean(possession.enabled);
@@ -1212,6 +1396,11 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         mode.setAttribute('aria-pressed', on ? 'true' : 'false');
         mode.addEventListener('click', function () { setPossessionMode(!on); });
         bar.append(mode);
+
+        // "Score from:" used to sit here. It moved to scorekeeperBar(), beside
+        // the code that decides who may keep that score — the two are one
+        // decision and reading them in two places was how the source got
+        // switched to a store nobody could write.
 
         // The first point's ratio sits here, not on the progression card.
         //
@@ -1719,6 +1908,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         stagePanel.append(bottom);
         stagePanel.append(linkBar());
         stagePanel.append(possessionBar());
+        stagePanel.append(scorekeeperBar());
 
         var note = el('p', 'muted');
         note.style.marginTop = '.5rem';
@@ -1895,6 +2085,10 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 trackFor(show.game).read()
                     .then(function (state) { possession = state; renderStage(); })
                     .catch(function () { /* the poll will retry */ });
+                // Which way the score switch is set, for the same reason and on
+                // the same trigger: it is per game, so it cannot be known until
+                // show state has said which game.
+                loadScoreState().then(renderStage);
             }
             startPossessionPoll();
         })

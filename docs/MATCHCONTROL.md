@@ -1,6 +1,38 @@
 # Score and clock — where they are kept, and by whom
 
-A concept, not a plan of record. Nothing here is built.
+**Built, and in use as of this document's last revision.** §§1–9 were written before any of it existed and are the reasoning; what follows immediately is what actually shipped, because the reasoning turned out to be right about the shape and wrong about the priority.
+
+## 0. What exists
+
+| | |
+|---|---|
+| `shared/score.php` | the store: goals keyed by the point they complete, the clock as UltiOrganizer's own three fields, and the nominated code in a separate `.private.json` |
+| `score.php` | the endpoint. Reads are open; writes need the administrator session or the code an operator nominated |
+| `shared/score-client.js` | the outbox: every press applied locally first, queued, retried |
+| `matchcontrol.php`, at **`/k/<game>`** | the phone surface — two presses, the score, a clock, an undo, a sync state |
+| The **More** panel on that phone | possession, timeouts, an injury stoppage and the first point's ratio — behind a toggle, because they are not the job |
+| `shared/score-source.js` | puts a locally kept score into the payload every renderer already reads |
+| The Studio's **Match control** bar | the scorekeeping code — nominate, generate, revoke — beside the **Score from** switch (`upstream` ⇄ `match control`), per game, administrator only |
+
+**The reason it was built was not standalone mode.** It was latency: Live! serves a single game with a flat 30-second cache, so a goal is on air somewhere between at once and half a minute late and no polling rate improves that — the copy being polled is the stale one. Measured through the switch, a goal reaches the scoreboard in **about a second**.
+
+**The code and the switch are one decision, in one place.** They were not: the switch shipped in the Studio and the code could only be nominated over the API, so `matchcontrol.php` told a scorekeeper to "ask the operator to set one" and the operator had nothing to set it with. The only person who could keep score was an administrator, who may write without a code — which is not a hand-off. Found by trying to use the first real installation, and fixed by putting both controls in one bar: switching the source to a store nobody can write is how a scoreboard freezes on 0-0, so the bar says "no code set" until one is.
+
+**A press carries the time it was pressed.** Not the time it arrived — which over a bad connection is a different second, and for the clock a materially different one: `timer_start` is absolute, so a start delivered after a five-minute outage would run the rest of the game five minutes short, on air. The queue also survives a reload, because a bad connection is exactly when somebody pulls to refresh to see whether that helps.
+
+**The rest of what only somebody at the pitch knows.** Possession, an injury stoppage and the opening ratio were reachable from the Studio and the commentary desk and nowhere else — while the person actually watching the game closely enough to press a button per point was holding a phone with two buttons on it. They are the same kind of fact as the score: true about the game and recorded nowhere upstream. So the **scorekeeping code now opens them too** (`possession.php`), rather than asking one person to carry two five-character codes, and it grants nothing upward — switching the mode on, nominating a code and changing the game stay the operator's.
+
+**Timeouts are recorded here now, and were recorded nowhere before.** UltiOrganizer keeps them as game events, so a standalone installation had no way to note one and the allowance drawn on air never moved however many were called. They live in the score store, numbered **per side** by the same rule that makes a goal safe to retry — "home's second timeout" written twice is one timeout — and `shared/score-source.js` puts them into `gameevents`, which is the shape `shared/timeouts.js` already counts from. Switching the scoreboard's source switches the timeouts with it, because a board showing this project's score beside Live!'s timeouts would be two answers about one game.
+
+**The panel is behind a toggle.** The two big buttons are the job; eight more controls in front of them is how somebody presses the wrong one at 13-12. Whoever wants it opens it once and the phone remembers.
+
+**The phone says when it is not the source.** A banner across the top, shown whether or not that phone may write. The failure it prevents is somebody keeping a whole game's score carefully into a store nothing reads, which looks exactly like working until somebody watches the broadcast.
+
+**What is deliberately not collected:** who scored and who assisted. A scorekeeper on a phone is not going to pick two players out of a squad per point, so the goals carry the point number and the side and nothing else — and `scorer` is *omitted* rather than sent as zero, so a top-scorer card shows nothing instead of a whole squad on nought.
+
+**Still open:** delivering the log upstream. UltiOrganizer's API is read-only — six endpoints, GET only — so there is nowhere to send it yet. The log is already the outbox: append-only, ordered, and idempotent by the point-number rule, which is the shape a push API would want. [`UPSTREAM.md`](UPSTREAM.md) records that as shared ground.
+
+---
 
 It arose from the standalone question ([`STANDALONE.md`](STANDALONE.md)), where nothing keeps the score, but it is **not standalone-specific**: hosted mode has the same problem wearing different clothes, and §8 is about that.
 
@@ -132,12 +164,17 @@ If a use emerges that the output does not serve — a warning that a team is abo
 
 In hosted mode score and clock come from UltiOrganizer's Scorekeeper, driven by a tournament volunteer at the pitch. That separation is healthy and should not be dissolved: **the scoresheet is the tournament's record and the overlay is a picture of it.** Standalone recreates the picture; it must not quietly become the record for a game the tournament also records elsewhere.
 
-So hosted mode does not want a second score input. It does want the same surface with different powers:
+**That prediction was half wrong, and what shipped is worth stating plainly.** Hosted mode *does* take a second score input, because latency made it worth one: an operator can switch a game's scoreboard to match control and the overlay then reads this score instead of Live!'s (§0). What has not changed is the direction of travel —
+
+> **Nothing here is ever written back to UltiOrganizer or Live!.** Their API is read-only, six endpoints and GET only, so there is nowhere to send a goal even if we wanted to. A game kept in match control is a **parallel** score that the overlay can be pointed at; UO's own scoresheet remains whatever UO's scorekeeper entered, and the tournament's record is unaffected either way.
+
+So the separation the section below argues for survives, but as a fact about *storage* rather than about *display*:
 
 | | standalone | hosted |
 |---|---|---|
-| Score | authoritative | **read-only** — shows what the Scorekeeper recorded |
-| Clock | authoritative | read-only **while UO has one** |
+| Score, on the overlay | authoritative | authoritative **when an operator switches to it**, otherwise Live!'s |
+| Score, in the tournament's record | this is the record | **never touched** — UO's scoresheet is the record and this cannot write to it |
+| Clock | authoritative | same switch, and see the gap below for when UO has none |
 
 The exception is worth building, because the gap is already documented. `STUDIO.md` §10.3 records it: *"`timer_start` is only written by Scorekeeper. A scorekeeper who never starts the clock means no clock on air, and the overlay silently falls back to a status word. Worth a pre-game checklist item."*
 

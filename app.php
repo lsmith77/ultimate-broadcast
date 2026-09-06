@@ -58,12 +58,12 @@
 if (PHP_SAPI === 'cli-server') {
     $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-    // Operator state: default closed, open two files by name. The same rule the
-    // .htaccess states, for the same reason — the stage polls show.json and the
-    // possession file as static assets about once a second, and routing those
-    // through PHP would be a bootstrap per second per stage.
+    // Operator state: default closed, open three files by name. The same rule
+    // the .htaccess states, for the same reason — the stage polls show.json,
+    // the possession file and the score as static assets about once a second,
+    // and routing those through PHP would be a bootstrap per second per stage.
     if (preg_match('#(^|/)conf(/|$)#', $path)) {
-        if (!preg_match('#/conf/(show\.json|possession-[0-9]+\.json)$#', $path)) {
+        if (!preg_match('#/conf/(show\.json|possession-[0-9]+\.json|score-[0-9]+\.json)$#', $path)) {
             http_response_code(404);
             exit;
         }
@@ -89,7 +89,7 @@ if (PHP_SAPI === 'cli-server') {
     // defaults to the picker — so a mistyped script URL answered 200 with a
     // page of HTML, and the browser reported it as "Unexpected token '<'".
     if ($path !== '/' && $path !== '/app.php'
-        && preg_match('#^/(s|c)(/|$)#', $path) !== 1) {
+        && preg_match('#^/(s|c|k)(/|$)#', $path) !== 1) {
         http_response_code(404);
         exit;
     }
@@ -135,6 +135,8 @@ $views = [
     'lines' => 'lines.php',
     'notes' => 'notes.php',
     'colors' => 'colors.php',
+    'score' => 'score.php',
+    'matchcontrol' => 'matchcontrol.php',
     'login' => 'login.php',
     'tests/selftest' => 'tests/selftest.php',
 ];
@@ -177,10 +179,13 @@ $short = [
     ['#^/s/?$#', 'index', []],
     ['#^/c/([0-9]+)/?$#', 'commentator', ['game' => 1]],
     ['#^/c/?$#', 'commentator', []],
+    // The scorekeeper's own entry point, for the same reason /c/ has one: a
+    // different job and a different person, and this one is typed on a phone.
+    ['#^/k/([0-9]+)/?$#', 'matchcontrol', ['game' => 1]],
 ];
 
 $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (preg_match('#^/(s|c)(/|$)#', $requestPath) === 1) {
+if (preg_match('#^/(s|c|k)(/|$)#', $requestPath) === 1) {
     foreach ($short as [$pattern, $view, $params]) {
         if (preg_match($pattern, $requestPath, $m) !== 1) {
             continue;

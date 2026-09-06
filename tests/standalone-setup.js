@@ -27,7 +27,7 @@ const SOURCE = path.join(__dirname, '..');
 const RUNTIME = [
   'app.php', 'login.php', 'index.php', 'scoreboard.php', 'stage.php',
   'commentator.php', 'show.php', 'possession.php', 'lines.php', 'notes.php',
-  'colors.php', 'shared', 'images', '.htaccess',
+  'colors.php', 'score.php', 'matchcontrol.php', 'shared', 'images', '.htaccess',
 ];
 
 /**

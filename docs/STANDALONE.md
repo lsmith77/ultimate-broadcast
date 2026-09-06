@@ -1,6 +1,10 @@
 # Standalone mode — the overlays without UltiOrganizer
 
-These overlays are built for an UltiOrganizer installation with Live! by BULA underneath. **They also run without one.** Every surface — the Studio, the stage, the scoreboard and the commentary desk — will render a game from a recorded payload with no host, no database and no network, and CI proves it on every push.
+These overlays are built for an UltiOrganizer installation with Live! by BULA underneath. **They also run without one.** Every surface — the Studio, the stage, the scoreboard, the commentary desk and match control — will render a game from a recorded payload with no host, no database and no network, and CI proves it on every push.
+
+One of those is not a renderer at all. **Match control keeps the score and the clock here**, in this project's own store, which means the live half of a broadcast does not depend on a recording being current — a standalone installation replays who is playing and keeps what is happening.
+
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a running one, if you would rather click than read.
 
 This document is the current state: what works, how to run it, what is missing, and what the next step is. The reasoning that produced the design is in the code, next to the code.
 
@@ -17,6 +21,8 @@ A tournament scored on paper. A club streaming a friendly. A showcase game outsi
 | **Making a recording** | `tests/capture.mjs` drives `Provider.live()` against an instance and writes down what comes back |
 | **Serving the pages** | `app.php` — a front controller with an explicit allow-list, the short URLs (`/s/702`, `/c/702`), and the `conf/` rules restated because `php -S` reads no `.htaccess` |
 | **Deciding who may change what is on air** | `shared/auth.php`. One function, two answers: Live!'s session when there is a Live!, a local one against a hash in `conf/` when there is not |
+| **Keeping the score and the clock** | `shared/score.php` is the store, `matchcontrol.php` the phone surface at `/k/<game>`, and `shared/score-source.js` puts the result into the payload shape every renderer already reads. Hosted this is one of two possible sources and the Studio chooses per game; standalone there is no other, so it is simply the score. See [`MATCHCONTROL.md`](MATCHCONTROL.md) §0 |
+| **Scoring with no signal** | `shared/score-client.js` applies a press locally, queues it, and retries until it lands. Safe only because a goal is written as **the point it creates** rather than as `+1`, so sending it twice is not two goals |
 | **Signing in** | `login.php`, which 404s under a host because the host owns that door |
 | **Knowing where it lives** | `shared/mode.php` — asset and endpoint URLs, rather than `/live/overlays/` written into every page |
 
@@ -66,7 +72,7 @@ Ordered by what would bite first.
 1. **A store** — `conf/standalone/`, holding an event, its teams, and per-game files. Written in **Live!'s payload shape**, which is the constraint everything else rests on (§7).
 2. **An authoring surface** for the things that do not change during a game: the event, the teams with their short names and colours, a game with its field, target score and caps.
 3. **Rosters through the CSV that already exists.** The bio round trip already sends each team a file with `Number` and `Name` columns, already refuses another team's file, already validates matchings. Hosted, those columns are decoration. Standalone they become the source of truth — a promotion, not a new mechanism.
-4. **Score and clock**, which is [`MATCHCONTROL.md`](MATCHCONTROL.md) and is a surface of its own. The clock is three integers; the score is the `goals` array, and the rule that makes it safe is that a goal is written as *the point it creates*, never as `+1`.
+4. **Score and clock — built.** [`MATCHCONTROL.md`](MATCHCONTROL.md) §0: a store, a phone surface at `/k/<game>`, and a per-game switch deciding whether the scoreboard reads it or upstream. Standalone has no upstream, so there it is simply the score. (It never writes to UltiOrganizer in either mode — that API is read-only.) The clock is three integers; the score is the `goals` array, and the rule that makes it safe is that a goal is written as *the point it creates*, never as `+1`.
 
 **What can wait:** accumulating totals across games within a standalone event. It is real — it is every "Tournament" number a player sheet shows — but it turns a per-game store into an event database, which is the thing this mode exists to avoid needing.
 
@@ -95,11 +101,13 @@ Not much, but the shape is unusual: **many small polls, no bursts, and a hard la
 | Poller | Interval | What it hits |
 |---|---|---|
 | Stage — what is on air | ~1s | `conf/show.json` as a **static file**, deliberately not through PHP |
+| Scoreboard — the local score | ~1s | `conf/score-<game>.json`, on the same static fast channel and for the same reason: a point that reaches air a second late is the one thing a scoreboard cannot be forgiven |
 | Possession, and the shared line | 2s | Two routed PHP endpoints |
+| Match control — the scorekeeper's phone | 4s | A routed PHP endpoint, plus a retry of anything unsent every 3s |
 | Game data | 10s | The payload provider |
 | Prepared notes | 15s | A routed PHP endpoint |
 
-One field in use is roughly **one scoreboard browser, one stage browser and one or two commentary desks**, so about 4–6 pollers per pitch. Ten pitches is at most a few hundred requests a minute, nearly all of them conditional GETs for small JSON. Any PHP host from the last decade handles this; a Raspberry Pi on the venue LAN handles this. **The requirement is not throughput, it is the ~1s file.** `conf/show.json` is served by the web server rather than by PHP precisely so that an operator's click feels instant, and anything in front of it — a proxy, a CDN, an aggressive `Cache-Control` — that adds a second of staleness is a second of a graphic staying on air after it was taken off.
+One field in use is roughly **one scoreboard browser, one stage browser, one or two commentary desks and a phone**, so about 5–7 pollers per pitch. Ten pitches is at most a few hundred requests a minute, nearly all of them conditional GETs for small JSON. Any PHP host from the last decade handles this; a Raspberry Pi on the venue LAN handles this. **The requirement is not throughput, it is the ~1s file.** `conf/show.json` is served by the web server rather than by PHP precisely so that an operator's click feels instant, and anything in front of it — a proxy, a CDN, an aggressive `Cache-Control` — that adds a second of staleness is a second of a graphic staying on air after it was taken off.
 
 ### What standalone adds
 

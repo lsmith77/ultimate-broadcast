@@ -33,10 +33,11 @@ test.describe('operator state is default closed', () => {
     expect(await status(request, '/conf/notes/')).toBe(404);
   });
 
-  test('only the two files the stage polls are public', async ({ request }) => {
-    // show.json and possession-<game>.json are served as static assets on
-    // purpose: at a one-second poll, routing them through PHP would be a
-    // bootstrap per second per stage. Everything else has a PHP front door.
+  test('only the three files the stage polls are public', async ({ request }) => {
+    // show.json, possession-<game>.json and score-<game>.json are served as
+    // static assets on purpose: at a one-second poll, routing them through PHP
+    // would be a bootstrap per second per stage. Everything else has a PHP
+    // front door.
     expect(await status(request, '/conf/show.json')).toBe(200);
     expect(await status(request, '/conf/team-colors.json')).toBe(404);
     expect(await status(request, '/conf/lines/DDDDD.json')).toBe(404);
@@ -71,6 +72,7 @@ test.describe('the view allow-list', () => {
     const cases = [
       ['/c/702', 'commentator'], ['/s/702', 'scoreboard'], ['/s/702/green', 'scoreboard'],
       ['/s/702/overlay', 'stage'], ['/s/stage', 'stage'], ['/s/', 'index'],
+      ['/k/702', 'matchcontrol'],
     ];
     for (const [url, view] of cases) {
       const res = await request.get(url, { maxRedirects: 0 });
@@ -82,7 +84,7 @@ test.describe('the view allow-list', () => {
   test('a short URL that matches nothing is not the picker', async ({ request }) => {
     // It fell through to the dispatcher, which defaults to index — so /s/999x
     // answered 200 with a page that had nothing to do with what was asked.
-    for (const url of ['/s/999x', '/s/702/notacolour', '/c/abc']) {
+    for (const url of ['/s/999x', '/s/702/notacolour', '/c/abc', '/k/', '/k/abc']) {
       expect(await status(request, url), url).toBe(404);
     }
   });
@@ -254,6 +256,428 @@ test.describe('the standalone login', () => {
     await page.waitForLoadState('networkidle');
     const res = await page.request.get('/app.php?view=show');
     expect((await res.json()).admin).toBe(false);
+  });
+});
+
+test.describe('keeping score', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+  const SCORE = '/app.php?view=score';
+
+  async function signIn(page) {
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+  }
+
+  test('an operator can hand a scorekeeper a code from the Studio', async ({ page, browser }) => {
+    // The whole hand-off, through the controls rather than through the API.
+    // `score.php` has always accepted a nominated code and match control has
+    // always told the scorekeeper to ask the operator for one — but nothing in
+    // the Studio could set it, so the only person who could keep score was an
+    // administrator. That is not a hand-off, and it was found by trying to use
+    // a real installation rather than by any test here.
+    await signIn(page);
+    await page.goto('/app.php?view=index');
+
+    const bar = page.locator('.stagebar.scorekeeper');
+    await expect(bar, 'match control has its own bar').toBeVisible();
+    await expect(bar.locator('.connected'), 'and says nobody can score yet')
+      .toHaveText('no code set');
+
+    await bar.locator('button', { hasText: 'New code' }).click();
+    await expect(bar.locator('.connected')).toHaveCount(0);
+
+    // Read it the way the operator does — the flash carries it, the field stays
+    // masked — then use it from a phone with no session at all.
+    await expect(page.locator('#stageFlash')).toHaveText(/^Code is [A-Z0-9]{5}\.$/);
+    const code = (await page.locator('#stageFlash').textContent() || '')
+      .replace(/[^A-Z0-9]/g, '').slice(-5);
+    expect(code, 'the operator has something to read out').toMatch(/^[A-Z0-9]{5}$/);
+
+    // The code belongs to the game the stage is on, which conf/show.json names
+    // and which is public precisely so the stage can poll it.
+    const onAir = await (await page.request.get('/conf/show.json')).json();
+
+    // From a session-less context, which is what a scorekeeper's phone is: an
+    // administrator may always write, so asking this from the operator's own
+    // page would be asking the wrong seat.
+    //
+    // It asks whether the phone MAY keep score rather than keeping one. A goal
+    // here would be residue in a game other tests assert the score of — the
+    // failure AGENTS.md names, and one this test caused before it was written
+    // this way.
+    const phone = await browser.newContext();
+    const origin = new URL(page.url()).origin;
+    const ask = (c) => phone.request.get(
+      `${origin}${SCORE}&game=${onAir.game}&code=${c}`,
+    ).then((r) => r.json());
+
+    expect((await ask(code)).canWrite, 'the phone can now keep score').toBe(true);
+    expect((await ask('ZZZZZ')).canWrite, 'and only with that code').toBe(false);
+    expect((await ask(code)).code, 'which is never echoed to a phone').toBeNull();
+    await phone.close();
+  });
+
+  test('a write needs the code an administrator nominated', async ({ page }) => {
+    // Harder than the line store on purpose: that one takes unauthenticated
+    // writes because nothing in it reaches a viewer. A score does.
+    const anon = await page.request.post(SCORE, {
+      data: { game: 900, code: 'ABCDE', goal: { home: true } },
+    });
+    expect(anon.status(), 'nothing nominated yet').toBe(403);
+
+    await signIn(page);
+    const named = await page.request.post(SCORE, { data: { game: 900, code: 'ABCDE' } });
+    expect((await named.json()).nominated).toBe(true);
+
+    // From a session-less context, which is what a scorekeeper's phone is. An
+    // administrator may always write, so asking this from the admin's own page
+    // would be asking the wrong seat.
+    const phone = await page.context().browser().newContext();
+    const base = new URL(page.url()).origin;
+    const wrong = await phone.request.post(`${base}${SCORE}`, {
+      data: { game: 900, code: 'ZZZZZ', goal: { home: true } },
+    });
+    expect(wrong.status(), 'another code still cannot').toBe(403);
+    const right = await phone.request.post(`${base}${SCORE}`, {
+      data: { game: 900, code: 'ABCDE', goal: { home: true } },
+    });
+    expect(right.status(), 'the nominated one can').toBe(200);
+    expect((await right.json()).home).toBe(1);
+    await phone.close();
+  });
+
+  test('a goal is the point it creates, so a retry is not a second goal', async ({ page }) => {
+    // The rule the whole design rests on. A scorekeeper on a failing connection
+    // retries constantly; +1 pressed twice is a real 2-0 from one point.
+    await signIn(page);
+    await page.request.post(SCORE, { data: { game: 901, code: 'ABCDE' } });
+
+    const post = (body) => page.request.post(SCORE, { data: { game: 901, code: 'ABCDE', ...body } });
+    await post({ goal: { home: true } });
+    await post({ goal: { home: false } });
+    let state = await (await post({ goal: { home: true, num: 3 } })).json();
+    expect([state.home, state.away]).toEqual([2, 1]);
+    const revAfterThree = state.rev;
+
+    // The same point again, three times, as a flaky connection would.
+    for (let i = 0; i < 3; i += 1) {
+      state = await (await post({ goal: { home: true, num: 3 } })).json();
+    }
+    expect([state.home, state.away], 'the score did not move').toEqual([2, 1]);
+    expect(state.rev, 'and neither did the revision').toBe(revAfterThree);
+    expect(state.warning).toBe('Already recorded.');
+  });
+
+  test('a gap is refused rather than guessed', async ({ page }) => {
+    await signIn(page);
+    await page.request.post(SCORE, { data: { game: 902, code: 'ABCDE' } });
+    const res = await page.request.post(SCORE, {
+      data: { game: 902, code: 'ABCDE', goal: { home: true, num: 7 } },
+    });
+    // 409, not 500: re-read and reapply, do not retry this body.
+    expect(res.status()).toBe(409);
+  });
+
+  test('undo takes back the last point, and only once', async ({ page }) => {
+    await signIn(page);
+    await page.request.post(SCORE, { data: { game: 903, code: 'ABCDE' } });
+    const post = (body) => page.request.post(SCORE, { data: { game: 903, code: 'ABCDE', ...body } });
+    await post({ goal: { home: true } });
+    await post({ goal: { home: true } });
+
+    let state = await (await post({ undo: { num: 2 } })).json();
+    expect(state.home).toBe(1);
+    // A retried undo must not eat the goal before it.
+    state = await (await post({ undo: { num: 2 } })).json();
+    expect(state.home, 'the retry did nothing').toBe(1);
+  });
+
+  test('the clock is three integers a scoreboard already knows how to draw', async ({ page }) => {
+    await signIn(page);
+    await page.request.post(SCORE, { data: { game: 904, code: 'ABCDE' } });
+    const post = (body) => page.request.post(SCORE, { data: { game: 904, code: 'ABCDE', ...body } });
+
+    let state = await (await post({ clock: 'start' })).json();
+    const started = state.timer_start;
+    expect(started).toBeGreaterThan(0);
+
+    // Pressing start again is somebody checking, not somebody meaning to lose
+    // the first half of the game.
+    state = await (await post({ clock: 'start' })).json();
+    expect(state.timer_start, 'a running clock is not restarted').toBe(started);
+
+    state = await (await post({ clock: 'pause' })).json();
+    expect(state.timer_pause_start).toBeGreaterThan(0);
+    state = await (await post({ clock: 'start' })).json();
+    expect(state.timer_pause_start, 'resuming clears the pause').toBe(0);
+  });
+
+  test('the nominated code is never served to whoever is not an admin', async ({ page }) => {
+    await signIn(page);
+    await page.request.post(SCORE, { data: { game: 905, code: 'ABCDE' } });
+
+    const asAdmin = await (await page.request.get(`${SCORE}&game=905`)).json();
+    expect(asAdmin.code).toBe('ABCDE');
+
+    // A fresh context has no session, which is what a scorekeeper's phone is.
+    const anon = await page.context().browser().newContext();
+    const seen = await (await anon.request.get(
+      `http://127.0.0.1:${new URL(page.url()).port}${SCORE}&game=905`,
+    )).json();
+    expect(seen.code, 'told whether their code counts, never what it is').toBeNull();
+    expect(seen.nominated).toBe(true);
+    await anon.close();
+  });
+});
+
+test.describe('the rest of what only a person at the pitch knows', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+  const SCORE = '/app.php?view=score';
+  const POSS = '/app.php?view=possession';
+
+  async function nominate(page, game) {
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    await page.request.post(SCORE, { data: { game, code: 'QQQQQ' } });
+    await page.request.post(POSS, { data: { game, enabled: true, code: null } });
+  }
+
+  test('the scorekeeping code also writes possession, stoppage and the ratio',
+    async ({ page, browser }) => {
+      // One code on the phone. The alternative was a second five-character code
+      // for the same person, which is a code nobody types correctly at a pitch.
+      await nominate(page, 960);
+
+      const phone = await browser.newContext();
+      const origin = new URL(page.url()).origin;
+      const post = (d) => phone.request.post(`${origin}${POSS}`,
+        { data: { game: 960, code: 'QQQQQ', ...d } });
+
+      expect((await post({ score: '0-0', defence: true })).status(),
+        'possession').toBe(200);
+      expect((await post({ score: '0-0', stoppage: true })).status(),
+        'an injury stoppage').toBe(200);
+      expect((await post({ ratio1: '4MMP/3FMP' })).status(), 'the ratio').toBe(200);
+
+      const state = await (await post({ size: 7 })).json();
+      expect(state.ratio1).toBe('4MMP/3FMP');
+      expect(state.stoppage).toBeTruthy();
+
+      // But it grants nothing upward: the mode and the code stay the operator's.
+      const grab = await phone.request.post(`${origin}${POSS}`,
+        { data: { game: 960, code: 'QQQQQ', enabled: false } });
+      const after = await grab.json();
+      expect(after.enabled, 'the mode is still the operator\'s').toBe(true);
+      await phone.close();
+    });
+
+  test('a wrong code still cannot touch possession', async ({ browser }) => {
+    const anon = await browser.newContext();
+    const refused = await anon.request.post(`${BASE}${POSS}`,
+      { data: { game: 960, code: 'ZZZZZ', score: '0-0', defence: true } });
+    expect(refused.status()).toBe(403);
+    await anon.close();
+  });
+
+  test('a timeout is recorded here, and reaches the ticks on air',
+    async ({ page, browser }) => {
+      // UltiOrganizer keeps timeouts as game events; standalone had nowhere to
+      // put one, so the allowance drawn on air never moved however many were
+      // called.
+      await nominate(page, 961);
+
+      const phone = await browser.newContext();
+      const origin = new URL(page.url()).origin;
+      const call = (d) => phone.request.post(`${origin}${SCORE}`,
+        { data: { game: 961, code: 'QQQQQ', timeout: d } });
+
+      const one = await (await call({ home: true })).json();
+      expect(one.timeouts).toHaveLength(1);
+
+      // Numbered per side, so the same press twice is one timeout — the rule
+      // that lets it be pressed with no signal and sent later.
+      await phone.request.post(`${origin}${SCORE}`,
+        { data: { game: 961, code: 'QQQQQ', timeout: { home: true, num: 1 } } });
+      const still = await (await phone.request.get(`${origin}${SCORE}&game=961`)).json();
+      expect(still.timeouts, 'a retry is not a second timeout').toHaveLength(1);
+
+      const undone = await (await call({ home: true, undo: true })).json();
+      expect(undone.timeouts).toHaveLength(0);
+      await phone.close();
+    });
+
+  test('the advanced panel is behind a toggle, and remembers being opened',
+    async ({ page, browser }) => {
+      // Not the job. The two big buttons are the job, and eight more controls in
+      // front of them is how somebody presses the wrong one at 13-12.
+      await nominate(page, 962);
+
+      const phone = await browser.newContext();
+      const keeper = await phone.newPage();
+      const origin = new URL(page.url()).origin;
+      await keeper.goto(`${origin}/app.php?view=matchcontrol&game=962`);
+      await keeper.locator('#code').fill('QQQQQ');
+      await keeper.locator('#useCode').click();
+
+      await expect(keeper.locator('#moreBtn')).toBeVisible();
+      await expect(keeper.locator('#more')).toBeHidden();
+
+      await keeper.locator('#moreBtn').click();
+      await expect(keeper.locator('#more')).toBeVisible();
+      await expect(keeper.locator('#stopBtn')).toBeVisible();
+
+      await keeper.reload();
+      await expect(keeper.locator('#more'), 'still open after a reload').toBeVisible();
+      await phone.close();
+    });
+});
+
+test.describe('the scorekeeper on a phone', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('a phone keeps scoring through an outage and catches up after', async ({ page, browser }) => {
+    // The reason this surface exists: pitches are in parks. What the person
+    // pressing sees must be what they entered, immediately, and the network
+    // catching up later is the machine's problem rather than theirs.
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    await page.request.post('/app.php?view=score', { data: { game: 910, code: 'ABCDE' } });
+
+    // Session-less, which is what a scorekeeper's phone is.
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await phone.addInitScript(() => localStorage.setItem('uo-score-code-910', 'ABCDE'));
+    const q = await phone.newPage();
+    await q.goto(`${base}/app.php?view=matchcontrol&game=910`);
+    await expect(q.locator('#homeBtn')).toBeVisible();
+
+    await q.locator('#homeBtn').click();
+    await expect(q.locator('#homeScore')).toHaveText('1');
+    await expect(q.locator('#state')).toHaveText('saved');
+
+    await phone.setOffline(true);
+    await q.locator('#homeBtn').click();
+    await q.locator('#awayBtn').click();
+    // Applied here first: the count in front of the scorekeeper is the count
+    // they entered, and they are told plainly it has not landed.
+    await expect(q.locator('#homeScore')).toHaveText('2');
+    await expect(q.locator('#awayScore')).toHaveText('1');
+    await expect(q.locator('#state')).toHaveText('2 unsent');
+
+    await phone.setOffline(false);
+    await expect(q.locator('#state')).toHaveText('saved', { timeout: 15000 });
+
+    // And the server ended up with exactly what was pressed — not more, which
+    // is what an outbox of `+1` messages would have produced.
+    const server = await (await page.request.get('/app.php?view=score&game=910')).json();
+    expect([server.home, server.away]).toEqual([2, 1]);
+    await phone.close();
+  });
+
+  test('the phone says plainly when the scoreboard is not reading it', async ({ page, browser }) => {
+    // The failure this prevents: somebody keeps a whole game's score carefully
+    // into a store nothing consumes. That looks exactly like working, right up
+    // until somebody watches the broadcast.
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    await page.request.post('/app.php?view=score', { data: { game: 912, code: 'ABCDE' } });
+
+    const phone = await browser.newContext();
+    await phone.addInitScript(() => localStorage.setItem('uo-score-code-912', 'ABCDE'));
+    const q = await phone.newPage();
+    await q.goto(`${base}/app.php?view=matchcontrol&game=912`);
+
+    await expect(q.locator('#offair'), 'off by default').toBeVisible();
+    await expect(q.locator('#offair')).toContainText('Not on the scoreboard');
+    // And it can still be used: the warning is about where it goes, not about
+    // whether it works.
+    await expect(q.locator('#homeBtn')).toBeEnabled();
+
+    await page.request.post('/app.php?view=score', { data: { game: 912, enabled: true } });
+    await q.reload();
+    await expect(q.locator('#offair'), 'gone once it is the source').toBeHidden();
+    await phone.close();
+  });
+
+  test('a goal reaches the scoreboard in about a second', async ({ page, browser }) => {
+    // The reason any of this exists. Live! serves a game with a flat 30-second
+    // cache, so a goal is on air somewhere between at once and half a minute
+    // late and no polling rate improves it. Switched to match control, the same
+    // goal is on the board on the next read of a file this project owns.
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    const post = (d) => page.request.post('/app.php?view=score', { data: d });
+    await post({ game: 702, code: 'ABCDE' });
+
+    const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const s = await board.newPage();
+    await s.goto(`${base}/app.php?view=scoreboard&game=702`);
+    const shown = async () => `${await s.locator('#homeScore').textContent()}-`
+      + `${await s.locator('#awayScore').textContent()}`;
+
+    // The capture's own score, from upstream.
+    await expect(s.locator('#homeScore')).toHaveText('8');
+
+    await post({ game: 702, enabled: true });
+    await expect(s.locator('#homeScore'), 'the switch is obeyed').toHaveText('0', { timeout: 5000 });
+
+    const started = Date.now();
+    await post({ game: 702, code: 'ABCDE', goal: { home: true } });
+    await expect(s.locator('#homeScore')).toHaveText('1', { timeout: 5000 });
+    // Generous: the assertion is "seconds, not half a minute", and a loaded CI
+    // runner is not the place to measure a tight number.
+    expect(Date.now() - started, 'seconds, not thirty').toBeLessThan(5000);
+
+    // And switching back must not leave the local score on air.
+    await post({ game: 702, enabled: false });
+    await expect(s.locator('#homeScore'), 'upstream again').toHaveText('8', { timeout: 5000 });
+    expect(await shown()).toBe('8-6');
+    await board.close();
+  });
+
+  test('only an operator chooses where the scoreboard reads from', async ({ page, browser }) => {
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    await page.request.post('/app.php?view=score', { data: { game: 913, code: 'ABCDE' } });
+
+    // A scorekeeper holds a code that lets them keep score. It must not let
+    // them decide what reaches air.
+    const phone = await browser.newContext();
+    const res = await phone.request.post(`${base}/app.php?view=score`, {
+      data: { game: 913, code: 'ABCDE', enabled: true },
+    });
+    expect(res.status()).toBe(403);
+    const after = await (await page.request.get('/app.php?view=score&game=913')).json();
+    expect(after.enabled).toBe(false);
+    await phone.close();
+  });
+
+  test('a phone without the code is read only', async ({ browser, page }) => {
+    await page.goto('/app.php?view=matchcontrol&game=911');
+    const base = new URL(page.url()).origin;
+    const phone = await browser.newContext();
+    const q = await phone.newPage();
+    await q.goto(`${base}/app.php?view=matchcontrol&game=911`);
+    await expect(q.locator('#state')).toHaveText('read only');
+    await expect(q.locator('#teams')).toBeHidden();
+    await expect(q.locator('#setup')).toBeVisible();
+    await phone.close();
   });
 });
 

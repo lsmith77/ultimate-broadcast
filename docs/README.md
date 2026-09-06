@@ -4,13 +4,14 @@
 
 A broadcast graphics layer for Ultimate tournaments, extending **[Live! by BULA](https://github.com/layoutd/live-by-bula)** 3.0.6 (which itself runs on UltiOrganizer 4.0). It turns the tournament data an event is already keeping — the score, the clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
 
-Three surfaces, for three different people:
+Four surfaces, for four different jobs:
 
 | surface | who it is for | what it is |
 |---|---|---|
 | **Scoreboard** | the switcher | A broadcast *bug* on a transparent 1920×1080 canvas: score, clock, timeouts, hold/break. One URL, points a browser source at it, done. |
 | **Studio** | the operator | A full-frame stage hosting several cards at once, plus the control page that decides what is on it. One URL for the whole broadcast, changed live from a laptop. |
 | **Commentator** | the people talking | A second screen, never on air: rosters, stats, who is on the field. Nothing here reaches a viewer, which is why it can show numbers a graphic must refuse. |
+| **Match control** | whoever is watching the game | The score and the clock, from a phone at the pitch. Applies a press locally and sends it afterwards, so a bar of signal never makes anybody wait. |
 
 Everything reads through Live!'s public JSON API. **No overlay touches the database**, which is what makes the whole directory a drop-in that survives a Live! upgrade.
 
@@ -32,7 +33,7 @@ Everything reads through Live!'s public JSON API. **No overlay touches the datab
 
 There is no build step and nothing to compile. The directory is the installation.
 
-1. **Make `conf/` writable by the web server.** It holds operator-authored state — what is on air, kit colours, shared line selections, and the commentary desk's prepared notes about players — and is gitignored because it is per-installation runtime data, not code. It must stay unreadable over HTTP as well as writable: the `.htaccess` here serves two files by name and 404s the rest, which is what keeps the notes out of a browser.
+1. **Make `conf/` writable by the web server.** It holds operator-authored state — what is on air, kit colours, shared line selections, and the commentary desk's prepared notes about players — and is gitignored because it is per-installation runtime data, not code. It must stay unreadable over HTTP as well as writable: the `.htaccess` here serves three files by name and 404s the rest, which is what keeps the notes out of a browser.
 
    ```
    mkdir -p live/overlays/conf
@@ -157,6 +158,8 @@ And it ends somewhere unexpected: **the capability may belong upstream rather th
 **Go here for:** whether this could be a service, and what would have to be true first.
 
 ### [`MATCHCONTROL.md`](MATCHCONTROL.md) — score and clock, and who keeps them
+
+**Built.** §0 is what shipped; the rest is the reasoning that preceded it.
 
 A concept, with nothing built, and not standalone-specific. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
 

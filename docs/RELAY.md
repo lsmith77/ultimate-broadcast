@@ -100,7 +100,7 @@ Three things temper it.
 
 **Where it genuinely wins is privacy, not cost.** With a mesh and end-to-end encryption, the commentary desk's prepared notes — notes about named people — never transit a server in any form. That is a stronger claim than §3's, and it is the only argument for this that does not evaporate under examination. If the goal is "we cannot read your data because we never have it", peer-to-peer between the desks plus a published, non-personal projection for the overlays is the shape that delivers it.
 
-**What that would look like:** the desks mesh and hold the private state — notes, matchings, line selections, the identity fields. One of them publishes only what actually reaches air — score, clock, on-air card state, the current line as numbers — to a small endpoint the overlay polls. The personal data stays in the room; the broadcast data was always public. That split is real rather than cosmetic, and it is roughly the split `conf/` already makes between the two files served statically and everything behind a PHP door.
+**What that would look like:** the desks mesh and hold the private state — notes, matchings, line selections, the identity fields. One of them publishes only what actually reaches air — score, clock, on-air card state, the current line as numbers — to a small endpoint the overlay polls. The personal data stays in the room; the broadcast data was always public. That split is real rather than cosmetic, and it is roughly the split `conf/` already makes between the three files served statically and everything behind a PHP door.
 
 ## 6. Running with no internet at all
 

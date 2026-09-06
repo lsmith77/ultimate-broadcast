@@ -230,3 +230,23 @@ function classifyPoints(goals, gameEvents) {
 
     return tally;
 }
+
+/**
+ * Also reachable from the test runner.
+ *
+ * The class is used as a global by the pages that load this as a plain script,
+ * and that does not change. What this adds is the three derivations below the
+ * class — who started on offence, who is on offence now, and whether each point
+ * was a hold or a break — which decide what a scoreboard asserts and had no
+ * direct test because there was no way to reach them.
+ *
+ * Same dual publish as every other module in shared/; see shared/stoppage.js.
+ */
+if (typeof module === 'object' && module.exports) {
+    module.exports = {
+        OverlayDataClient: OverlayDataClient,
+        startingOffence: startingOffence,
+        currentOffence: currentOffence,
+        classifyPoints: classifyPoints,
+    };
+}

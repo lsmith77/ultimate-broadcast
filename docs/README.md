@@ -246,7 +246,9 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 
 Each one was checked by breaking something and watching it fail, which is the only evidence that a check does anything.
 
-The standalone job is the first one here that makes real HTTP requests, and it can only exist because standalone mode needs no UltiOrganizer, no Live!, no database and no Apache. What it guards is worth the job on its own: that `conf/` — which holds the commentary desk's notes about named people — is not served over HTTP. `php -S` does not read `.htaccess`, so those rules exist a second time inside `app.php`, and only a request can prove they work.
+The standalone job is the one here that makes real HTTP requests, and it can only exist because standalone mode needs no UltiOrganizer, no Live!, no database and no Apache. It guards two things worth the job on their own: that `conf/` — which holds the commentary desk's notes about named people — is not served over HTTP, and that scorekeeping behaves under the conditions it is actually used in. `php -S` does not read `.htaccess`, so the rules keeping `conf/` closed exist a second time inside `app.php`, and only a request can prove it; and a phone kept scoring through a simulated outage is not something a unit test can claim.
+
+It is also the only place the **administrator path** is exercised at all. Hosted, those tests skip without `ADMIN_PASS`; standalone the password is ours to set, so the login, the code nomination and the source switch are covered here and nowhere else.
 
 **It does not run the browser suite, and since the recorded provider landed that is a choice rather than a limit.** A capture is now enough to render every page with no host at all — the standalone job proves exactly that for the commentary desk — so pointing the whole suite at one would work.
 

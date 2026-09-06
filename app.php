@@ -6,7 +6,7 @@
  *   app.php?view=stage
  *   app.php?view=commentator&game=702
  *
- * Ten files in this directory begin by refusing to run unless `UO_ROUTED_VIEW`
+ * Fifteen files in this directory begin by refusing to run unless `UO_ROUTED_VIEW`
  * is defined. That guard is what makes a direct request to `commentator.php`
  * a 404 instead of a page, and hosted mode satisfies it through
  * UltiOrganizer's front controller. This is the other way to satisfy it, for a
@@ -20,7 +20,7 @@
  * directory. That is the correct design for that problem and it is a design
  * whose safety rests on getting three checks right.
  *
- * This directory serves eleven pages and can name all of them. So it does.
+ * This directory serves sixteen views and can name all of them. So it does.
  * A view that is not a key below cannot be reached, whatever it contains —
  * there is no traversal to defend against because no part of the request ever
  * becomes part of a path. It is a smaller thing to get right, and this is the

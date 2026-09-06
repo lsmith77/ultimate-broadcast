@@ -19,7 +19,7 @@ Everything reads through Live!'s public JSON API. **No overlay touches the datab
 
 [ultimate-broadcast.org](https://ultimate-broadcast.org) is a standalone installation — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
 
-It is a demonstration rather than a service: there is no editor for somebody else's tournament on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one.
+It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own.
 
 ### Why it lives in `live/overlays/`
 
@@ -125,11 +125,9 @@ The digest of asks against UltiOrganizer and Live! by BULA — one entry per ask
 
 ### [`STANDALONE.md`](STANDALONE.md) — the overlays without UltiOrganizer
 
-**Milestones 1–3 are built.** Every surface — Studio, stage, scoreboard, commentary desk — renders a recorded game with no UltiOrganizer, no Live!, no database and no network, and CI proves it on every push. The coupling that made this seem hard turned out to be **two PHP classes, eighteen API reads and a clock that is three integers**; the classes now appear in one file, behind one function.
+**It runs.** Every surface — Studio, stage, scoreboard, commentary desk and match control — works with no UltiOrganizer, no Live!, no database and no network, and CI proves it on every push. The coupling that made this seem hard turned out to be **two PHP classes, eighteen API reads and a clock that is three integers**; the classes now appear in one file, behind one function.
 
-What is not built is the part that lets somebody *create* an event rather than replay a recording. §7b lists what stands between here and a tournament using it — four small gaps, a checker, and the editor, which is the project.
-
-The document states what runs, how to start it, what is missing, and what the next step is. The short version of the last two: four small gaps stand between the current state and somebody being able to install this without holding the document, and after them the editor — the part that lets a person *create* an event rather than replay a recording — which is the actual project.
+The part that once looked like the whole project — an editor — turned out to split in two, and neither half needed an authoring application. What a person types once is a small document (`shared/event.php`, from a page or a shell); the squads arrive through a door the commentary desk already had; and the score and clock were already match control's. §4 is what is still missing, and it is now a bracket rather than an editor.
 
 **Go here for:** how to run the overlays with no host, and what is still needed before a tournament could.
 
@@ -175,13 +173,13 @@ And it ends somewhere unexpected: **the capability may belong upstream rather th
 
 **Built.** §0 is what shipped; the rest is the reasoning that preceded it.
 
-A concept, with nothing built, and not standalone-specific. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
+Not standalone-specific, and the reasoning is worth reading even though the thing is built. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
 
 The load-bearing conclusion is technical rather than organisational: **a goal must be written as the point it creates, not as `+1`.** A delta entered twice is a real 2–0 from one point; a statement of the result is safe by construction, and that is what lets several surfaces hold the button without anybody having to own it.
 
-The decision for now is the simple one: **a single phone-optimised page, nothing embedded** — with keyboard shortcuts in the commentator page as the likely later step rather than a panel, since that page is already keyboard-driven and its play view cannot afford the rows.
+What shipped is the simple one: **a single phone-optimised page, nothing embedded** — with keyboard shortcuts in the commentator page as the likely later step rather than a panel, since that page is already keyboard-driven and its play view cannot afford the rows.
 
-It also records a gap found while writing it: **timeouts are shown on air and on neither desk.** The scoreboard derives them correctly; `commentator.php` and `index.php` do not mention the concept.
+It also records a gap found while writing it: timeouts were shown on air and on neither desk. **The commentary desk half is built** — it draws the allowance beside each team — and the Studio half was considered and declined, which `MATCHCONTROL.md` explains.
 
 **Go here for:** who presses what, on which device, at each crew size — and why hosted mode wants the same surface with the score read-only and the clock as a fallback.
 

@@ -725,6 +725,28 @@ test.describe('a public demonstration', () => {
     await setDemo(request, false);
   });
 
+  test('the imprint is reachable, and honest when nobody has filled it in',
+    async ({ browser }) => {
+      // A publicly reachable site run from Switzerland, Germany or Austria has
+      // to say who is behind it, and this project cannot supply that — it is
+      // somebody's real name and address. So an unconfigured installation says
+      // so, rather than showing a blank page that reads as a bug.
+      const anon = await browser.newContext();
+      const visitor = await anon.newPage();
+      await visitor.goto(`${new URL(BASE).origin}/app.php?view=index`);
+
+      await visitor.locator('#intro a', { hasText: 'Imprint and data' }).click();
+      await expect(visitor.locator('h1')).toHaveText('Imprint');
+      await expect(visitor.locator('.missing'),
+        'and says nobody has been named').toBeVisible();
+
+      // The half this project CAN state, because it is a fact about the code:
+      // what is stored about named people, and for how long.
+      await expect(visitor.locator('body')).toContainText('Prepared notes about players');
+      await expect(visitor.locator('body')).toContainText('7 days');
+      await anon.close();
+    });
+
   test('every game row offers match control, and not a host that is not there',
     async ({ page }) => {
       // Two bugs in one cell. It linked UltiOrganizer's own Scorekeeper —

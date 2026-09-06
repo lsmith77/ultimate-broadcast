@@ -121,6 +121,32 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     a.btn { display: inline-block; background: #1d4ed8; color: #fff; text-decoration: none;
             font-weight: 600; font-size: .85rem; padding: .45rem 1rem; border-radius: 4px; }
     a.btn:hover { background: #2563eb; }
+    /* The visitor introduction. Sits above everything and gets out of the way
+       for good once dismissed — see the note in the markup. */
+    .intro { position: relative; max-width: 1100px; margin: 0 0 1.5rem;
+             padding: 1rem 2.4rem 1rem 1.1rem; background: #0f1a30;
+             border: 1px solid #1e293b; border-left: 3px solid #1d4ed8;
+             border-radius: 6px; }
+    .intro h2 { margin: 0 0 .4rem; font-size: 1rem; }
+    .intro p { margin: 0 0 .6rem; font-size: .9rem; color: #cbd5e1; }
+    .intro ul { margin: 0 0 .6rem; padding-left: 1.1rem; font-size: .88rem;
+                color: #cbd5e1; }
+    .intro li { margin-bottom: .25rem; }
+    .intro code { background: #0b1220; padding: .05rem .3rem; border-radius: 3px;
+                  font-size: .85em; }
+    .intro .introdemo { margin: 0 0 .6rem; font-size: .9rem; }
+    .intro .introdemo a { font-weight: 600; }
+    .intro .introfoot { margin: 0; font-size: .85rem; }
+    .introclose { position: absolute; top: .5rem; right: .6rem; background: none;
+                  border: 0; color: #64748b; font-size: 1.1rem; line-height: 1;
+                  cursor: pointer; padding: .2rem .4rem; }
+    .introclose:hover { color: #e2e8f0; }
+    /* Two links in one cell where a host provides a second scoresheet. */
+    .keepers { white-space: nowrap; }
+    .keepers .action + .action { margin-left: .6rem; }
+    /* #64748b measured 3.9:1 against the page, under the 4.5:1 WCAG AA needs
+       for text this size. This is 7.3:1. */
+    .ghosturl { color: #94a3b8; margin-left: .6rem; }
     a.btn.ghost { background: none; border: 1px solid #334155; color: #94a3b8; }
     a.btn.ghost:hover { background: none; border-color: #475569; color: #e2e8f0; }
     #keysBtn { background: none; border: 1px solid #334155; color: #94a3b8; font: inherit;
@@ -296,6 +322,22 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     <p class="introfoot">
         <a href="https://github.com/lsmith77/ultimate-broadcast" rel="noopener">Source and
         documentation on GitHub</a>
+        <?php
+        // Who runs this, and what it stores about people.
+        //
+        // Named here because About is where a visitor finds out what they are
+        // looking at, and "who is behind it" is the same question. The details
+        // themselves are a page rather than more of this box: a site that has to
+        // state them needs a stable URL for it, and the useful half — the
+        // inventory of what is stored about named people — is longer than an
+        // introduction should be.
+        $who = \Overlays\Mode::imprint();
+        ?>
+        · <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('imprint'), ENT_QUOTES) ?>">Imprint and data</a><?php
+        if ($who !== []) :
+            ?> · run by <?= htmlspecialchars((string) reset($who), ENT_QUOTES) ?><?php
+        endif;
+        ?>
     </p>
 </aside>
 <?php endif; ?>
@@ -1799,6 +1841,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             a.rel = 'noopener';
             a.title = 'Point the switcher here — a stage pinned to this game';
             urlBar.append(a);
+
             // The guided tour, one link away from the URL it demonstrates.
             //
             // It drives every state a stage can reach — hold, break, timeout,

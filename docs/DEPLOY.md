@@ -172,11 +172,27 @@ An administrator still writes normally, so the person running the demonstration 
 
 `?demo=1` on the scoreboard or the stage plays a whole game through — hold, break, timeout, cap, halftime, a running clock — from **one real payload**, mutating copies of it in the browser. Nothing is written anywhere, so it is the one showcase that is safe to hand a stranger, and it is the only way to see a moving clock without a game in progress. The Studio links it beside each stage URL.
 
+### Saying who runs it
+
+A publicly reachable site run from Switzerland, Germany or Austria has to name whoever is behind it. This project cannot supply that — it is somebody's real name and address — so it comes from `conf/local-config.php`:
+
+```php
+'imprint' => [
+    'Operator' => 'A Name',
+    'Address'  => "A Street 1\n1234 A Town",
+    'Email'    => 'someone@example.org',
+],
+```
+
+Free-form labels, printed in the order given, because what a site has to state differs by country. `/s/imprint` shows them, and says plainly when nobody has been named rather than rendering a blank page that reads as a bug.
+
+The same page carries **an inventory of what the software stores about named people** — the prepared notes and how long they survive, squads, the session cookie, what is in browser storage. That half is a fact about the code rather than about the operator, so it is written from the constants the stores actually prune by. It is not a privacy statement and does not claim to be; it is the list somebody writing one would otherwise have to read the source for.
+
 ### What a visitor sees first
 
 The Studio carries a short introduction, standalone only: what this is, that it is running without tournament software behind it, the three surfaces worth clicking, and a link to the repository. Hosted it does not render — whoever reached that page came through an UltiOrganizer installation and knows what they are looking at.
 
-It carries **direct demo links** rather than instructions, filled in from the event's own game list once it loads: a game, a **mixed** game where the event has one, and the commentary desk. The mixed one is offered separately because the gender ratio and the matching bands do not appear at all in an open game, and a visitor looking at an open game would reasonably conclude they do not exist.
+It names the operator and links the imprint, and carries **direct demo links** rather than instructions, filled in from the event's own game list once it loads: a game, a **mixed** game where the event has one, and the commentary desk. The mixed one is offered separately because the gender ratio and the matching bands do not appear at all in an open game, and a visitor looking at an open game would reasonably conclude they do not exist.
 
 Dismissing it is remembered per browser, so an operator reads it once rather than every morning — and the **About** button in the header brings it back, because removing it outright left clearing site data as the only way to read it again.
 

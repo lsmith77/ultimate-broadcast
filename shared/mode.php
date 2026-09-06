@@ -160,6 +160,41 @@ final class Mode
     }
 
     /**
+     * Who is responsible for this installation.
+     *
+     * `'imprint' => ['Operator' => 'A Name', 'Address' => "…", 'Email' => '…']`
+     * in `conf/local-config.php`. Free-form labels on purpose: what a site has
+     * to state differs by country, and a fixed set of fields would be wrong
+     * somewhere. The page prints what it is given, in the order it is given.
+     *
+     * This project cannot supply any of it — it is somebody's real name and
+     * address — so an unconfigured installation says so plainly rather than
+     * showing an empty page that looks like a bug.
+     *
+     * @return array<string,string>
+     */
+    public static function imprint(): array
+    {
+        if (!is_file(self::LOCAL_CONFIG)) {
+            return [];
+        }
+        $config = require self::LOCAL_CONFIG;
+        $imprint = is_array($config) ? ($config['imprint'] ?? null) : null;
+        if (!is_array($imprint)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($imprint as $label => $value) {
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                $out[(string) $label] = trim((string) $value);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Where a person goes to sign in.
      *
      * Hosted that is Live!'s own admin page, because Live! owns the session and

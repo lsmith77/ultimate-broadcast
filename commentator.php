@@ -37,6 +37,7 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
 }
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/lines.php';
 require_once __DIR__ . '/shared/notes.php';
 
@@ -631,6 +632,11 @@ try {
     .biobar { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
               margin-top: .5rem; font-size: .8rem; }
     .biobar .barbtn { font-size: .76rem; padding: .3rem .6rem; }
+    .biobar .squadnum, .biobar .squadname { font: inherit; font-size: .78rem;
+              padding: .3rem .45rem; border: var(--rule) solid var(--line);
+              border-radius: 4px; background: var(--panel); color: var(--ink); }
+    .biobar .squadnum { width: 3rem; }
+    .biobar .squadname { width: 12rem; }
     .biobar input[type="file"] { position: absolute; width: 1px; height: 1px;
                                  padding: 0; margin: -1px; overflow: hidden;
                                  clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -747,6 +753,10 @@ try {
         // Null unless this installation is configured to read a capture — see
         // shared/mode.php. Same shape either way; the page cannot tell.
         captureBase: <?= $json(\Overlays\Mode::captureBase($base)) ?>,
+        // Squads kept here rather than upstream, folded in by the provider.
+        // Standalone only: the endpoint 404s under a host on purpose, and
+        // asking for it there would be a wasted request per team per load.
+        rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('roster', $base)) ?>,
         gameId: <?= $json($gameId ?: null) ?>,
         mode: <?= $json($mode) ?>,
         linesUrl: <?= $json(\Overlays\Mode::viewUrl('lines', $base)) ?>,
@@ -766,7 +776,8 @@ try {
     // stores this page also talks to (lines, notes, possession) are its own
     // endpoints and keep using Tracking, which is their protocol.
     var api = window.Provider.fromConfig({
-        apiBase: CONFIG.api, captureBase: CONFIG.captureBase
+        apiBase: CONFIG.api, captureBase: CONFIG.captureBase,
+        rosterUrl: CONFIG.rosterUrl
     });
 
     var el = function (tag, cls, text) {
@@ -1237,6 +1248,7 @@ try {
             + (blocks ? ', Blk is tournament blocks from completed games' : '')));
         panel.append(teamNoteBox(side));
         panel.append(bioBar(side));
+        panel.append(squadBar(side));
         panel.append(pronounCheck(side));
         return panel;
     }
@@ -1795,14 +1807,90 @@ try {
             // re-exports it appears to have a dead button.
             input.value = '';
             var parsed = window.Csv.parse(String(reader.result || ''));
-            var existing = notesForImport();
-            existing[window.Bios.TEAM_ROW_ID] = { text: teamNoteText(side) };
-            var report = window.Bios.match(parsed, rosterByNumber(side), existing, bioTeam(side));
-            openImportPreview(side, report);
+            newcomers(side, parsed).then(function () {
+                var existing = notesForImport();
+                existing[window.Bios.TEAM_ROW_ID] = { text: teamNoteText(side) };
+                var report = window.Bios.match(parsed, rosterByNumber(side), existing,
+                    bioTeam(side));
+                openImportPreview(side, report);
+            });
         };
         // UTF-8, which is what every spreadsheet exports and what the BOM in our
         // own export declares.
         reader.readAsText(file);
+    }
+
+    /**
+     * People on the sheet who are not yet on the squad — standalone only.
+     *
+     * The round trip already exists for notes: export a team's sheet, they fill
+     * it in, import it back. Hosted, a row for somebody not on the roster is
+     * REJECTED and must be, because the squad is UltiOrganizer's and an import
+     * must not invent people into somebody's tournament. Standalone there is no
+     * such squad — `install/make-event.php` writes teams empty — so the same
+     * file that carries the biographies is also how the squad arrives.
+     *
+     * Asked before anything is written, because this page's rule is that
+     * nothing happens until you have seen what would happen. The confirm is
+     * separate from the import preview rather than folded into it: adding people
+     * to a squad and filling in notes about them are different acts, and one of
+     * them is not undoable from this page.
+     *
+     * Resolves either way — a declined offer still imports the notes for
+     * whoever IS on the squad, which is what an operator who typed the roster by
+     * hand and only wants the biographies would expect.
+     */
+    function newcomers(side, parsed) {
+        if (!CONFIG.rosterUrl) { return Promise.resolve(); }
+
+        var headers = parsed.headers || [];
+        var nameCol = null;
+        var numCol = null;
+        var idCol = null;
+        headers.forEach(function (h) {
+            var norm = String(h).trim().toLowerCase();
+            if (norm === 'name') { nameCol = h; }
+            if (norm === 'number') { numCol = h; }
+            if (norm === 'player id') { idCol = h; }
+        });
+        if (nameCol === null) { return Promise.resolve(); }
+
+        var known = {};
+        (rosterByNumber(side) || []).forEach(function (p) {
+            known[String(p.name || '').trim().toLowerCase()] = true;
+        });
+
+        var rows = [];
+        (parsed.rows || []).forEach(function (row) {
+            var raw = idCol === null ? '' : String(row[idCol] || '').trim().toUpperCase();
+            // The two sentinel rows the export writes are not people.
+            if (raw === window.Bios.NOTICE_ROW_ID || raw === window.Bios.TEAM_ROW_ID) { return; }
+            // A row that already carries an id is somebody the sheet was
+            // exported FOR, whether or not this desk can see them.
+            if (raw !== '') { return; }
+            var name = String(row[nameCol] || '').trim();
+            if (!name || known[name.toLowerCase()]) { return; }
+            known[name.toLowerCase()] = true;
+            rows.push({ name: name, num: numCol === null ? null : String(row[numCol] || '').trim() });
+        });
+
+        if (!rows.length) { return Promise.resolve(); }
+
+        var who = rows.slice(0, 6).map(function (r) { return r.name; }).join(', ')
+            + (rows.length > 6 ? ', and ' + (rows.length - 6) + ' more' : '');
+        var ok = window.confirm('This sheet names ' + rows.length + ' '
+            + (rows.length === 1 ? 'person' : 'people')
+            + ' not on ' + (side.team.name || 'this team') + "'s squad:\n\n" + who
+            + '\n\nAdd them to the squad? Their biographies import either way.');
+        if (!ok) { return Promise.resolve(); }
+
+        return addPlayers(side.team.team_id, rows)
+            .then(function (body) {
+                flashMessage(body.added.length + ' added to the squad.');
+            })
+            .catch(function (e) {
+                flashMessage(e.message || 'Could not add those players.');
+            });
     }
 
     /**
@@ -2041,6 +2129,112 @@ try {
         bar.append(input, label);
         bar.append(el('span', 'muted', 'players fill it in; import fills only what is empty here'));
         return bar;
+    }
+
+    /**
+     * Add somebody to a squad, standalone only.
+     *
+     * Hosted this bar does not render, because a squad belongs to
+     * UltiOrganizer: it is registered, accredited, and the list the scoresheet
+     * is built from. A second roster typed here would disagree with it
+     * silently, on the surface that reaches air. `roster.php` 404s under a host
+     * as well, so this is the second lock rather than the only one.
+     *
+     * Standalone there is no such list to disagree with. `install/make-event.php`
+     * writes teams with empty squads on purpose — nobody should type forty names
+     * into a JSON file — and the names arrive here, or through the team's own
+     * sheet on the Import button above. Two doors, one squad.
+     *
+     * Prep-time, like the bio bar it sits under: nobody adds a player during a
+     * point.
+     */
+    function squadBar(side) {
+        if (!CONFIG.rosterUrl) { return document.createDocumentFragment(); }
+
+        var bar = el('div', 'biobar');
+        var teamId = side.team.team_id;
+
+        var num = document.createElement('input');
+        num.type = 'text';
+        num.inputMode = 'numeric';
+        num.className = 'squadnum';
+        num.placeholder = '#';
+        num.setAttribute('aria-label', 'Shirt number');
+        num.title = 'Optional — a squad may have no numbers at all.';
+
+        var name = document.createElement('input');
+        name.type = 'text';
+        name.className = 'squadname';
+        name.placeholder = 'Add a player';
+        name.setAttribute('aria-label', 'Player name');
+
+        var add = el('button', 'barbtn', 'Add');
+        add.type = 'button';
+
+        function submit() {
+            var value = name.value.trim();
+            if (!value) { name.focus(); return; }
+            add.disabled = true;
+            addPlayers(teamId, [{ num: num.value.trim() || null, name: value }])
+                .then(function (body) {
+                    // Reported by what actually happened, not by what was asked:
+                    // re-adding somebody already there is a no-op and saying
+                    // "added" would be a lie the desk acts on.
+                    flashMessage(body.added.length
+                        ? 'Added ' + body.added[0].name + '.'
+                        : value + ' is already on this squad.');
+                    num.value = '';
+                    name.value = '';
+                    name.focus();
+                })
+                .catch(function (e) { flashMessage(e.message || 'Could not add that player.'); })
+                .then(function () { add.disabled = false; });
+        }
+
+        add.addEventListener('click', submit);
+        [num, name].forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); submit(); }
+            });
+        });
+
+        bar.append(num, name, add);
+        bar.append(el('span', 'muted', 'kept here, not in UltiOrganizer'));
+
+        return bar;
+    }
+
+    /**
+     * Write players to the squad and re-read the roster.
+     *
+     * The roster is cached for the life of the page (`state.teams`), because it
+     * does not change while a game is played — so a write has to clear its own
+     * cache entry or the desk keeps showing the squad from before the addition.
+     */
+    function addPlayers(teamId, rows) {
+        return fetch(CONFIG.rosterUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team: teamId, add: rows })
+        })
+            .then(function (r) {
+                return r.json().then(function (body) {
+                    if (!r.ok || (body && body.error)) {
+                        throw new Error((body && body.error) || ('HTTP ' + r.status));
+                    }
+
+                    return body;
+                });
+            })
+            .then(function (body) {
+                delete state.teams[teamId];
+
+                return api.team(teamId)
+                    .then(function (team) { state.teams[teamId] = team; })
+                    .catch(function () { /* the next refresh retries it */ })
+                    .then(function () { render(); return body; });
+            });
     }
 
     /* ---------------------------------------------------------------

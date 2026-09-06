@@ -25,12 +25,28 @@ const path = require('node:path');
 
 const SOURCE = path.join(__dirname, '..');
 
-/** Everything a standalone installation actually ships. */
-const RUNTIME = [
-  'app.php', 'login.php', 'index.php', 'scoreboard.php', 'stage.php',
-  'commentator.php', 'show.php', 'possession.php', 'lines.php', 'notes.php',
-  'colors.php', 'score.php', 'matchcontrol.php', 'shared', 'images', '.htaccess',
-];
+/**
+ * Everything a standalone installation actually ships.
+ *
+ * The page files are READ OUT OF `app.php`'s allow-list rather than listed
+ * here. That list is what a standalone installation can serve, so it is also
+ * exactly what this tree needs — and keeping a second copy meant a new endpoint
+ * was routed, tested and missing from the tree, which fails as
+ * "Failed opening required roster.php" rather than as anything to do with the
+ * feature. It happened once; deriving it means it cannot happen again.
+ */
+function routedFiles() {
+  const app = readFileSync(path.join(SOURCE, 'app.php'), 'utf8');
+  const block = app.slice(app.indexOf('$views = ['), app.indexOf('];', app.indexOf('$views = [')));
+  const files = [...block.matchAll(/=>\s*'([^']+\.php)'/g)].map((m) => m[1]);
+  if (files.length < 5) {
+    throw new Error('could not read the view allow-list out of app.php');
+  }
+
+  return files;
+}
+
+const RUNTIME = ['app.php', 'shared', 'images', '.htaccess', ...routedFiles()];
 
 /**
  * A capture, recorded from the dev instance by `tests/capture.mjs`.

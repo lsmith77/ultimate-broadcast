@@ -31,6 +31,7 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
 }
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/show.php';
 require_once __DIR__ . '/shared/logos.php';
 
@@ -115,6 +116,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     var CONFIG = {
         apiBase: <?= $json($apiBase) ?>,
         captureBase: <?= $json(\Overlays\Mode::captureBase($base)) ?>,
+        // See commentator.php: squads kept here, standalone only.
+        rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('roster', $base)) ?>,
         // The scoreboard is a card on this stage AND a page of its own, so its
         // URL is asked for rather than derived. See the note at its src().
         scoreboardUrl: <?= $json(\Overlays\Mode::viewUrl('scoreboard', $base)) ?>,
@@ -136,7 +139,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     // page each call adds its own .catch(): a broadcast canvas degrades
     // quietly rather than letting one failed roster take the overlay down.
     var api = window.Provider.fromConfig({
-        apiBase: CONFIG.apiBase, captureBase: CONFIG.captureBase
+        apiBase: CONFIG.apiBase, captureBase: CONFIG.captureBase,
+        rosterUrl: CONFIG.rosterUrl
     });
 
     /**

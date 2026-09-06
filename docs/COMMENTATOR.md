@@ -289,6 +289,10 @@ export CSV (identifier + name, empty prompt columns)
   -> import here
 ```
 
+**Standalone, the same file also creates the squad.** Hosted, a row for somebody not on the roster is rejected and must be: the squad is UltiOrganizer's, it is registered and accredited, and an import that invented people would produce a roster disagreeing with the tournament's own on the surface that reaches air. Standalone there is no such list — `install/make-event.php` writes teams with empty squads on purpose, because nobody should type forty names into a JSON file — so a row with a name and no identifier is a person to add, and the import offers to add them before it writes anything.
+
+Beside the Import button there is also a number-and-name field, for the player who turned up unlisted. Both doors write to `shared/roster.php`, which 404s under a host. Adding is idempotent **on name**, so re-running an import — the thing people do when they are not sure it worked — adds nobody twice; and a removed player's id is never handed to somebody else, because those ids are what the notes on this page are filed under.
+
 **A shared document the players fill in themselves is a better shape than a commentator's notebook in every way that matters**, and it is the principle §5 argues for the upstream profile fields, reached without waiting for a schema change:
 
 - **The player writes their own entry**, so it is self-declared rather than second-hand — which answers the sharpest objection to this whole feature, that it is one person's unverifiable words about another.

@@ -41,6 +41,14 @@ test.describe('operator state is default closed', () => {
     expect(await status(request, '/conf/show.json')).toBe(200);
     expect(await status(request, '/conf/team-colors.json')).toBe(404);
     expect(await status(request, '/conf/lines/DDDDD.json')).toBe(404);
+    // A squad is read through roster.php, not as a file. It is not secret, but
+    // conf/ is closed by default and a new file dropped in there must not
+    // inherit an exemption by looking similar to one.
+    expect(await status(request, '/conf/roster-300.json')).toBe(404);
+    // The authored event description. Not secret either, but conf/ is closed by
+    // default and every file that lands in it inherits that rather than an
+    // exemption.
+    expect(await status(request, '/conf/event.json')).toBe(404);
   });
 
   test('a name that merely starts like a public file is not public', async ({ request }) => {
@@ -301,6 +309,124 @@ test.describe('the standalone login', () => {
     await page.waitForLoadState('networkidle');
     const res = await page.request.get('/app.php?view=show');
     expect((await res.json()).admin).toBe(false);
+  });
+});
+
+test.describe('squads kept here, because nothing upstream keeps one', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+  const ROSTER = '/app.php?view=roster';
+
+  async function signIn(page) {
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+  }
+
+  test('a squad is public to read and an operator to change', async ({ page, browser }) => {
+    // Unlike notes and lines, which take unauthenticated writes because the
+    // room code is a namespace and nothing in them reaches a viewer. A roster
+    // does reach a viewer: the stage draws squad cards from it.
+    const anon = await browser.newContext();
+    const origin = new URL(await page.goto('/app.php?view=index').then((r) => r.url())).origin;
+
+    const open = await anon.request.get(`${origin}${ROSTER}&team=940`);
+    expect(open.status(), 'reading is open').toBe(200);
+    expect((await open.json()).players).toEqual([]);
+
+    const refused = await anon.request.post(`${origin}${ROSTER}`, {
+      data: { team: 940, add: [{ name: 'Nobody At All' }] },
+    });
+    expect(refused.status(), 'writing is not').toBe(403);
+    await anon.close();
+
+    await signIn(page);
+    const added = await page.request.post(ROSTER, {
+      data: { team: 940, add: [{ num: 8, name: 'Ari Ace' }, { name: 'Bo Break' }] },
+    });
+    expect(added.status()).toBe(200);
+    const body = await added.json();
+    expect(body.added.map((p) => p.name)).toEqual(['Ari Ace', 'Bo Break']);
+    expect(body.added[1].num, 'a squad may have no numbers').toBeNull();
+  });
+
+  test('importing the same sheet twice does not add everybody twice', async ({ page }) => {
+    // The property the whole flow rests on. An import is the thing people
+    // re-run when they are not sure it worked, and a squad with two of
+    // everybody is worse than one that is missing somebody.
+    await signIn(page);
+    const post = (d) => page.request.post(ROSTER, { data: d });
+    const rows = [{ num: 3, name: 'Cy Cutter' }, { num: 4, name: 'Dee Deep' }];
+
+    const first = await (await post({ team: 941, add: rows })).json();
+    expect(first.added).toHaveLength(2);
+
+    const again = await (await post({ team: 941, add: rows })).json();
+    expect(again.added, 'nobody added').toHaveLength(0);
+    expect(again.skipped, 'and said so, rather than looking like a failure').toBe(2);
+    expect(again.players).toHaveLength(2);
+
+    // Identity is the NAME, not the number: numbers get corrected, and two
+    // players wear 7 across a tournament.
+    const renumbered = await (await post({
+      team: 941, add: [{ num: 9, name: 'Cy Cutter' }],
+    })).json();
+    expect(renumbered.added).toHaveLength(0);
+  });
+
+  test('two squads never share a player id', async ({ page }) => {
+    // A notes room is shared by both sides of a game and is keyed by player id
+    // ALONE — `players[1234]`. A per-team counter gave each squad a player 1,
+    // so one note was two people's: their pronouns and their name
+    // pronunciation, on the desk, in front of somebody about to say it.
+    await signIn(page);
+    const post = (d) => page.request.post(ROSTER, { data: d });
+
+    const a = await (await post({ team: 930, add: [{ name: 'Ari Ace' }] })).json();
+    const b = await (await post({ team: 931, add: [{ name: 'Bo Break' }] })).json();
+
+    expect(a.added[0].id).not.toBe(b.added[0].id);
+    // And a team's ids stay inside its own range, so adding to one squad still
+    // cannot move another's.
+    expect(Math.floor(a.added[0].id / 10000)).toBe(930);
+    expect(Math.floor(b.added[0].id / 10000)).toBe(931);
+  });
+
+  test('a removed player never gets their id handed to somebody else', async ({ page }) => {
+    // Player ids key the desk's prepared notes. Reusing one would attach
+    // somebody's pronouns and name pronunciation to a different person, on the
+    // desk, in front of somebody about to say it.
+    await signIn(page);
+    const post = (d) => page.request.post(ROSTER, { data: d });
+
+    const made = await (await post({ team: 942, add: [{ name: 'Eli Edge' }] })).json();
+    const id = made.added[0].id;
+
+    await post({ team: 942, remove: id });
+    const after = await (await post({ team: 942, add: [{ name: 'Fay Flick' }] })).json();
+    expect(after.added[0].id, 'a fresh id, not the departed one').not.toBe(id);
+    expect(after.players.map((p) => p.name)).toEqual(['Fay Flick']);
+  });
+
+  test('a locally added player reaches the page through the same provider', async ({ page }) => {
+    // The seam that matters: three call sites read a team payload and none of
+    // them knows this happened. Asserted through the provider rather than
+    // through the endpoint, because the endpoint working proves nothing about
+    // whether a roster reaches a renderer.
+    await signIn(page);
+    await page.request.post(ROSTER, {
+      data: { team: 300, add: [{ num: 77, name: 'Gus Guard' }] },
+    });
+
+    await page.goto('/app.php?view=commentator&game=702');
+    await expect(page.locator('.roster').first()).toBeVisible();
+    await expect(
+      page.locator('.roster td.who', { hasText: 'Guard' }).first(),
+      'the added player is on the desk',
+    ).toBeVisible();
+
+    // And the recorded squad is still there: added, not substituted.
+    expect(await page.locator('.roster tbody tr').count()).toBeGreaterThan(5);
   });
 });
 

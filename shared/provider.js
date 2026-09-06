@@ -256,15 +256,97 @@
     function fromConfig(cfg) {
         cfg = cfg || {};
 
-        return cfg.captureBase
+        var base = cfg.captureBase
             ? recorded({ base: cfg.captureBase, rebase: cfg.rebase })
             : live({ apiBase: cfg.apiBase });
+
+        return cfg.rosterUrl ? withLocalRoster(base, cfg) : base;
+    }
+
+    /**
+     * Squads kept HERE, folded into the team payload every page already reads.
+     *
+     * Standalone, `install/make-event.php` writes teams with empty squads and
+     * the names arrive afterwards — typed at the commentary desk or imported
+     * from the team's own sheet (`shared/roster.php`). Those players have to
+     * reach the same three call sites the recorded ones do, and the way to make
+     * that true everywhere at once is to do it HERE rather than at each of them:
+     * the same rule `shared/score-source.js` follows one field deeper.
+     *
+     * APPENDED, NEVER SUBSTITUTED. A capture recorded off a real Live! already
+     * has a squad, and a locally added player is an addition to it — somebody
+     * who turned up and is not in the tournament's list. Replacing the recorded
+     * roster would quietly lose everybody upstream knows about.
+     *
+     * A failed read is an empty roster and not an error. The endpoint 404s under
+     * a host by design, and a page that could not draw a team because a squad
+     * addition could not be fetched would be worse than one drawing the squad it
+     * already had.
+     */
+    function withLocalRoster(base, cfg) {
+        var fetchImpl = cfg.fetch
+            || (typeof fetch === 'function' ? fetch : null);
+
+        function localPlayers(id) {
+            return fetchImpl(cfg.rosterUrl + '&team=' + encodeURIComponent(id),
+                { credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (body) {
+                    return (body && Array.isArray(body.players)) ? body.players : [];
+                })
+                .catch(function () { return []; });
+        }
+
+        var wrapped = {};
+        Object.keys(base).forEach(function (k) { wrapped[k] = base[k]; });
+
+        wrapped.team = function (id) {
+            return Promise.all([base.team(id), localPlayers(id)])
+                .then(function (both) {
+                    var team = both[0];
+                    var extra = both[1];
+                    if (!team || !extra.length) { return team; }
+
+                    var players = (team.players || []).slice();
+                    var known = {};
+                    players.forEach(function (p) { known[String(p.player_id)] = true; });
+
+                    extra.forEach(function (p) {
+                        if (known[String(p.id)]) { return; }
+                        var name = String(p.name || '');
+                        var cut = name.indexOf(' ');
+                        players.push({
+                            player_id: p.id,
+                            // Everything after the first space is the surname:
+                            // wrong for some names, right for most, and the same
+                            // split the desk's own importer settled on for a name
+                            // arriving in one column.
+                            firstname: cut === -1 ? name : name.slice(0, cut),
+                            lastname: cut === -1 ? '' : name.slice(cut + 1),
+                            teamname: team.name,
+                            num: p.num === undefined ? null : p.num,
+                            team: team.team_id
+                            // No done/fedin/total/games: nobody has played. Absent
+                            // is not zero, or a player sheet shows a squad on nought.
+                        });
+                    });
+
+                    var out = {};
+                    Object.keys(team).forEach(function (k) { out[k] = team[k]; });
+                    out.players = players;
+
+                    return out;
+                });
+        };
+
+        return wrapped;
     }
 
     return {
         live: live,
         recorded: recorded,
         fromConfig: fromConfig,
+        withLocalRoster: withLocalRoster,
         keyFor: keyFor,
         readJson: readJson,
         fail: fail

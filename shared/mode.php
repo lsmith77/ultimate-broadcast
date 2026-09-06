@@ -70,6 +70,64 @@ final class Mode
     }
 
     /**
+     * Write `conf/local-config.php`.
+     *
+     * One writer, because there were three: `install/make-config.php` creating
+     * it, `install/make-event.php --set-capture` and the event editor both
+     * updating it. They had already drifted — only the editor invalidated the
+     * compiled copy, so the same edit took effect at once through the page and
+     * silently did nothing for a couple of seconds through the script.
+     *
+     * The invalidation is the part worth having in one place. This file is PHP,
+     * so it is COMPILED and cached, and opcache revalidates a cached file only
+     * every couple of seconds by default. Without the call, a write reports
+     * success and the very next request still reads the old settings.
+     *
+     * Written 0640 and moved into place, so there is no moment at which the
+     * password hash inside it is world-readable — on shared hosting that moment
+     * has neighbours.
+     */
+    public static function saveLocalConfig(array $settings, ?string $path = null): bool
+    {
+        $path = $path ?? self::LOCAL_CONFIG;
+        $export = static fn ($v): string => var_export($v, true);
+
+        $body = "<?php\n\n"
+            . "/**\n"
+            . " * This installation's settings.\n"
+            . " *\n"
+            . " * Gitignored and denied over HTTP. `admin_hash` is what `Overlays\\Auth`\n"
+            . " * checks a login against; `capture` is what `Overlays\\Mode` serves\n"
+            . " * payloads from, and leaving it out means reading a live Live! instead.\n"
+            . " */\n\n"
+            . "return [\n";
+        foreach ($settings as $key => $value) {
+            $body .= '    ' . $export((string) $key) . ' => ' . $export($value) . ",\n";
+        }
+        $body .= "];\n";
+
+        $dir = dirname($path);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return false;
+        }
+        $tmp = $path . '.' . getmypid() . '.tmp';
+        if (@file_put_contents($tmp, $body) === false) {
+            return false;
+        }
+        @chmod($tmp, 0640);
+        if (!@rename($tmp, $path)) {
+            @unlink($tmp);
+
+            return false;
+        }
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
+        }
+
+        return true;
+    }
+
+    /**
      * Where a person goes to sign in.
      *
      * Hosted that is Live!'s own admin page, because Live! owns the session and

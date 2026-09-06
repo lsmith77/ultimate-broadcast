@@ -171,6 +171,8 @@ $views = [
  * a browser source, so it wins easily.
  */
 $short = [
+    ['#^/s/event/?$#', 'event', []],
+    ['#^/s/imprint/?$#', 'imprint', []],
     ['#^/s/stage/([0-9A-Fa-f]{6}|green|blue|magenta|black)/?$#', 'stage', ['bg' => 1]],
     ['#^/s/stage/?$#', 'stage', []],
     ['#^/s/field/([^/]+)/overlay/?$#', 'stage', ['field' => 1]],

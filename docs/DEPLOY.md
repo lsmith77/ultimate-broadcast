@@ -6,11 +6,11 @@ The hosted deployment is a different thing entirely and is covered by [`README.m
 
 ## 1. What this deploys, and what it is not
 
-A **standalone installation replaying a recorded capture.** Every surface renders: the Studio, the stage, the scoreboard, the commentary desk, and match control. The score and clock are real — match control writes to this server and the scoreboard reads it back — so the scorekeeping path is genuinely end to end rather than a mock.
+A **standalone installation.** Every surface renders: the Studio, the stage, the scoreboard, the commentary desk, and match control. The score and clock are real, the squads are real, and the event itself can be authored in a browser — so nothing about the path is a mock.
 
-What it is **not**, and neither is fixable at deploy time:
+What it is **not**:
 
-- **It cannot run somebody's tournament.** There is no editor. The event, the teams and the rosters come from a capture, and nothing lets a person create one. That is the missing piece, and [`STANDALONE.md`](STANDALONE.md) §5 is what stands between here and it.
+- **It is not a full tournament system.** One pool, no bracket, no standings, and an event that cannot be corrected once the day has started. [`STANDALONE.md`](STANDALONE.md) §4 is the list.
 - **It cannot read a remote Live!.** Every page builds its API URL as `<this installation>/index.php?view=live/api` and sends it with `credentials: 'same-origin'` — see `apiBase` in [`../scoreboard.php`](../scoreboard.php) and [`../stage.php`](../stage.php). Pointing an installation at somebody else's Live! is a change to that, plus CORS on their side, plus a story for the session cookie. It is a project, not a setting.
 
 So what goes on a public domain today is a **demo that works**: anyone can open it, click through every surface, and keep score on a phone against the recorded game.
@@ -135,6 +135,28 @@ This is the part that works for real rather than being replayed, and it is a han
 The bar says **no code set** until one is nominated, because switching the source to a store nobody can write is how a scoreboard freezes on 0-0.
 
 An administrator can skip step 1 and 2 — an admin session may always write — but then there is no hand-off, and the person keeping score can also change what is on air. The code exists so those are separate capabilities.
+
+### Your own event, rather than the shipped one
+
+`fixtures/payloads/dev` is a recording of a development instance — two games, real payload shapes, useful for showing the software and useless for running anything.
+
+**In a browser**, signed in: the Studio's **Edit event** button, or `/s/event`. The event's name, the teams' names, the games and the pool's rules; save and the installation serves it immediately. That is the surface for the person this mode is actually for — somebody running a club's stream, with a laptop and no reason to have SSH into anything.
+
+**Over SSH**, for a scripted install or an event that already exists as a file:
+
+```
+php install/make-event.php my-event.json --set-capture
+```
+
+Both write the same thing through the same code (`shared/event.php`), so the payload shape — the one thing in this project that must not exist twice — exists once. The description is stored in `conf/event.json` and the capture is derived from it, rebuilt on every save; edit in either place and the other opens on it.
+
+**Squads are deliberately not in that file.** Nobody should type forty names into JSON, and there is already a door for them: the commentary desk exports a team's sheet, the team fills it in, and the desk imports it back. Standalone, that import also **creates** the players it does not recognise — and there is a field on the same bar to type one in directly, for whoever turns up unlisted. Hosted, neither is possible and the endpoint 404s, because a squad belongs to UltiOrganizer and an import must not invent people into somebody's tournament.
+
+Team and game ids are yours to choose and must not change afterwards: `conf/score-<game>.json` is keyed by game id, so is every URL typed into a switcher, and a squad and its prepared notes are keyed by team and player id. Re-running with different ids silently detaches all of it.
+
+`events/` is excluded from `deploy.sh`, like `conf/` and `logos/`, because an event authored on the server exists nowhere else.
+
+One thing worth knowing if you edit `conf/local-config.php` by hand: it is a PHP file, so it is compiled and cached, and opcache revalidates a cached file only every couple of seconds. Edit it and refresh immediately and it looks like the edit did nothing. The editor calls `opcache_invalidate()` itself, so saving through the page takes effect at once.
 
 ### The switcher check, before anything matters
 

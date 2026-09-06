@@ -63,7 +63,10 @@ echo "==> $REMOTE"
 #
 # The excludes are the whole content of this script, so each is here on purpose:
 #
-#   conf/, logos/     server-side state — see the note at the top
+#   conf/, logos/,
+#   events/           server-side state — see the note at the top. events/ holds
+#                     what install/make-event.php wrote ON THE SERVER, which is
+#                     somebody's tournament and exists nowhere else
 #   cgi-bin/,
 #   .well-known/,
 #   error_log         the HOST's, not ours. Shared hosting creates a cgi-bin in
@@ -91,6 +94,7 @@ echo "==> $REMOTE"
   --delete \
   --exclude='/conf/' \
   --exclude='/logos/' \
+  --exclude='/events/' \
   --exclude='/cgi-bin/' \
   --exclude='/.well-known/' \
   --exclude='/error_log' \

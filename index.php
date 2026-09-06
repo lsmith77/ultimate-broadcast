@@ -30,6 +30,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 // Live! to configure, and every reader below already falls back when the
 // constant is undefined — see docs/STANDALONE.md.
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
 
 if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
@@ -340,6 +341,12 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     // login, and the words differ as much as the URL does.
     var LOGIN_URL = <?= json_encode(\Overlays\Mode::loginUrl($base), JSON_UNESCAPED_SLASHES) ?>;
     var LOGIN_IS_OURS = <?= \Overlays\Mode::ownsLogin() ? 'true' : 'false' ?>;
+    // The event editor, or null under a host — there the schedule belongs to
+    // UltiOrganizer and event.php answers 404.
+    var EVENT_URL = <?= json_encode(
+        \Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('event', $base),
+        JSON_UNESCAPED_SLASHES
+    ) ?>;
     var container = document.getElementById('games');
 
     function el(tag, className, text) {
@@ -1967,6 +1974,18 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
         action.replaceChildren();
 
+        // The event editor, standalone only. Hosted there is nothing to edit
+        // here — the schedule is UltiOrganizer's — and event.php 404s.
+        if (EVENT_URL && state.admin) {
+            var edit = el('a', 'btn ghost', 'Edit event');
+            edit.href = EVENT_URL;
+            edit.title = 'Teams, games and the rules of the pool. Not squads, '
+                + 'and not the score.';
+            action.append(edit);
+        }
+        // Standalone the login is a page of this project's, so it goes in this
+        // tab and brings the person back. Hosted it is Live!'s, which is a
+        // different application — a new tab, so the Studio is not lost.
         var label = state.admin
             ? (LOGIN_IS_OURS ? 'Sign out' : 'Live! admin ↗')
             : 'Log in to control';

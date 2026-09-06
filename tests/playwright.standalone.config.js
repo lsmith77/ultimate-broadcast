@@ -23,11 +23,23 @@ const PORT = Number(process.env.STANDALONE_PORT || 8099);
 // directories above shared/auth.php, which makes Auth::isHosted() answer true
 // and turns every assertion below into a test of the hosted path wearing a
 // standalone label. It did, until this was noticed. See tests/standalone-setup.js.
-const root = build();
+/**
+ * Built ONCE, and reused by every worker.
+ *
+ * This config module is evaluated in the runner and again in each worker
+ * process, so an unguarded `build()` made a fresh tree per worker — the server
+ * served the runner's and the workers looked at their own, and only one was
+ * ever torn down. Workers inherit the environment they are spawned with, so
+ * this is where they find the tree that is actually being served.
+ */
+const root = process.env.STANDALONE_ROOT || build();
 process.env.STANDALONE_ROOT = root;
 
 module.exports = defineConfig({
   testDir: './e2e',
+  // Where the throwaway tree is, for the tests that have to look at the
+  // installation rather than at a page.
+  metadata: { root },
   globalTeardown: require.resolve('./standalone-teardown.js'),
   testMatch: ['standalone.spec.js'],
 

@@ -49,7 +49,7 @@ if (PHP_SAPI !== 'cli') {
 $root = dirname(__DIR__);
 $target = $root . '/conf/local-config.php';
 
-$opts = getopt('', ['capture::', 'event::', 'demo', 'password-stdin', 'force', 'help']);
+$opts = getopt('', ['capture::', 'event::', 'password-stdin', 'force', 'help']);
 if (isset($opts['help'])) {
     fwrite(STDOUT, <<<TEXT
     Create conf/local-config.php for a standalone installation.
@@ -60,10 +60,6 @@ if (isset($opts['help'])) {
       --event=NAME       names this installation in the session key, so two
                          installs on one domain cannot share a login. Default
                          "standalone".
-      --demo             a public demonstration: the two stores that take
-                         unauthenticated writes (prepared notes, shared lines)
-                         stop taking them from anyone but an administrator.
-                         Reads are untouched, so every surface still works.
       --password-stdin   read the administrator password from stdin instead of
                          prompting, for a scripted install.
       --force            overwrite an existing config. It holds the password
@@ -192,9 +188,6 @@ $settings = ['event' => $event];
 if ($capture !== '') {
     $settings['capture'] = $capture;
 }
-if (isset($opts['demo'])) {
-    $settings['demo'] = true;
-}
 $settings['admin_hash'] = $hash;
 
 // One writer for this file, shared with the event editor — see
@@ -209,5 +202,4 @@ if (!\Overlays\Mode::saveLocalConfig($settings, $target)) {
 fwrite(STDOUT, "Wrote " . $target . "\n"
     . '  event:   ' . $event . "\n"
     . '  capture: ' . ($capture !== '' ? $capture : '(none — reads a live Live!)') . "\n"
-    . (isset($opts['demo']) ? "  demo:    yes — notes and lines are read-only\n" : '')
     . "\nSign in at /app.php?view=login\n");

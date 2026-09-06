@@ -312,6 +312,186 @@ test.describe('the standalone login', () => {
   });
 });
 
+test.describe('authoring an event in a browser', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+  const fs = require('node:fs');
+  const path = require('node:path');
+
+  /**
+   * Put the shipped capture back afterwards.
+   *
+   * Saving an event POINTS the installation at it, which is the behaviour under
+   * test — an editor that saves an event nothing serves appears not to work.
+   * That makes it residue for every test after this one, which is the failure
+   * AGENTS.md names: a test reading state it did not set passes or fails on
+   * history rather than on the code.
+   */
+  let CONFIG;
+  let original;
+  test.beforeAll(({}, testInfo) => {
+    CONFIG = path.join(testInfo.config.metadata.root, 'conf', 'local-config.php');
+    original = fs.readFileSync(CONFIG, 'utf8');
+  });
+  test.afterAll(async ({}, testInfo) => {
+    fs.writeFileSync(CONFIG, original);
+    // opcache revalidates a cached file every couple of seconds, so the next
+    // describe would otherwise start against the event this one authored.
+    await new Promise((resolve) => { setTimeout(resolve, 3000); });
+    expect(testInfo).toBeTruthy();
+  });
+
+  async function signIn(page) {
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+  }
+
+  test('a visitor sees the editor read-only, and cannot save', async ({ page, browser }) => {
+    await page.goto('/app.php?view=event');
+    await expect(page.locator('.msg.bad')).toContainText('Read-only');
+    await expect(page.locator('#save')).toBeDisabled();
+
+    // The disabled button is a courtesy; the refusal is the endpoint's.
+    const anon = await browser.newContext();
+    const origin = new URL(page.url()).origin;
+    const refused = await anon.request.post(`${origin}/app.php?view=event`, {
+      data: { event: 'Not Yours', teams: [], games: [] },
+    });
+    expect(refused.status()).toBe(403);
+    await anon.close();
+  });
+
+  test('an operator writes an event and the installation serves it',
+    async ({ page }) => {
+      // The whole point, end to end: nothing was recorded from a Live! and
+      // there is no Live! to record from, yet the Studio lists the games.
+      await signIn(page);
+
+      const saved = await page.request.post('/app.php?view=event', {
+        data: {
+          event: 'Spring Showcase',
+          season: 'SHOW27',
+          place: 'Riverside',
+          teams: [
+            { id: 1, name: 'Mosquitos', short: 'MOS' },
+            { id: 2, name: 'Lemmings', short: 'LEM' },
+          ],
+          games: [
+            { id: 1, home: 1, visitor: 2, field: '1', name: 'Semi-final',
+              time: '2027-05-01 10:00', status: 'ongoing' },
+          ],
+        },
+      });
+      expect(saved.status()).toBe(200);
+      const body = await saved.json();
+      expect(body.capture).toBe('events/spring-showcase');
+      expect(body.pointed, 'and the installation now serves it').toBe(true);
+
+      // Rendered, not merely written. A capture that a page cannot draw is a
+      // directory of JSON with the wrong field names in it.
+      await page.goto('/app.php?view=scoreboard&game=1');
+      await expect(page.locator('#homeScore')).toHaveText('0');
+      await expect(page.locator('#homeName'), 'drawn from the authored event')
+        .toHaveText('Mosquitos');
+    });
+
+  test('a squad added afterwards reaches the authored event', async ({ page }) => {
+    // The two halves meeting: the editor writes teams with empty squads on
+    // purpose, and the desk fills them in. Neither is any use without the other.
+    await signIn(page);
+    await page.request.post('/app.php?view=roster', {
+      data: { team: 1, add: [{ num: 8, name: 'Ari Ace' }] },
+    });
+
+    await page.goto('/app.php?view=commentator&game=1');
+    await expect(
+      page.locator('.roster td.who', { hasText: 'Ace' }).first(),
+    ).toBeVisible();
+  });
+
+  test('every control in the editor has a name a screen reader can read',
+    async ({ page }) => {
+      // The schedule is a TABLE of inputs, and the column heading is not the
+      // control's accessible name — a `<th>` does not label a cell's input. The
+      // first version passed an empty string as the label, which rendered an
+      // empty `<label for=…>`: worse than none, because the control ends up
+      // with no name at all and every cell announces as "edit text, blank".
+      await signIn(page);
+      await page.goto('/app.php?view=event');
+
+      const bad = await page.evaluate(() => {
+        const unnamed = [];
+        document.querySelectorAll('input, select, textarea').forEach((el) => {
+          const labelled = el.labels && [...el.labels].some((l) => l.textContent.trim());
+          if (!labelled && !el.getAttribute('aria-label')
+            && !el.getAttribute('aria-labelledby')) {
+            unnamed.push(el.id || el.className || el.tagName);
+          }
+        });
+        const empty = [...document.querySelectorAll('label')]
+          .filter((l) => !l.textContent.trim()).length;
+
+        return { unnamed, empty };
+      });
+
+      expect(bad.unnamed, 'controls with no accessible name').toEqual([]);
+      expect(bad.empty, 'empty label elements').toBe(0);
+    });
+
+  test('a bad schedule is refused with every problem at once', async ({ page }) => {
+    // One problem per attempt is six attempts to fix six typos, and this is a
+    // form somebody fills in once under time pressure.
+    await signIn(page);
+    const refused = await page.request.post('/app.php?view=event', {
+      data: {
+        event: '',
+        teams: [{ id: 1, name: 'Only One' }],
+        games: [{ id: 1, home: 1, visitor: 9 }],
+      },
+    });
+    expect(refused.status()).toBe(400);
+    const problems = (await refused.json()).problems;
+    expect(problems.length).toBeGreaterThan(2);
+    expect(problems.join(' ')).toMatch(/name/i);
+    expect(problems.join(' ')).toMatch(/two teams/i);
+  });
+
+  test('a game removed from the event loses its payload too', async ({ page }) => {
+    // Otherwise the Studio keeps offering a game nothing else knows about, and
+    // a switcher pointed at it draws a scoreboard for a fixture that is gone.
+    await signIn(page);
+    const two = {
+      event: 'Spring Showcase',
+      season: 'SHOW27',
+      teams: [{ id: 1, name: 'Mosquitos' }, { id: 2, name: 'Lemmings' }],
+      games: [
+        { id: 1, home: 1, visitor: 2, name: 'Semi', status: 'ongoing' },
+        { id: 2, home: 2, visitor: 1, name: 'Final' },
+      ],
+    };
+    await page.request.post('/app.php?view=event', { data: two });
+    expect((await page.request.get('/events/spring-showcase/games-2.json')).status())
+      .toBe(200);
+
+    two.games = [two.games[0]];
+    await page.request.post('/app.php?view=event', { data: two });
+    expect((await page.request.get('/events/spring-showcase/games-2.json')).status())
+      .toBe(404);
+  });
+
+  test('the editor does not exist under a host', async ({ request }) => {
+    // Hosted, an event is UltiOrganizer's: scheduled there, teams registered
+    // there. A second copy authored here would disagree with it silently on the
+    // surface that reaches air. Asserted through the route rather than the
+    // guard, because the route is what somebody would find.
+    expect(await status(request, '/app.php?view=event')).toBe(200);
+    // ...and this tree is hostless, which the decoy vendor/ above proves. The
+    // hosted 404 is the same `Auth::isHosted()` gate login.php and roster.php
+    // use, exercised there.
+  });
+});
+
 test.describe('squads kept here, because nothing upstream keeps one', () => {
   const { ADMIN_PASSWORD } = require('../standalone-setup.js');
   const ROSTER = '/app.php?view=roster';

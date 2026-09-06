@@ -23,7 +23,6 @@ A tournament scored on paper. A club streaming a friendly. A showcase game outsi
 | **Deciding who may change what is on air** | `shared/auth.php`. One function, two answers: Live!'s session when there is a Live!, a local one against a hash in `conf/` when there is not |
 | **Keeping the score and the clock** | `shared/score.php` is the store, `matchcontrol.php` the phone surface at `/k/<game>`, and `shared/score-source.js` puts the result into the payload shape every renderer already reads. Hosted this is one of two possible sources and the Studio chooses per game; standalone there is no other, so it is simply the score. See [`MATCHCONTROL.md`](MATCHCONTROL.md) §0 |
 | **Scoring with no signal** | `shared/score-client.js` applies a press locally, queues it, and retries until it lands. Safe only because a goal is written as **the point it creates** rather than as `+1`, so sending it twice is not two goals |
-| **Squads** | `shared/roster.php`, written from the commentary desk — typed in, or imported from the team's own sheet. **Standalone only**: hosted, a squad belongs to UltiOrganizer |
 | **Signing in** | `login.php`, which 404s under a host because the host owns that door |
 | **Knowing where it lives** | `shared/mode.php` — asset and endpoint URLs, rather than `/live/overlays/` written into every page |
 | **Configuring an installation** | `install/make-config.php` — prompts for a password, hashes it, writes `conf/local-config.php`. CLI only |

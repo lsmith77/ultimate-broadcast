@@ -131,7 +131,7 @@ The document states what runs, how to start it, what is missing, and what the ne
 
 The step from `php -S` on a laptop to a PHP host serving the overlays as a site of their own. Three things it exists to get right, each of which fails quietly rather than loudly: the shipped `.htaccess` is for **hosted** mode and would 404 every URL at a document root; `--delete` would take `conf/` and `logos/` apart on every deploy if they were not excluded, and those hold the password hash, what is on air and the desk's notes; and the `conf/` allow-list now exists in three copies that cannot be derived from one another, so a checker keeps them honest.
 
-It is also candid about what a standalone installation can and cannot be today. It replays a **recorded capture** — every surface renders and match control keeps a real score — but there is no editor, so it cannot run somebody's tournament, and it cannot read a remote Live! either, because every page builds its API URL against itself and sends it same-origin.
+It is also candid about what a standalone installation can and cannot be today. An event is authored in a browser, squads arrive through the desk's own import and match control keeps the score — but it is one pool with no bracket and no standings, and it cannot read a remote Live!, because every page builds its API URL against itself and sends it same-origin.
 
 **Go here for:** the deploy script, the one-time bootstrap, what to check afterwards, and what a visitor to a public installation is able to change.
 

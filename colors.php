@@ -20,9 +20,11 @@ if (!defined('UO_ROUTED_VIEW')) {
 }
 
 require_once __DIR__ . '/shared/auth.php';
+require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/colors.php';
 
 use Overlays\Auth;
+use Overlays\Mode;
 use Overlays\Colors;
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -59,7 +61,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 if (!$isAdmin) {
-    fail(403, 'Log in at ?view=live/admin to change team colours.');
+    // Where to log in is not the same question in both modes, and answering it
+    // with Live!'s URL on an installation that has no Live! sends somebody to a
+    // 404. `Overlays\Mode` is the one place that knows.
+    fail(403, Mode::ownsLogin()
+        ? 'Sign in at ' . Mode::loginUrl() . ' to change team colours.'
+        : 'Log in at ?view=live/admin to change team colours.');
 }
 
 $payload = json_decode((string) file_get_contents('php://input'), true);

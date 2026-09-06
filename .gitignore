@@ -11,6 +11,14 @@
 /logos/*
 !/logos/README.md
 
+# Events authored on this installation by install/make-event.php. Somebody's
+# tournament — their teams and their squads — not this project's data.
+/events/
+
+# Where one person's installation lives — an SSH target, not a project setting.
+# deploy.env.example is tracked and shows the shape.
+/deploy.env
+
 # Playwright
 /node_modules/
 /test-results/

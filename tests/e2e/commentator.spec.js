@@ -187,6 +187,33 @@ test.describe('commentator', () => {
     await page.request.post('/index.php?view=live/overlays/notes', { data: cleared });
   });
 
+  test('a desk asks the API as little as the payload allows', async ({ page }) => {
+    // Deliberately slow: the thing under test is a cadence, and the only
+    // honest way to measure a cadence is to wait for it.
+    test.setTimeout(90000);
+    // Live!'s maintainers have said, with cause, that polling is what hurts
+    // their servers — two thirds of their traffic has come from it. This page
+    // was among the offenders: it re-fetched BOTH squads every ten seconds for
+    // the whole game, and asked for a payload cached for thirty seconds three
+    // times over. Measured at 30 requests in 95 seconds, 20 of them rosters.
+    const api = [];
+    page.on('request', (r) => {
+      if (r.url().includes('view=live/api')) api.push(r.url());
+    });
+
+    await page.goto(`/c/${GAME_ID}`);
+    await expect(page.locator('.roster').first()).toBeVisible();
+    // Long enough for the old 10s interval to have fired several times.
+    await page.waitForTimeout(35000);
+
+    const rosters = api.filter((u) => u.includes('entity=teams'));
+    expect(rosters.length, 'a roster is read once, not once per refresh')
+      .toBeLessThanOrEqual(2);
+    const games = api.filter((u) => u.includes('entity=games'));
+    expect(games.length, 'and the game payload no faster than its cache allows')
+      .toBeLessThanOrEqual(4);
+  });
+
   test('the notes box and its roster marker clear AAA too', async ({ page }) => {
     // The marker was first drawn in --accent, which is a FILL colour: it is the
     // background of a pressed button, with white text on top. Against the panel

@@ -243,6 +243,48 @@ test('commentator, play by play', async ({ page, request }) => {
   }
 });
 
+/**
+ * Match control, on a phone, mid-game.
+ *
+ * Shot at phone width because that is the device — a picture of it on a
+ * desktop would misrepresent the one design constraint the surface has. Two
+ * goals and a running clock, so the numbers are not all zero and the state
+ * badge has something to say.
+ */
+test('match control', async ({ page, request }) => {
+  await loginAsAdmin(page, test);
+  // Nominate a code for the shot's own game, then keep score as a phone would.
+  const SCORE = '/index.php?view=live/overlays/score';
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT' } });
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', clock: 'reset' } });
+  for (let i = 0; i < 40; i += 1) {
+    // Clear whatever a previous run left, so the shot is reproducible.
+    const res = await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', undo: {} } });
+    if ((await res.json()).home + (await res.json()).away === 0) break;
+  }
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', goal: { home: true } } });
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', goal: { home: false } } });
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', goal: { home: true } } });
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', clock: 'start' } });
+
+  await page.addInitScript((g) => {
+    localStorage.setItem(`uo-score-code-${g}`, 'ZSHOT');
+  }, GAME_ID);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/index.php?view=live/overlays/matchcontrol&game=${GAME_ID}`);
+  await expect(page.locator('#homeScore')).toHaveText('2');
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(OUT, 'matchcontrol.png'), fullPage: false });
+
+  // Leave the game as it was found: the score store is shared with every other
+  // spec here, and a shot that seeds two goals must not leave them behind.
+  for (let i = 0; i < 5; i += 1) {
+    await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', undo: {} } });
+  }
+  await request.post(SCORE, { data: { game: GAME_ID, code: 'ZSHOT', clock: 'reset' } });
+  await request.post(SCORE, { data: { game: GAME_ID, code: null } });
+});
+
 test('studio', async ({ page }) => {
   await loginAsAdmin(page, test);
   await page.setViewportSize({ width: 1440, height: 1100 });

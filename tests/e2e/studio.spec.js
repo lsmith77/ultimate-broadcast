@@ -47,31 +47,39 @@ test.describe('studio', () => {
     await expect(overlay).toBeHidden();
   });
 
-  test('the commentator code is masked on the operator station', async ({ page }) => {
-    // Larger consequence than on the commentator page: this code authorises
-    // writing possession, and possession reaches air. An operator's station is
-    // walked past all day, and five characters are memorable at a glance.
+  test('both codes are masked on the operator station', async ({ page }) => {
+    // Larger consequence than on the commentator page: one of these authorises
+    // writing possession and the other authorises writing the score, and both
+    // reach air. An operator's station is walked past all day, and five
+    // characters are memorable at a glance.
     //
-    // Deliberately outside the logged-in block. The field renders (disabled) for
+    // Both, in one test, because they are the same hazard and the second one
+    // arrived after the first was already covered — a per-bar test would have
+    // said nothing about it.
+    //
+    // Deliberately outside the logged-in block. The fields render (disabled) for
     // an anonymous visitor, so masking is observable without a password -- and a
     // test that only runs when ADMIN_PASS happens to be set is a test that mostly
     // does not run.
     await page.goto('/s/');
-    const code = page.locator('.codein');
-    await expect(code).toHaveAttribute('type', 'password');
-    await expect(code).toHaveAttribute('autocomplete', 'off');
 
-    // Nothing behind the mask for an anonymous visitor either: the nominated code
-    // is never published in the first place.
-    expect(await code.inputValue()).toBe('');
+    for (const bar of ['.stagebar.possession', '.stagebar.scorekeeper']) {
+      const code = page.locator(`${bar} .codein`);
+      await expect(code, bar).toHaveAttribute('type', 'password');
+      await expect(code, bar).toHaveAttribute('autocomplete', 'off');
 
-    const peek = page.locator('.stagebar.possession .peek');
-    await expect(peek).toHaveAttribute('aria-pressed', 'false');
-    await peek.click();
-    await expect(code).toHaveAttribute('type', 'text');
-    await expect(peek).toHaveAttribute('aria-pressed', 'true');
-    await peek.click();
-    await expect(code).toHaveAttribute('type', 'password');
+      // Nothing behind the mask for an anonymous visitor either: a nominated
+      // code is never published in the first place.
+      expect(await code.inputValue(), bar).toBe('');
+
+      const peek = page.locator(`${bar} .peek`);
+      await expect(peek, bar).toHaveAttribute('aria-pressed', 'false');
+      await peek.click();
+      await expect(code, bar).toHaveAttribute('type', 'text');
+      await expect(peek, bar).toHaveAttribute('aria-pressed', 'true');
+      await peek.click();
+      await expect(code, bar).toHaveAttribute('type', 'password');
+    }
   });
 
   test.describe('logged in', () => {

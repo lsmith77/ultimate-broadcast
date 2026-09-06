@@ -4,15 +4,22 @@
 
 A broadcast graphics layer for Ultimate tournaments, extending **[Live! by BULA](https://github.com/layoutd/live-by-bula)** 3.0.6 (which itself runs on UltiOrganizer 4.0). It turns the tournament data an event is already keeping — the score, the clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
 
-Three surfaces, for three different people:
+Four surfaces, for four different jobs:
 
 | surface | who it is for | what it is |
 |---|---|---|
 | **Scoreboard** | the switcher | A broadcast *bug* on a transparent 1920×1080 canvas: score, clock, timeouts, hold/break. One URL, points a browser source at it, done. |
 | **Studio** | the operator | A full-frame stage hosting several cards at once, plus the control page that decides what is on it. One URL for the whole broadcast, changed live from a laptop. |
 | **Commentator** | the people talking | A second screen, never on air: rosters, stats, who is on the field. Nothing here reaches a viewer, which is why it can show numbers a graphic must refuse. |
+| **Match control** | whoever is watching the game | The score and the clock, from a phone at the pitch. Applies a press locally and sends it afterwards, so a bar of signal never makes anybody wait. |
 
 Everything reads through Live!'s public JSON API. **No overlay touches the database**, which is what makes the whole directory a drop-in that survives a Live! upgrade.
+
+### Seeing it before installing anything
+
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a standalone installation — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
+
+It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own.
 
 ### Why it lives in `live/overlays/`
 
@@ -32,7 +39,7 @@ Everything reads through Live!'s public JSON API. **No overlay touches the datab
 
 There is no build step and nothing to compile. The directory is the installation.
 
-1. **Make `conf/` writable by the web server.** It holds operator-authored state — what is on air, kit colours, shared line selections, and the commentary desk's prepared notes about players — and is gitignored because it is per-installation runtime data, not code. It must stay unreadable over HTTP as well as writable: the `.htaccess` here serves two files by name and 404s the rest, which is what keeps the notes out of a browser.
+1. **Make `conf/` writable by the web server.** It holds operator-authored state — what is on air, kit colours, shared line selections, and the commentary desk's prepared notes about players — and is gitignored because it is per-installation runtime data, not code. It must stay unreadable over HTTP as well as writable: the `.htaccess` here serves three files by name and 404s the rest, which is what keeps the notes out of a browser.
 
    ```
    mkdir -p live/overlays/conf
@@ -118,13 +125,19 @@ The digest of asks against UltiOrganizer and Live! by BULA — one entry per ask
 
 ### [`STANDALONE.md`](STANDALONE.md) — the overlays without UltiOrganizer
 
-**Milestones 1–3 are built.** Every surface — Studio, stage, scoreboard, commentary desk — renders a recorded game with no UltiOrganizer, no Live!, no database and no network, and CI proves it on every push. The coupling that made this seem hard turned out to be **two PHP classes, eighteen API reads and a clock that is three integers**; the classes now appear in one file, behind one function.
+**It runs.** Every surface — Studio, stage, scoreboard, commentary desk and match control — works with no UltiOrganizer, no Live!, no database and no network, and CI proves it on every push. The coupling that made this seem hard turned out to be **two PHP classes, eighteen API reads and a clock that is three integers**; the classes now appear in one file, behind one function.
 
-What is not built is the part that lets somebody *create* an event rather than replay a recording. §7b lists what stands between here and a tournament using it — four small gaps, a checker, and the editor, which is the project.
-
-The document states what runs, how to start it, what is missing, and what the next step is. The short version of the last two: four small gaps stand between the current state and somebody being able to install this without holding the document, and after them the editor — the part that lets a person *create* an event rather than replay a recording — which is the actual project.
+The part that once looked like the whole project — an editor — turned out to split in two, and neither half needed an authoring application. What a person types once is a small document (`shared/event.php`, from a page or a shell); the squads arrive through a door the commentary desk already had; and the score and clock were already match control's. §4 is what is still missing, and it is now a bracket rather than an editor.
 
 **Go here for:** how to run the overlays with no host, and what is still needed before a tournament could.
+
+### [`DEPLOY.md`](DEPLOY.md) — putting a standalone installation on a domain
+
+The step from `php -S` on a laptop to a PHP host serving the overlays as a site of their own. Three things it exists to get right, each of which fails quietly rather than loudly: the shipped `.htaccess` is for **hosted** mode and would 404 every URL at a document root; `--delete` would take `conf/` and `logos/` apart on every deploy if they were not excluded, and those hold the password hash, what is on air and the desk's notes; and the `conf/` allow-list now exists in three copies that cannot be derived from one another, so a checker keeps them honest.
+
+It is also candid about what a standalone installation can and cannot be today. An event is authored in a browser, squads arrive through the desk's own import and match control keeps the score — but it is one pool with no bracket and no standings, and it cannot read a remote Live!, because every page builds its API URL against itself and sends it same-origin.
+
+**Go here for:** the deploy script, the one-time bootstrap, what to check afterwards, and what a visitor to a public installation is able to change.
 
 ### [`SETUP.md`](SETUP.md) — setup, checks and teardown
 
@@ -158,13 +171,15 @@ And it ends somewhere unexpected: **the capability may belong upstream rather th
 
 ### [`MATCHCONTROL.md`](MATCHCONTROL.md) — score and clock, and who keeps them
 
-A concept, with nothing built, and not standalone-specific. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
+**Built.** §0 is what shipped; the rest is the reasoning that preceded it.
+
+Not standalone-specific, and the reasoning is worth reading even though the thing is built. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
 
 The load-bearing conclusion is technical rather than organisational: **a goal must be written as the point it creates, not as `+1`.** A delta entered twice is a real 2–0 from one point; a statement of the result is safe by construction, and that is what lets several surfaces hold the button without anybody having to own it.
 
-The decision for now is the simple one: **a single phone-optimised page, nothing embedded** — with keyboard shortcuts in the commentator page as the likely later step rather than a panel, since that page is already keyboard-driven and its play view cannot afford the rows.
+What shipped is the simple one: **a single phone-optimised page, nothing embedded** — with keyboard shortcuts in the commentator page as the likely later step rather than a panel, since that page is already keyboard-driven and its play view cannot afford the rows.
 
-It also records a gap found while writing it: **timeouts are shown on air and on neither desk.** The scoreboard derives them correctly; `commentator.php` and `index.php` do not mention the concept.
+It also records a gap found while writing it: timeouts were shown on air and on neither desk. **The commentary desk half is built** — it draws the allowance beside each team — and the Studio half was considered and declined, which `MATCHCONTROL.md` explains.
 
 **Go here for:** who presses what, on which device, at each crew size — and why hosted mode wants the same surface with the score read-only and the clock as a fallback.
 
@@ -232,7 +247,7 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request: PHP syntax on 8.3 and 8.4, `npm run check`, `npm run test:unit` and `npm run test:standalone`.
 
-**`npm run check` is the repository's own checks, and CI runs exactly that command** rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Four of them:
+**`npm run check` is the repository's own checks, and CI runs exactly that command** rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Five of them:
 
 | Check | What it catches |
 |---|---|
@@ -240,10 +255,13 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 | [`tests/suites.mjs`](../tests/suites.mjs) | a spec run by no config, and — the real one — a **pure spec missing from the unit config**, which still passes locally under the hosted suite while never running in CI at all |
 | [`tests/links.mjs`](../tests/links.mjs) | a relative link in these documents that no longer resolves |
 | [`tests/capture-check.mjs`](../tests/capture-check.mjs) | a committed capture missing a roster or a player history — which fails as "Loading…" forever rather than as an error — or a game absent from the manifest, whose clock then cannot be rebased |
+| [`tests/htaccess.mjs`](../tests/htaccess.mjs) | the `conf/` allow-list drifting between its three copies — the hosted rules, the standalone rules and `app.php` — which serves the desk's notes or breaks the stage on one deployment shape only |
 
 Each one was checked by breaking something and watching it fail, which is the only evidence that a check does anything.
 
-The standalone job is the first one here that makes real HTTP requests, and it can only exist because standalone mode needs no UltiOrganizer, no Live!, no database and no Apache. What it guards is worth the job on its own: that `conf/` — which holds the commentary desk's notes about named people — is not served over HTTP. `php -S` does not read `.htaccess`, so those rules exist a second time inside `app.php`, and only a request can prove they work.
+The standalone job is the one here that makes real HTTP requests, and it can only exist because standalone mode needs no UltiOrganizer, no Live!, no database and no Apache. It guards two things worth the job on their own: that `conf/` — which holds the commentary desk's notes about named people — is not served over HTTP, and that scorekeeping behaves under the conditions it is actually used in. `php -S` does not read `.htaccess`, so the rules keeping `conf/` closed exist a second time inside `app.php`, and only a request can prove it; and a phone kept scoring through a simulated outage is not something a unit test can claim.
+
+It is also the only place the **administrator path** is exercised at all. Hosted, those tests skip without `ADMIN_PASS`; standalone the password is ours to set, so the login, the code nomination and the source switch are covered here and nowhere else.
 
 **It does not run the browser suite, and since the recorded provider landed that is a choice rather than a limit.** A capture is now enough to render every page with no host at all — the standalone job proves exactly that for the commentary desk — so pointing the whole suite at one would work.
 

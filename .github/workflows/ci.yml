@@ -11,9 +11,17 @@
 #
 # So `npm test` (the browser suite) stays a local gate against a real instance.
 # What runs here is everything that needs no instance — the pure logic carrying
-# the rules a defect would be quietest in, and, since standalone mode's front
-# controller landed, a real HTTP suite against `php -S` that proves the routing
-# and the operator-state guards.
+# the rules a defect would be quietest in, and a real HTTP suite against
+# `php -S` covering the front controller's routing, the guards that keep `conf/`
+# off the network, the administrator login, and scorekeeping end to end: the
+# code gate, a goal surviving being sent twice, a phone kept scoring through an
+# outage and catching up after, and a goal reaching the scoreboard in about a
+# second when an operator switches the source to it.
+#
+# Every job globs rather than enumerating — `php -l` over every PHP file, the
+# unit config checked by `tests/suites.mjs`, one standalone spec — so new work
+# is covered without this file being edited. That is deliberate: a CI list that
+# must be updated by hand is a CI list that silently stops covering things.
 #
 # THE BROWSER SUITE COULD NOW RUN HERE, AND DELIBERATELY DOES NOT
 #
@@ -175,5 +183,5 @@ jobs:
       # holds the commentary desk's notes about named people — is not served
       # over HTTP. `php -S` does not read .htaccess, so those rules exist a
       # second time in app.php's router, and only a request can prove it.
-      - name: Routing, guards, and a page rendered from a capture
+      - name: Routing, guards, scorekeeping, and a page rendered from a capture
         run: npm run test:standalone

@@ -6,7 +6,7 @@
  *   app.php?view=stage
  *   app.php?view=commentator&game=702
  *
- * Ten files in this directory begin by refusing to run unless `UO_ROUTED_VIEW`
+ * Fifteen files in this directory begin by refusing to run unless `UO_ROUTED_VIEW`
  * is defined. That guard is what makes a direct request to `commentator.php`
  * a 404 instead of a page, and hosted mode satisfies it through
  * UltiOrganizer's front controller. This is the other way to satisfy it, for a
@@ -20,7 +20,7 @@
  * directory. That is the correct design for that problem and it is a design
  * whose safety rests on getting three checks right.
  *
- * This directory serves eleven pages and can name all of them. So it does.
+ * This directory serves sixteen views and can name all of them. So it does.
  * A view that is not a key below cannot be reached, whatever it contains —
  * there is no traversal to defend against because no part of the request ever
  * becomes part of a path. It is a smaller thing to get right, and this is the
@@ -58,12 +58,12 @@
 if (PHP_SAPI === 'cli-server') {
     $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-    // Operator state: default closed, open two files by name. The same rule the
-    // .htaccess states, for the same reason — the stage polls show.json and the
-    // possession file as static assets about once a second, and routing those
-    // through PHP would be a bootstrap per second per stage.
+    // Operator state: default closed, open three files by name. The same rule
+    // the .htaccess states, for the same reason — the stage polls show.json,
+    // the possession file and the score as static assets about once a second,
+    // and routing those through PHP would be a bootstrap per second per stage.
     if (preg_match('#(^|/)conf(/|$)#', $path)) {
-        if (!preg_match('#/conf/(show\.json|possession-[0-9]+\.json)$#', $path)) {
+        if (!preg_match('#/conf/(show\.json|possession-[0-9]+\.json|score-[0-9]+\.json)$#', $path)) {
             http_response_code(404);
             exit;
         }
@@ -89,7 +89,7 @@ if (PHP_SAPI === 'cli-server') {
     // defaults to the picker — so a mistyped script URL answered 200 with a
     // page of HTML, and the browser reported it as "Unexpected token '<'".
     if ($path !== '/' && $path !== '/app.php'
-        && preg_match('#^/(s|c)(/|$)#', $path) !== 1) {
+        && preg_match('#^/(s|c|k)(/|$)#', $path) !== 1) {
         http_response_code(404);
         exit;
     }
@@ -135,6 +135,11 @@ $views = [
     'lines' => 'lines.php',
     'notes' => 'notes.php',
     'colors' => 'colors.php',
+    'score' => 'score.php',
+    'roster' => 'roster.php',
+    'event' => 'event.php',
+    'imprint' => 'imprint.php',
+    'matchcontrol' => 'matchcontrol.php',
     'login' => 'login.php',
     'tests/selftest' => 'tests/selftest.php',
 ];
@@ -166,6 +171,8 @@ $views = [
  * a browser source, so it wins easily.
  */
 $short = [
+    ['#^/s/event/?$#', 'event', []],
+    ['#^/s/imprint/?$#', 'imprint', []],
     ['#^/s/stage/([0-9A-Fa-f]{6}|green|blue|magenta|black)/?$#', 'stage', ['bg' => 1]],
     ['#^/s/stage/?$#', 'stage', []],
     ['#^/s/field/([^/]+)/overlay/?$#', 'stage', ['field' => 1]],
@@ -177,10 +184,13 @@ $short = [
     ['#^/s/?$#', 'index', []],
     ['#^/c/([0-9]+)/?$#', 'commentator', ['game' => 1]],
     ['#^/c/?$#', 'commentator', []],
+    // The scorekeeper's own entry point, for the same reason /c/ has one: a
+    // different job and a different person, and this one is typed on a phone.
+    ['#^/k/([0-9]+)/?$#', 'matchcontrol', ['game' => 1]],
 ];
 
 $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (preg_match('#^/(s|c)(/|$)#', $requestPath) === 1) {
+if (preg_match('#^/(s|c|k)(/|$)#', $requestPath) === 1) {
     foreach ($short as [$pattern, $view, $params]) {
         if (preg_match($pattern, $requestPath, $m) !== 1) {
             continue;
@@ -228,9 +238,13 @@ if (!isset($views[$requested])) {
 
 // Before the page runs: it may want to know whether this request is an admin,
 // and Auth reads the session.
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+//
+// Through Auth rather than session_start() directly, because the cookie's
+// attributes matter and there must be one place that sets them — SameSite=Lax
+// is what keeps an administrator's cookie off a cross-site POST, and none of
+// the write endpoints here carry a CSRF token.
+require_once __DIR__ . '/shared/auth.php';
+\Overlays\Auth::begin();
 
 // The guard every page checks. Defined only after the view has been resolved
 // against the allow-list, so nothing can be included without passing it.

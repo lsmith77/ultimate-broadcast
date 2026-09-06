@@ -77,11 +77,11 @@ The Studio's export (STUDIO.md §9.5) is the input. The card set and auto timing
 
 ```json
 {
-  "kind": "live-by-bula-broadcast/postproduce",
+  "kind": "ultimate-broadcast/postproduce",
   "version": 1,
   "baseUrl": "http://localhost:8080",
   "defaults": {
-    "stage": { "kind": "live-by-bula-broadcast/stage", "version": 1, "cards": [] },
+    "stage": { "kind": "ultimate-broadcast/stage", "version": 1, "cards": [] },
     "fps": 25
   },
   "videos": [

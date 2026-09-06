@@ -30,6 +30,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 // Live! to configure, and every reader below already falls back when the
 // constant is undefined — see docs/STANDALONE.md.
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
 
 if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
@@ -120,6 +121,32 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     a.btn { display: inline-block; background: #1d4ed8; color: #fff; text-decoration: none;
             font-weight: 600; font-size: .85rem; padding: .45rem 1rem; border-radius: 4px; }
     a.btn:hover { background: #2563eb; }
+    /* The visitor introduction. Sits above everything and gets out of the way
+       for good once dismissed — see the note in the markup. */
+    .intro { position: relative; max-width: 1100px; margin: 0 0 1.5rem;
+             padding: 1rem 2.4rem 1rem 1.1rem; background: #0f1a30;
+             border: 1px solid #1e293b; border-left: 3px solid #1d4ed8;
+             border-radius: 6px; }
+    .intro h2 { margin: 0 0 .4rem; font-size: 1rem; }
+    .intro p { margin: 0 0 .6rem; font-size: .9rem; color: #cbd5e1; }
+    .intro ul { margin: 0 0 .6rem; padding-left: 1.1rem; font-size: .88rem;
+                color: #cbd5e1; }
+    .intro li { margin-bottom: .25rem; }
+    .intro code { background: #0b1220; padding: .05rem .3rem; border-radius: 3px;
+                  font-size: .85em; }
+    .intro .introdemo { margin: 0 0 .6rem; font-size: .9rem; }
+    .intro .introdemo a { font-weight: 600; }
+    .intro .introfoot { margin: 0; font-size: .85rem; }
+    .introclose { position: absolute; top: .5rem; right: .6rem; background: none;
+                  border: 0; color: #64748b; font-size: 1.1rem; line-height: 1;
+                  cursor: pointer; padding: .2rem .4rem; }
+    .introclose:hover { color: #e2e8f0; }
+    /* Two links in one cell where a host provides a second scoresheet. */
+    .keepers { white-space: nowrap; }
+    .keepers .action + .action { margin-left: .6rem; }
+    /* #64748b measured 3.9:1 against the page, under the 4.5:1 WCAG AA needs
+       for text this size. This is 7.3:1. */
+    .ghosturl { color: #94a3b8; margin-left: .6rem; }
     a.btn.ghost { background: none; border: 1px solid #334155; color: #94a3b8; }
     a.btn.ghost:hover { background: none; border-color: #475569; color: #e2e8f0; }
     #keysBtn { background: none; border: 1px solid #334155; color: #94a3b8; font: inherit;
@@ -187,7 +214,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     .picker .cell:disabled { cursor: not-allowed; opacity: .55; }
 
     /* Possession: two states, one key each, sized to be hit without looking. */
-    .stagebar.possession { border-top: 1px solid #1e293b; padding-top: .75rem; margin-top: .25rem; }
+    .stagebar.possession,
+    .stagebar.scorekeeper { border-top: 1px solid #1e293b; padding-top: .75rem; margin-top: .25rem; }
     .poss { background: #0b1220; border: 1px solid #334155; color: #cbd5e1; font: inherit;
             font-weight: 700; font-size: .82rem; padding: .4rem .9rem; border-radius: 5px;
             cursor: pointer; white-space: nowrap; }
@@ -254,7 +282,66 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     <span class="who" id="who"><span class="dot"></span>Checking…</span>
     <span id="authAction"></span>
     <button id="keysBtn" type="button" title="Keyboard shortcuts">Keys</button>
+<?php if (\Overlays\Mode::ownsLogin()) : ?>
+    <button id="aboutBtn" type="button" title="What this is, and what to try">About</button>
+<?php endif; ?>
 </header>
+<?php if (\Overlays\Mode::ownsLogin()) : ?>
+<!--
+  What this is, for somebody who arrived at a URL and has never seen it.
+  Standalone only: hosted, this page sits inside an UltiOrganizer installation
+  and whoever reached it already knows what they are looking at.
+
+  Dismissable and remembered per browser, because it is an introduction rather
+  than a notice — an operator who reads it once should not read it every time
+  they open the page on a broadcast day.
+-->
+<aside class="intro" id="intro">
+    <button type="button" class="introclose" id="introClose" aria-label="Hide this">×</button>
+    <h2>Broadcast graphics for Ultimate</h2>
+    <p>
+        This turns a game's score, clock and rosters into overlays a video switcher can put
+        on air — and gives the people running the stream somewhere to control them from.
+        It normally runs on top of
+        <a href="https://github.com/layoutd/live-by-bula" rel="noopener">Live! by BULA</a>;
+        this installation is running <strong>standalone</strong>, with no tournament
+        software behind it.
+    </p>
+    <p class="introwhat">You can look at all of it without signing in:</p>
+    <ul>
+        <li><strong>Stage</strong> — the full-frame graphics layer a switcher points at.
+            Add <code>?demo=1</code> to a stage or scoreboard URL to watch a whole game
+            play out: holds, breaks, a timeout, the cap, a running clock. No sign-in,
+            and nothing is written anywhere.</li>
+        <li><strong>Commentary desk</strong> at <code>/c/&lt;game&gt;</code> — rosters and
+            prepared notes, never on air.</li>
+        <li><strong>Match control</strong> at <code>/k/&lt;game&gt;</code> — the score and
+            clock, kept from a phone, offline-tolerant.</li>
+    </ul>
+    <p class="introdemo" id="introDemo"></p>
+    <p class="introfoot">
+        <a href="https://github.com/lsmith77/ultimate-broadcast" rel="noopener">Source and
+        documentation on GitHub</a>
+        <?php
+        // Who runs this, and what it stores about people.
+        //
+        // Named here because About is where a visitor finds out what they are
+        // looking at, and "who is behind it" is the same question. The details
+        // themselves are a page rather than more of this box: a site that has to
+        // state them needs a stable URL for it, and the useful half — the
+        // inventory of what is stored about named people — is longer than an
+        // introduction should be.
+        $who = \Overlays\Mode::imprint();
+        ?>
+        · <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('imprint'), ENT_QUOTES) ?>">Imprint and data</a><?php
+        if ($who !== []) :
+            ?> · run by <?= htmlspecialchars((string) reset($who), ENT_QUOTES) ?><?php
+        endif;
+        ?>
+    </p>
+</aside>
+<?php endif; ?>
+
 <main>
 <p class="lede">Browser-source URLs for a video switcher (OBS, Magewell Director Mini, Yolobox).</p>
 
@@ -333,6 +420,67 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     var API = BASE + '/index.php?view=live/api';
     var CAPTURE = <?= json_encode(\Overlays\Mode::captureBase($base), JSON_UNESCAPED_SLASHES) ?>;
     var POSSESSION_URL = <?= json_encode(\Overlays\Mode::viewUrl('possession', $base), JSON_UNESCAPED_SLASHES) ?>;
+    // Where signing in happens, and whether it happens here. Both come from
+    // Overlays\Mode rather than being written into the markup: hosted it is
+    // Live!'s admin page in a new tab, standalone it is this project's own
+    // login, and the words differ as much as the URL does.
+    var LOGIN_URL = <?= json_encode(\Overlays\Mode::loginUrl($base), JSON_UNESCAPED_SLASHES) ?>;
+    var LOGIN_IS_OURS = <?= \Overlays\Mode::ownsLogin() ? 'true' : 'false' ?>;
+    // A public demonstration: the two stores that take unauthenticated writes
+    // do not take them here. See Overlays\Mode::isDemo().
+    var IS_DEMO = <?= \Overlays\Mode::isDemo() ? 'true' : 'false' ?>;
+
+    /**
+     * Hide the introduction for good, per browser.
+     *
+     * localStorage rather than a cookie or a stored setting: it is a preference
+     * of one person's browser about one page, it must survive a reload, and it
+     * must not be shared with the other people looking at the same installation
+     * on a broadcast day. Wrapped because a browser with site data blocked
+     * throws on access rather than returning nothing.
+     */
+    (function () {
+        var intro = document.getElementById('intro');
+        var close = document.getElementById('introClose');
+        var about = document.getElementById('aboutBtn');
+        if (!intro || !close) { return; }
+        var KEY = 'uo-overlays-intro-hidden';
+
+        function remember(hidden) {
+            try {
+                if (hidden) { window.localStorage.setItem(KEY, '1'); }
+                else { window.localStorage.removeItem(KEY); }
+            } catch (e) { /* a browser with site data blocked; the page still works */ }
+        }
+
+        // HIDDEN rather than removed, so About can bring it back. Removing it
+        // meant the only way to read it again was to clear site data, which is
+        // not a thing anybody is going to do to re-read an introduction.
+        function show(on) {
+            intro.hidden = !on;
+            if (about) { about.setAttribute('aria-expanded', on ? 'true' : 'false'); }
+        }
+
+        var hidden = false;
+        try { hidden = window.localStorage.getItem(KEY) === '1'; } catch (e) { hidden = false; }
+        show(!hidden);
+
+        close.addEventListener('click', function () { show(false); remember(true); });
+        if (about) {
+            about.addEventListener('click', function () {
+                var showing = !intro.hidden;
+                show(showing ? false : true);
+                remember(showing);
+                if (!showing) { intro.scrollIntoView({ block: 'nearest' }); }
+            });
+        }
+    }());
+    // The event editor, or null under a host — there the schedule belongs to
+    // UltiOrganizer and event.php answers 404.
+    var EVENT_URL = <?= json_encode(
+        \Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('event', $base),
+        JSON_UNESCAPED_SLASHES
+    ) ?>;
     var container = document.getElementById('games');
 
     function el(tag, className, text) {
@@ -447,14 +595,42 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             urlCell.append(link);
             row.append(urlCell);
 
-            // Where the score is actually entered. Scorekeeper has its own login;
-            // an unauthenticated click lands on its login page, not an error.
-            var keeper = el('a', 'action', 'Scorekeeper ↗');
-            keeper.href = BASE + '/scorekeeper/?view=addscoresheet&game=' + id;
-            keeper.target = '_blank';
-            keeper.rel = 'noopener';
-            var keeperCell = el('td');
-            keeperCell.append(keeper);
+            /*
+             * Where the score is entered. Two different answers, and until now
+             * this cell only ever gave the first:
+             *
+             *   HOSTED       UltiOrganizer's own Scorekeeper, which is the
+             *                tournament record and the thing that must be right.
+             *   STANDALONE   match control at /k/<game>, because there is no
+             *                UltiOrganizer to send anybody to — that link was a
+             *                404 on every standalone installation.
+             *
+             * Match control is offered in BOTH, because its reason is latency
+             * rather than the absence of a host: Live! caches a game for thirty
+             * seconds, and a score kept here reaches the overlay in about one.
+             * See docs/MATCHCONTROL.md.
+             */
+            var keeperCell = el('td', 'keepers');
+
+            var control = el('a', 'action', 'Match control ↗');
+            control.href = window.location.origin + BASE + '/k/' + id;
+            control.target = '_blank';
+            control.rel = 'noopener';
+            control.title = 'Keep the score and clock from a phone. Needs the code '
+                + 'nominated in the stage panel above.';
+            keeperCell.append(control);
+
+            if (!LOGIN_IS_OURS) {
+                // Scorekeeper has its own login; an unauthenticated click lands
+                // on its login page, not an error.
+                var keeper = el('a', 'action', 'Scorekeeper ↗');
+                keeper.href = BASE + '/scorekeeper/?view=addscoresheet&game=' + id;
+                keeper.target = '_blank';
+                keeper.rel = 'noopener';
+                keeper.title = 'UltiOrganizer\u2019s own scoresheet — the tournament record.';
+                keeperCell.append(keeper);
+            }
+
             row.append(keeperCell);
 
             body.append(row);
@@ -485,6 +661,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     // jerseys minutes before the pull.
 
     var COLORS_URL = <?= json_encode(\Overlays\Mode::viewUrl('colors', $base), JSON_UNESCAPED_SLASHES) ?>;
+    var SCORE_URL = <?= json_encode(\Overlays\Mode::viewUrl('score', $base), JSON_UNESCAPED_SLASHES) ?>;
 
     var state = { games: {}, admin: false, writable: false };
     var teamIndex = {};
@@ -807,9 +984,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
      */
     var CONFIG_VERSION = 1;
 
+    /**
+     * What an exported stage file calls itself.
+     *
+     * The name changed when the project did. The OLD one is still accepted on
+     * read, and always will be: an operator's saved stage is a file on their
+     * disk, and a rename here would silently turn every one of them into "that
+     * is not a stage configuration". The version field is for format changes;
+     * this is not one.
+     */
+    var CONFIG_KIND = 'ultimate-broadcast/stage';
+    var CONFIG_KINDS = [CONFIG_KIND, 'live-by-bula-broadcast/stage'];
+
     function exportConfig() {
         var doc = {
-            kind: 'live-by-bula-broadcast/stage',
+            kind: CONFIG_KIND,
             version: CONFIG_VERSION,
             logo: show.logo || '',
             cards: (show.cards || []).map(function (c) {
@@ -846,7 +1035,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 alert('That is not a JSON file.');
                 return;
             }
-            if (!doc || doc.kind !== 'live-by-bula-broadcast/stage' || !Array.isArray(doc.cards)) {
+            if (!doc || CONFIG_KINDS.indexOf(doc.kind) === -1 || !Array.isArray(doc.cards)) {
                 alert('That is not a stage configuration.');
                 return;
             }
@@ -974,6 +1163,22 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
      */
     function trackFor(game) {
         return window.Tracking.client({ endpoint: POSSESSION_URL, game: game });
+    }
+
+    /**
+     * Follow the stage when it changes game.
+     *
+     * The score switch belongs to a game, not to the stage, so moving the stage
+     * to a different game must re-read it — otherwise the button keeps
+     * reporting the previous game's answer, which is the sort of stale control
+     * that gets pressed.
+     */
+    var scoreStateGame = null;
+
+    function syncScoreState() {
+        if (scoreStateGame === (show.game || null)) { return; }
+        scoreStateGame = show.game || null;
+        loadScoreState().then(renderStage);
     }
 
     function postPossession(change) {
@@ -1182,6 +1387,172 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         return bar;
     }
 
+    /**
+     * What the score store says about this game, refreshed with the bar.
+     *
+     * Only `enabled` matters to the Studio: the score itself is the overlay's
+     * business, and an operator who wants to see it looks at the programme
+     * output, which is where they are already looking.
+     */
+    var scoreState = { enabled: false, code: null, nominated: false };
+
+    function loadScoreState() {
+        if (!show.game) {
+            scoreState = { enabled: false, code: null, nominated: false };
+
+            return Promise.resolve();
+        }
+
+        return fetch(SCORE_URL + '&game=' + encodeURIComponent(show.game),
+            { credentials: 'same-origin' })
+            .then(readJson)
+            .then(function (body) {
+                // `code` comes back only to an administrator — the endpoint
+                // decides that, not this page — and `nominated` is the yes/no
+                // everyone else gets.
+                scoreState = {
+                    enabled: Boolean(body.enabled),
+                    code: body.code || null,
+                    nominated: Boolean(body.nominated)
+                };
+            })
+            .catch(function () { scoreState = { enabled: false, code: null, nominated: false }; });
+    }
+
+    /** Any administrator write to the score store, with the state absorbed. */
+    function postScore(body) {
+        return fetch(SCORE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+            .then(readJson)
+            .then(function (state) {
+                scoreState = {
+                    enabled: Boolean(state.enabled),
+                    code: state.code || null,
+                    nominated: Boolean(state.nominated)
+                };
+
+                return state;
+            });
+    }
+
+    function setScoreSource(on) {
+        postScore({ game: show.game, enabled: on })
+            .then(function (state) {
+                // Re-render FIRST: renderStage() rebuilds the bar, and the flash
+                // node lives in it, so a message set before the rebuild is
+                // discarded by it. This confirmation never appeared until the
+                // scorekeeping code needed the same trick and exposed it.
+                renderStage();
+                flash(state.enabled
+                    ? 'The scoreboard now reads match control.'
+                    : 'The scoreboard reads upstream again.');
+            })
+            .catch(function (e) { alert(e.message); });
+    }
+
+    /**
+     * Match control: who may keep the score, and whether the board reads it.
+     *
+     * Its own bar rather than a corner of the possession one, because it is a
+     * different job handed to a different person — and because until this
+     * existed there was **no way to nominate a scorekeeping code at all**.
+     * `score.php` has always accepted one and `matchcontrol.php` has always
+     * told the scorekeeper to "ask the operator to set one", but the operator
+     * had nothing to set it with, so the only person who could keep score was
+     * an administrator (who may write without a code). Found by trying to use
+     * the first real deployment.
+     *
+     * Deliberately mirrors the commentator link bar: same masking, same
+     * generator, same reasoning. Two codes that behave differently would be two
+     * things to remember on a day when nobody has the attention to spare.
+     */
+    function scorekeeperBar() {
+        // Re-reads when the stage moves to a different game, because both the
+        // code and the switch belong to a game rather than to the stage.
+        syncScoreState();
+
+        var bar = el('div', 'stagebar scorekeeper');
+        bar.append(el('span', 'muted', 'Match control'));
+
+        var codeIn = document.createElement('input');
+        codeIn.type = 'text';
+        codeIn.className = 'codein';
+        codeIn.maxLength = 5;
+        codeIn.placeholder = '—————';
+        codeIn.value = scoreState.code || '';
+        codeIn.disabled = !showCanEdit() || !show.game;
+        codeIn.setAttribute('aria-label', 'Scorekeeping code');
+        codeIn.title = 'The 5-character code a scorekeeper enters at /k/<game>. '
+            + 'Only that code may keep score; clear the field to take it back.';
+        codeIn.addEventListener('change', function () {
+            var v = codeIn.value.toUpperCase().trim();
+            postScore({ game: show.game, code: v || null })
+                .then(function (state) {
+                    // Not echoed back, like the commentator code: they just
+                    // typed it, and repeating it only puts it on screen twice.
+                    renderStage();
+                    flash(state.nominated ? 'That code can now keep score.'
+                        : 'Scorekeeping revoked.');
+                })
+                .catch(function (e) { alert(e.message); });
+        });
+        bar.append(codeIn);
+
+        // Masked for the same reason as the commentator code, and with more at
+        // stake: this one writes the score that reaches air.
+        var peek = el('button', 'undo peek');
+        window.Secret.guard(codeIn, peek, { label: 'scorekeeping code' });
+        bar.append(peek);
+
+        var gen = el('button', 'undo', '↺ New code');
+        gen.type = 'button';
+        gen.disabled = !showCanEdit() || !show.game;
+        gen.title = 'Generate one to read out to whoever is keeping score.';
+        gen.addEventListener('click', function () {
+            postScore({ game: show.game, code: 'new' })
+                .then(function (state) { renderStage(); flash('Code is ' + state.code + '.'); })
+                .catch(function (e) { alert(e.message); });
+        });
+        bar.append(gen);
+
+        // Where the scoreboard reads its score from.
+        //
+        // Here rather than anywhere else because it is a decision about what
+        // reaches air. The reason to switch it is latency: Live! serves a game
+        // with a flat 30-second cache, so a goal is on screen somewhere between
+        // at once and half a minute late, and no polling rate improves that. A
+        // score kept in match control is on the overlay in about a second.
+        //
+        // The cost is that somebody then has to keep it — which is why the
+        // scorekeeper's own page says, in a banner, when this is off.
+        var srcOn = Boolean(scoreState.enabled);
+        var src = el('button', 'autobtn' + (srcOn ? ' on' : ''));
+        src.type = 'button';
+        src.disabled = !showCanEdit() || !show.game;
+        src.textContent = srcOn ? 'Score from: match control' : 'Score from: upstream';
+        src.title = srcOn
+            ? 'The scoreboard is reading the score somebody is keeping in match '
+                + 'control. Switch back and it reads Live! again, up to 30s behind.'
+            : 'Read the score from match control instead, which is about a second '
+                + 'behind rather than up to thirty. Somebody has to be keeping it.';
+        src.setAttribute('aria-pressed', srcOn ? 'true' : 'false');
+        src.addEventListener('click', function () { setScoreSource(!srcOn); });
+        bar.append(src);
+
+        // Says whether anybody CAN keep score, which is the question an operator
+        // about to switch the source is actually asking. Switching to a source
+        // nobody can write is how a scoreboard freezes on 0-0.
+        if (!scoreState.nominated) {
+            bar.append(el('span', 'connected', 'no code set'));
+        }
+
+        return bar;
+    }
+
     function possessionBar() {
         var bar = el('div', 'stagebar possession');
         var on = Boolean(possession.enabled);
@@ -1200,6 +1571,11 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         mode.setAttribute('aria-pressed', on ? 'true' : 'false');
         mode.addEventListener('click', function () { setPossessionMode(!on); });
         bar.append(mode);
+
+        // "Score from:" used to sit here. It moved to scorekeeperBar(), beside
+        // the code that decides who may keep that score — the two are one
+        // decision and reading them in two places was how the source got
+        // switched to a store nobody could write.
 
         // The first point's ratio sits here, not on the progression card.
         //
@@ -1465,6 +1841,22 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             a.rel = 'noopener';
             a.title = 'Point the switcher here — a stage pinned to this game';
             urlBar.append(a);
+
+            // The guided tour, one link away from the URL it demonstrates.
+            //
+            // It drives every state a stage can reach — hold, break, timeout,
+            // cap, halftime, a running clock — from one real payload, mutating
+            // copies of it in the browser. It writes nothing anywhere, which is
+            // what makes it safe to hand a stranger and useful before a game
+            // has started: there is no other way to see a moving clock without
+            // one.
+            var tour = el('a', 'url ghosturl', 'demo ↗');
+            tour.href = u + '?demo=1';
+            tour.target = '_blank';
+            tour.rel = 'noopener';
+            tour.title = 'Watch the stage play a whole game through, from one '
+                + 'real payload. Nothing is written and no score changes.';
+            urlBar.append(tour);
         } else {
             urlBar.append(el('span', 'muted', 'select a game first'));
         }
@@ -1707,6 +2099,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         stagePanel.append(bottom);
         stagePanel.append(linkBar());
         stagePanel.append(possessionBar());
+        stagePanel.append(scorekeeperBar());
 
         var note = el('p', 'muted');
         note.style.marginTop = '.5rem';
@@ -1725,14 +2118,39 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         var action = document.getElementById('authAction');
         who.className = 'who' + (state.admin ? ' admin' : '');
         who.replaceChildren(el('span', 'dot'),
-            document.createTextNode(state.admin ? 'Logged in as Live! admin' : 'Read-only'));
+            document.createTextNode(state.admin
+                ? (LOGIN_IS_OURS ? 'Signed in' : 'Logged in as Live! admin')
+                : 'Read-only'));
+
+        if (IS_DEMO && !state.admin) {
+            // Said where somebody looks to find out why a control is inert, and
+            // said as a fact about the installation rather than as an error.
+            who.append(el('span', 'muted', ' · demonstration, read-only'));
+        }
 
         action.replaceChildren();
-        var link = el('a', 'btn' + (state.admin ? ' ghost' : ''),
-            state.admin ? 'Live! admin ↗' : 'Log in to control');
-        link.href = BASE + '/index.php?view=live/admin';
-        link.target = '_blank';
-        link.rel = 'noopener';
+
+        // The event editor, standalone only. Hosted there is nothing to edit
+        // here — the schedule is UltiOrganizer's — and event.php 404s.
+        if (EVENT_URL && state.admin) {
+            var edit = el('a', 'btn ghost', 'Edit event');
+            edit.href = EVENT_URL;
+            edit.title = 'Teams, games and the rules of the pool. Not squads, '
+                + 'and not the score.';
+            action.append(edit);
+        }
+        // Standalone the login is a page of this project's, so it goes in this
+        // tab and brings the person back. Hosted it is Live!'s, which is a
+        // different application — a new tab, so the Studio is not lost.
+        var label = state.admin
+            ? (LOGIN_IS_OURS ? 'Sign out' : 'Live! admin ↗')
+            : 'Log in to control';
+        var link = el('a', 'btn' + (state.admin ? ' ghost' : ''), label);
+        link.href = LOGIN_URL;
+        if (!LOGIN_IS_OURS) {
+            link.target = '_blank';
+            link.rel = 'noopener';
+        }
         action.append(link);
     }
 
@@ -1827,6 +2245,74 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         return wrap;
     }
 
+    /**
+     * Direct demo links, once the game list has arrived.
+     *
+     * Written here rather than into the markup because the intro is rendered by
+     * the server, which does not know the games — this page fetches them. And
+     * because "add ?demo=1 to a URL" is an instruction, while a link is a thing
+     * somebody clicks: the whole point of the introduction is that a visitor who
+     * has never seen this before finds out what it does in one click.
+     *
+     * A MIXED game is offered separately when the event has one, because the
+     * mixed-specific graphics — the gender ratio, the matching bands on a line —
+     * simply do not appear in an open game, and a visitor looking at an open
+     * game would reasonably conclude they do not exist.
+     */
+    function introLinks() {
+        var box = document.getElementById('introDemo');
+        if (!box || !gamesList.length) { return; }
+
+        function pick(wantMixed) {
+            var found = null;
+            gamesList.forEach(function (g) {
+                var mixed = window.Ratio.isMixed(seriesIndex[String(g.pool)]);
+                if (mixed !== wantMixed) { return; }
+                // An ongoing game first: it has a score and a clock, so the
+                // graphics have something to draw. A scheduled one is a correct
+                // but very quiet demonstration.
+                if (!found || (g.status === 'ongoing' && found.status !== 'ongoing')) {
+                    found = g;
+                }
+            });
+
+            return found;
+        }
+
+        var open = pick(false);
+        var mixed = pick(true);
+        var origin = window.location.origin + BASE;
+
+        box.replaceChildren(el('span', null, 'Try it now: '));
+        [
+            [open, 'a game', ''],
+            [mixed, 'a mixed game', ' — adds the gender ratio and the matching bands']
+        ].forEach(function (entry) {
+            var game = entry[0];
+            if (!game) { return; }
+            if (box.childNodes.length > 1) { box.append(document.createTextNode(' · ')); }
+            var a = el('a', null, entry[1]);
+            a.href = origin + '/s/' + game.game_id + '/overlay?demo=1';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.title = 'The stage for ' + (game.gamename || ('game ' + game.game_id))
+                + ', playing itself through' + entry[2];
+            box.append(a);
+        });
+
+        // The desk is worth a click of its own: it is the surface that shows
+        // what the other two cannot, and it is never on air.
+        if (open || mixed) {
+            var g = mixed || open;
+            box.append(document.createTextNode(' · '));
+            var desk = el('a', null, 'the commentary desk');
+            desk.href = origin + '/c/' + g.game_id;
+            desk.target = '_blank';
+            desk.rel = 'noopener';
+            box.append(desk);
+        }
+    }
+
     function renderAll() {
         renderAuth();
         renderStage();
@@ -1874,6 +2360,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             });
             singleDay = Object.keys(days).length <= 1;
 
+            introLinks();
+
             show = results[4];
             renderAll();
             // The possession document is per game, so it cannot be fetched
@@ -1883,6 +2371,10 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 trackFor(show.game).read()
                     .then(function (state) { possession = state; renderStage(); })
                     .catch(function () { /* the poll will retry */ });
+                // Which way the score switch is set, for the same reason and on
+                // the same trigger: it is per game, so it cannot be known until
+                // show state has said which game.
+                loadScoreState().then(renderStage);
             }
             startPossessionPoll();
         })

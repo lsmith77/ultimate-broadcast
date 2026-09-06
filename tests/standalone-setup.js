@@ -17,18 +17,36 @@
  * copying notes about real people into a temp directory to prove they are
  * private. A fixture says the same thing and says it deterministically.
  */
-const { mkdtempSync, cpSync, mkdirSync, writeFileSync, rmSync, existsSync } = require('node:fs');
+const {
+  mkdtempSync, cpSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync,
+} = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 
 const SOURCE = path.join(__dirname, '..');
 
-/** Everything a standalone installation actually ships. */
-const RUNTIME = [
-  'app.php', 'login.php', 'index.php', 'scoreboard.php', 'stage.php',
-  'commentator.php', 'show.php', 'possession.php', 'lines.php', 'notes.php',
-  'colors.php', 'shared', 'images', '.htaccess',
-];
+/**
+ * Everything a standalone installation actually ships.
+ *
+ * The page files are READ OUT OF `app.php`'s allow-list rather than listed
+ * here. That list is what a standalone installation can serve, so it is also
+ * exactly what this tree needs — and keeping a second copy meant a new endpoint
+ * was routed, tested and missing from the tree, which fails as
+ * "Failed opening required roster.php" rather than as anything to do with the
+ * feature. It happened once; deriving it means it cannot happen again.
+ */
+function routedFiles() {
+  const app = readFileSync(path.join(SOURCE, 'app.php'), 'utf8');
+  const block = app.slice(app.indexOf('$views = ['), app.indexOf('];', app.indexOf('$views = [')));
+  const files = [...block.matchAll(/=>\s*'([^']+\.php)'/g)].map((m) => m[1]);
+  if (files.length < 5) {
+    throw new Error('could not read the view allow-list out of app.php');
+  }
+
+  return files;
+}
+
+const RUNTIME = ['app.php', 'shared', 'images', '.htaccess', ...routedFiles()];
 
 /**
  * A capture, recorded from the dev instance by `tests/capture.mjs`.
@@ -42,7 +60,26 @@ const RUNTIME = [
 const CAPTURE = path.join(SOURCE, 'fixtures', 'payloads', 'dev');
 
 function build() {
-  const root = mkdtempSync(path.join(tmpdir(), 'overlays-standalone-'));
+  // The tree sits one level down, so the directory ABOVE the installation is
+  // ours to control — and the first thing put in it is a decoy.
+  const base = mkdtempSync(path.join(tmpdir(), 'overlays-standalone-'));
+  const root = path.join(base, 'site');
+  mkdirSync(root);
+
+  // A stranger's `vendor/autoload.php` beside the installation.
+  //
+  // Not hypothetical: the first deployment to shared hosting found one sitting
+  // in the document root's parent, left by something else entirely. Hosted mode
+  // detects Live! by looking exactly there, so the old test — "is there a
+  // vendor/autoload.php" — matched it, and would have `require`d a stranger's
+  // autoloader into this process on every auth check. This file fails the run
+  // if that ever comes back: it throws on load, so anything that requires it
+  // takes the request down loudly rather than quietly running.
+  mkdirSync(path.join(base, 'vendor'), { recursive: true });
+  writeFileSync(
+    path.join(base, 'vendor', 'autoload.php'),
+    "<?php\n\nthrow new \\RuntimeException('a foreign autoloader was executed');\n",
+  );
 
   for (const entry of RUNTIME) {
     const from = path.join(SOURCE, entry);
@@ -58,7 +95,17 @@ function build() {
   mkdirSync(path.join(root, 'conf', 'notes'), { recursive: true });
   mkdirSync(path.join(root, 'conf', 'lines'), { recursive: true });
   const w = (p, body) => writeFileSync(path.join(root, 'conf', p), body);
-  w('show.json', JSON.stringify({ rev: 1, game: 702, cards: [] }));
+  // A stage with something ON it, which is what a stage looks like in use.
+  // It was `cards: []` — an empty stage, which is a real state but not the
+  // interesting one: with nothing mounted, every card is trivially correct and
+  // a card pointed at a URL that 404s looks exactly like a card that is off.
+  // That is how the scoreboard card's hosted-only URL survived here.
+  w('show.json', JSON.stringify({
+    rev: 1,
+    game: 702,
+    logo: '',
+    cards: [{ id: 'scoreboard', slot: 'lower-left', visible: true, params: {} }],
+  }));
   w('possession-702.json', JSON.stringify({ rev: 1 }));
   w('team-colors.json', JSON.stringify({ 304: { primary: '#123456' } }));
   w('show.json.bak', JSON.stringify({ rev: 0 }));
@@ -82,6 +129,11 @@ function build() {
   // The capture, plus the config that makes the pages read it. Both or
   // neither: a config naming a capture that is not there would make every
   // page fail in a way that looks like a routing bug.
+  //
+  // `demo` is deliberately NOT set here. The suite exercises the writes that
+  // demo mode closes — notes, lines — so turning it on for every run would
+  // make those tests pass for the wrong reason. The demo tests write the flag
+  // themselves and take it away again.
   if (existsSync(CAPTURE)) {
     mkdirSync(path.join(root, 'fixtures', 'payloads'), { recursive: true });
     cpSync(CAPTURE, path.join(root, 'fixtures', 'payloads', 'dev'), { recursive: true });
@@ -105,4 +157,12 @@ function hasCapture() {
   return existsSync(CAPTURE);
 }
 
-module.exports = { build, hasCapture, ADMIN_PASSWORD: 'standalone-test-password', RUNTIME, cleanup: (root) => rmSync(root, { recursive: true, force: true }) };
+module.exports = {
+  build,
+  hasCapture,
+  ADMIN_PASSWORD: 'standalone-test-password',
+  RUNTIME,
+  // The installation is `<base>/site`, and the decoy vendor/ is its sibling, so
+  // what has to go is the directory holding both.
+  cleanup: (root) => rmSync(path.dirname(root), { recursive: true, force: true }),
+};

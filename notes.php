@@ -38,6 +38,11 @@ if (!defined('UO_ROUTED_VIEW')) {
 }
 
 require_once __DIR__ . '/shared/notes.php';
+require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
+
+use Overlays\Auth;
+use Overlays\Mode;
 
 use Overlays\Lines;
 use Overlays\Notes;
@@ -56,6 +61,21 @@ function fail(int $status, string $message): void
 }
 
 $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+/**
+ * A public demonstration does not take writes from strangers.
+ *
+ * This endpoint is unauthenticated on purpose — the room code is a namespace,
+ * not a credential — and `docs/COMMENTATOR.md` makes the case. That trade holds
+ * on a tournament network and does not hold on a public installation, where
+ * anyone who guesses five characters can write into somebody else's room. See
+ * `Overlays\Mode::isDemo()`.
+ *
+ * Reads are untouched, so every surface still demonstrates what it does.
+ */
+if ($isPost && Mode::isDemo() && !Auth::isAdmin()) {
+    fail(403, 'This is a public demonstration, so it is read-only.');
+}
+
 $payload = [];
 
 if ($isPost) {

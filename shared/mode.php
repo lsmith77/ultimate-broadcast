@@ -70,6 +70,165 @@ final class Mode
     }
 
     /**
+     * Write `conf/local-config.php`.
+     *
+     * One writer, because there were three: `install/make-config.php` creating
+     * it, `install/make-event.php --set-capture` and the event editor both
+     * updating it. They had already drifted — only the editor invalidated the
+     * compiled copy, so the same edit took effect at once through the page and
+     * silently did nothing for a couple of seconds through the script.
+     *
+     * The invalidation is the part worth having in one place. This file is PHP,
+     * so it is COMPILED and cached, and opcache revalidates a cached file only
+     * every couple of seconds by default. Without the call, a write reports
+     * success and the very next request still reads the old settings.
+     *
+     * Written 0640 and moved into place, so there is no moment at which the
+     * password hash inside it is world-readable — on shared hosting that moment
+     * has neighbours.
+     */
+    public static function saveLocalConfig(array $settings, ?string $path = null): bool
+    {
+        $path = $path ?? self::LOCAL_CONFIG;
+        $export = static fn ($v): string => var_export($v, true);
+
+        $body = "<?php\n\n"
+            . "/**\n"
+            . " * This installation's settings.\n"
+            . " *\n"
+            . " * Gitignored and denied over HTTP. `admin_hash` is what `Overlays\\Auth`\n"
+            . " * checks a login against; `capture` is what `Overlays\\Mode` serves\n"
+            . " * payloads from, and leaving it out means reading a live Live! instead.\n"
+            . " */\n\n"
+            . "return [\n";
+        foreach ($settings as $key => $value) {
+            $body .= '    ' . $export((string) $key) . ' => ' . $export($value) . ",\n";
+        }
+        $body .= "];\n";
+
+        $dir = dirname($path);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return false;
+        }
+        $tmp = $path . '.' . getmypid() . '.tmp';
+        if (@file_put_contents($tmp, $body) === false) {
+            return false;
+        }
+        @chmod($tmp, 0640);
+        if (!@rename($tmp, $path)) {
+            @unlink($tmp);
+
+            return false;
+        }
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
+        }
+
+        return true;
+    }
+
+    /**
+     * Is this installation a public demonstration?
+     *
+     * `'demo' => true` in `conf/local-config.php`. It changes exactly one
+     * thing, and it is not cosmetic: **the two stores that take unauthenticated
+     * writes stop taking them.**
+     *
+     * `notes.php` and `lines.php` are open on purpose — the room code is a
+     * namespace rather than a credential, so a commentator can join a room
+     * without an operator being in the loop, and `docs/COMMENTATOR.md` makes
+     * the case. On a tournament network that is a fair trade against the
+     * friction it removes.
+     *
+     * On a public installation it is not. Anyone who guesses five characters
+     * can type into the prepared notes, which are notes about named people and
+     * the one store this project treats as sensitive. A demonstration wants
+     * visitors to see every surface working; it does not want them writing to
+     * one another's.
+     *
+     * An administrator still writes normally, so the person running the demo
+     * can still set it up.
+     */
+    public static function isDemo(): bool
+    {
+        if (!is_file(self::LOCAL_CONFIG)) {
+            return false;
+        }
+        $config = require self::LOCAL_CONFIG;
+
+        return is_array($config) && !empty($config['demo']);
+    }
+
+    /**
+     * Who is responsible for this installation.
+     *
+     * `'imprint' => ['Operator' => 'A Name', 'Address' => "…", 'Email' => '…']`
+     * in `conf/local-config.php`. Free-form labels on purpose: what a site has
+     * to state differs by country, and a fixed set of fields would be wrong
+     * somewhere. The page prints what it is given, in the order it is given.
+     *
+     * This project cannot supply any of it — it is somebody's real name and
+     * address — so an unconfigured installation says so plainly rather than
+     * showing an empty page that looks like a bug.
+     *
+     * @return array<string,string>
+     */
+    public static function imprint(): array
+    {
+        if (!is_file(self::LOCAL_CONFIG)) {
+            return [];
+        }
+        $config = require self::LOCAL_CONFIG;
+        $imprint = is_array($config) ? ($config['imprint'] ?? null) : null;
+        if (!is_array($imprint)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($imprint as $label => $value) {
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                $out[(string) $label] = trim((string) $value);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Where a person goes to sign in.
+     *
+     * Hosted that is Live!'s own admin page, because Live! owns the session and
+     * this project must not offer a second, weaker door beside it. Standalone
+     * there is no Live!, so it is `login.php` — the page that 404s under a host
+     * for exactly that reason.
+     *
+     * It is here rather than written into the Studio because the Studio was not
+     * the only place that knew: three endpoints tell a refused caller where to
+     * log in, and all four said `?view=live/admin`. Standalone that URL is a
+     * 404, so the one affordance a read-only visitor is given was a dead link
+     * — found on the first real standalone deployment.
+     */
+    public static function loginUrl(string $base = ''): string
+    {
+        if (defined('OVERLAYS_SELF')) {
+            return self::viewUrl('login', $base);
+        }
+
+        return rtrim($base, '/') . '/index.php?view=live/admin';
+    }
+
+    /**
+     * Whether signing in happens here rather than in Live!.
+     *
+     * The Studio needs this separately from the URL, because the words differ:
+     * "Live! admin" is right under a host and simply wrong without one.
+     */
+    public static function ownsLogin(): bool
+    {
+        return defined('OVERLAYS_SELF');
+    }
+
+    /**
      * The URL a browser should read a capture from, or null for live.
      *
      * Returns a URL rather than a path because the reader is JavaScript: the

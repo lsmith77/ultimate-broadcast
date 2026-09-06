@@ -126,11 +126,30 @@ if (!$isPost) {
 $codeGiven = isset($payload['code']) ? (string) $payload['code'] : null;
 $byCode = !$isAdmin && $codeGiven !== null && $store->allowsCode($codeGiven);
 
+/**
+ * A third door, for the same room: the SCOREKEEPING code.
+ *
+ * Match control already holds one code and is already the surface of somebody
+ * watching the game closely enough to press a button per point. Possession, an
+ * injury stoppage and the first point's ratio are the same kind of fact as the
+ * score — true about the game, recorded nowhere else — and asking that person
+ * to carry a second five-character code so they can record them would be a code
+ * nobody types correctly at a pitch.
+ *
+ * It does not widen what a room code can do, and it grants nothing upward:
+ * turning the mode on, nominating a code and changing the game stay the
+ * operator's, exactly as for a commentator.
+ */
+if (!$isAdmin && !$byCode && $codeGiven !== null) {
+    require_once __DIR__ . '/shared/score.php';
+    $byCode = (new \Overlays\Score($gameId))->canWrite($codeGiven);
+}
+
 if (!$isAdmin && !$byCode) {
     http_response_code(403);
     echo json_encode([
-        'error' => 'Possession is set by the Studio operator, or by a commentator '
-            . 'holding the room code the operator entered there.',
+        'error' => 'Possession is set by the Studio operator, by a commentator '
+            . 'holding the room code, or from match control.',
     ]);
     exit;
 }

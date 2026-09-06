@@ -2,13 +2,16 @@
 
 A broadcast graphics layer for Ultimate tournaments, extending [Live! by BULA](https://github.com/layoutd/live-by-bula). It turns the data an event is already keeping — score, clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
 
-Three surfaces, for three different people:
+Four surfaces, for four different jobs:
 
 - **Scoreboard** — a broadcast bug on a transparent 1920×1080 canvas. One URL, point a browser source at it, done.
 - **Studio** — a full-frame stage hosting several cards at once, plus the control page that decides what is on it.
 - **Commentator** — a second screen, never on air: rosters, stats, who is on the field.
+- **Match control** — the score and the clock, kept from a phone at the pitch and tolerant of a connection that comes and goes.
 
 Everything reads through Live!'s public JSON API. No overlay touches the database, which is what makes this a drop-in that survives a Live! upgrade.
+
+**It also runs without any of that.** [ultimate-broadcast.org](https://ultimate-broadcast.org) is a live installation with no UltiOrganizer and no Live! behind it — click any stage URL there to watch a whole game play out, or open the commentary desk and match control. Nothing on it needs a sign-in and nothing you do there is written. See [`docs/STANDALONE.md`](docs/STANDALONE.md) for what standalone mode is, and [`docs/DEPLOY.md`](docs/DEPLOY.md) for putting one on a domain of your own.
 
 ![A full frame, as a switcher receives it](docs/images/stage.png)
 
@@ -40,6 +43,8 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 | | |
 |---|---|
 | Score | Live, with a flash on change, and a HOLD / BREAK tab over the scoring side |
+| Score source | Per game, an operator chooses whether the scoreboard reads Live! or **match control** — this project's own scorekeeping, on a phone at the pitch. Live! caches a game for 30 seconds, so a goal is on air up to half a minute late; through match control it is about a second. The scorekeeper's page says plainly when it is *not* the source |
+| Scorekeeping offline | Every press is applied on the phone at once and sent afterwards; what cannot be sent queues and retries **against this project's own server**. Safe because a goal is written as **the point it completes**, so the same point sent twice stores one goal. **It does not sync to UltiOrganizer or Live!** — their API is read-only, so there is nowhere to send it; a game kept here is a parallel score the overlay can be pointed at, and UO's own scoresheet is unaffected |
 | Clean holds | HOLD becomes CLEAN HOLD when the defence never touched the disc that point — only where possession was actually being tracked |
 | Break chance | A red tab while the defence has the disc, driven by whoever is tracking possession |
 | On defence | A quieter standing tag, always true, shown whenever nobody is tracking possession |

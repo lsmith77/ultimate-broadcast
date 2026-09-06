@@ -37,6 +37,7 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
 }
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/lines.php';
 require_once __DIR__ . '/shared/notes.php';
 
@@ -631,6 +632,11 @@ try {
     .biobar { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
               margin-top: .5rem; font-size: .8rem; }
     .biobar .barbtn { font-size: .76rem; padding: .3rem .6rem; }
+    .biobar .squadnum, .biobar .squadname { font: inherit; font-size: .78rem;
+              padding: .3rem .45rem; border: var(--rule) solid var(--line);
+              border-radius: 4px; background: var(--panel); color: var(--ink); }
+    .biobar .squadnum { width: 3rem; }
+    .biobar .squadname { width: 12rem; }
     .biobar input[type="file"] { position: absolute; width: 1px; height: 1px;
                                  padding: 0; margin: -1px; overflow: hidden;
                                  clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -719,6 +725,18 @@ try {
   Import result. A live region rather than an alert: it confirms something the
   reader just asked for and must not interrupt them to do it.
 -->
+<?php if (\Overlays\Mode::isDemo() && !\Overlays\Auth::isAdmin()) : ?>
+<!--
+  A public demonstration. Said BEFORE anybody types rather than after their
+  first save fails: a page of prepared notes typed into a demo and then refused
+  reads as a broken page rather than as a policy, and that is the moment
+  somebody gives up on the project. Server-rendered because it is a fact about
+  the installation, not a state this page can enter.
+-->
+<div class="flashline on" role="status">Demonstration — every surface works, but
+prepared notes and the shared line cannot be saved.</div>
+<?php endif; ?>
+
 <div id="importFlash" class="flashline" role="status" aria-live="polite"></div>
 
 <main id="body"><p class="muted">Loading…</p></main>
@@ -747,6 +765,14 @@ try {
         // Null unless this installation is configured to read a capture — see
         // shared/mode.php. Same shape either way; the page cannot tell.
         captureBase: <?= $json(\Overlays\Mode::captureBase($base)) ?>,
+        // Squads kept here rather than upstream, folded in by the provider.
+        // Standalone only: the endpoint 404s under a host on purpose, and
+        // asking for it there would be a wasted request per team per load.
+        rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : \Overlays\Mode::viewUrl('roster', $base)) ?>,
+        // A public demonstration: notes and the shared line are read-only for
+        // anyone who is not an administrator, because this is the desk where
+        // those two stores are written. See Overlays\Mode::isDemo().
+        demo: <?= $json(\Overlays\Mode::isDemo() && !\Overlays\Auth::isAdmin()) ?>,
         gameId: <?= $json($gameId ?: null) ?>,
         mode: <?= $json($mode) ?>,
         linesUrl: <?= $json(\Overlays\Mode::viewUrl('lines', $base)) ?>,
@@ -766,7 +792,8 @@ try {
     // stores this page also talks to (lines, notes, possession) are its own
     // endpoints and keep using Tracking, which is their protocol.
     var api = window.Provider.fromConfig({
-        apiBase: CONFIG.api, captureBase: CONFIG.captureBase
+        apiBase: CONFIG.api, captureBase: CONFIG.captureBase,
+        rosterUrl: CONFIG.rosterUrl
     });
 
     var el = function (tag, cls, text) {
@@ -864,12 +891,39 @@ try {
                 var t = p.teams || {};
                 var ids = [t.hometeam, t.visitorteam].filter(Boolean)
                     .map(function (x) { return x.team_id; }).filter(Boolean);
+                // Rosters once per game, not once per refresh.
+                //
+                // This ran on every poll, so a desk fetched both squads every
+                // ten seconds for the whole game — two thirds of everything
+                // this page asked the API for, re-reading a list that does not
+                // change while a game is being played. Measured at 30 requests
+                // in 95 seconds; 20 of them were these.
+                //
+                // A roster that failed is retried on the next refresh, which is
+                // why the guard is on the STORED value rather than on a flag.
                 return Promise.all(ids.map(function (id) {
+                    if (state.teams[id]) { return null; }
+
                     return api.team(id)
                         .then(function (team) { state.teams[id] = team; })
                         .catch(function () { /* roster is optional */ });
                 }));
             });
+    }
+
+    /**
+     * How long until the game payload is worth asking for again.
+     *
+     * `meta.expires_timestamp` is when Live!'s cached copy goes stale; before
+     * then the answer is the same one already held. Mirrors the rule in
+     * shared/overlay-client.js, which the scoreboard has always followed.
+     */
+    function nextPollDelay() {
+        var meta = (state.payload || {}).meta || {};
+        var expires = Number(meta.expires_timestamp);
+        if (!isFinite(expires) || expires <= 0) { return 10000; }
+
+        return Math.min(60000, Math.max(10000, expires * 1000 - Date.now()));
     }
 
     /** Per-game goals and assists, straight from the goal list. */
@@ -1210,6 +1264,7 @@ try {
             + (blocks ? ', Blk is tournament blocks from completed games' : '')));
         panel.append(teamNoteBox(side));
         panel.append(bioBar(side));
+        panel.append(squadBar(side));
         panel.append(pronounCheck(side));
         return panel;
     }
@@ -1768,14 +1823,90 @@ try {
             // re-exports it appears to have a dead button.
             input.value = '';
             var parsed = window.Csv.parse(String(reader.result || ''));
-            var existing = notesForImport();
-            existing[window.Bios.TEAM_ROW_ID] = { text: teamNoteText(side) };
-            var report = window.Bios.match(parsed, rosterByNumber(side), existing, bioTeam(side));
-            openImportPreview(side, report);
+            newcomers(side, parsed).then(function () {
+                var existing = notesForImport();
+                existing[window.Bios.TEAM_ROW_ID] = { text: teamNoteText(side) };
+                var report = window.Bios.match(parsed, rosterByNumber(side), existing,
+                    bioTeam(side));
+                openImportPreview(side, report);
+            });
         };
         // UTF-8, which is what every spreadsheet exports and what the BOM in our
         // own export declares.
         reader.readAsText(file);
+    }
+
+    /**
+     * People on the sheet who are not yet on the squad — standalone only.
+     *
+     * The round trip already exists for notes: export a team's sheet, they fill
+     * it in, import it back. Hosted, a row for somebody not on the roster is
+     * REJECTED and must be, because the squad is UltiOrganizer's and an import
+     * must not invent people into somebody's tournament. Standalone there is no
+     * such squad — `install/make-event.php` writes teams empty — so the same
+     * file that carries the biographies is also how the squad arrives.
+     *
+     * Asked before anything is written, because this page's rule is that
+     * nothing happens until you have seen what would happen. The confirm is
+     * separate from the import preview rather than folded into it: adding people
+     * to a squad and filling in notes about them are different acts, and one of
+     * them is not undoable from this page.
+     *
+     * Resolves either way — a declined offer still imports the notes for
+     * whoever IS on the squad, which is what an operator who typed the roster by
+     * hand and only wants the biographies would expect.
+     */
+    function newcomers(side, parsed) {
+        if (!CONFIG.rosterUrl) { return Promise.resolve(); }
+
+        var headers = parsed.headers || [];
+        var nameCol = null;
+        var numCol = null;
+        var idCol = null;
+        headers.forEach(function (h) {
+            var norm = String(h).trim().toLowerCase();
+            if (norm === 'name') { nameCol = h; }
+            if (norm === 'number') { numCol = h; }
+            if (norm === 'player id') { idCol = h; }
+        });
+        if (nameCol === null) { return Promise.resolve(); }
+
+        var known = {};
+        (rosterByNumber(side) || []).forEach(function (p) {
+            known[String(p.name || '').trim().toLowerCase()] = true;
+        });
+
+        var rows = [];
+        (parsed.rows || []).forEach(function (row) {
+            var raw = idCol === null ? '' : String(row[idCol] || '').trim().toUpperCase();
+            // The two sentinel rows the export writes are not people.
+            if (raw === window.Bios.NOTICE_ROW_ID || raw === window.Bios.TEAM_ROW_ID) { return; }
+            // A row that already carries an id is somebody the sheet was
+            // exported FOR, whether or not this desk can see them.
+            if (raw !== '') { return; }
+            var name = String(row[nameCol] || '').trim();
+            if (!name || known[name.toLowerCase()]) { return; }
+            known[name.toLowerCase()] = true;
+            rows.push({ name: name, num: numCol === null ? null : String(row[numCol] || '').trim() });
+        });
+
+        if (!rows.length) { return Promise.resolve(); }
+
+        var who = rows.slice(0, 6).map(function (r) { return r.name; }).join(', ')
+            + (rows.length > 6 ? ', and ' + (rows.length - 6) + ' more' : '');
+        var ok = window.confirm('This sheet names ' + rows.length + ' '
+            + (rows.length === 1 ? 'person' : 'people')
+            + ' not on ' + (side.team.name || 'this team') + "'s squad:\n\n" + who
+            + '\n\nAdd them to the squad? Their biographies import either way.');
+        if (!ok) { return Promise.resolve(); }
+
+        return addPlayers(side.team.team_id, rows)
+            .then(function (body) {
+                flashMessage(body.added.length + ' added to the squad.');
+            })
+            .catch(function (e) {
+                flashMessage(e.message || 'Could not add those players.');
+            });
     }
 
     /**
@@ -2014,6 +2145,112 @@ try {
         bar.append(input, label);
         bar.append(el('span', 'muted', 'players fill it in; import fills only what is empty here'));
         return bar;
+    }
+
+    /**
+     * Add somebody to a squad, standalone only.
+     *
+     * Hosted this bar does not render, because a squad belongs to
+     * UltiOrganizer: it is registered, accredited, and the list the scoresheet
+     * is built from. A second roster typed here would disagree with it
+     * silently, on the surface that reaches air. `roster.php` 404s under a host
+     * as well, so this is the second lock rather than the only one.
+     *
+     * Standalone there is no such list to disagree with. `install/make-event.php`
+     * writes teams with empty squads on purpose — nobody should type forty names
+     * into a JSON file — and the names arrive here, or through the team's own
+     * sheet on the Import button above. Two doors, one squad.
+     *
+     * Prep-time, like the bio bar it sits under: nobody adds a player during a
+     * point.
+     */
+    function squadBar(side) {
+        if (!CONFIG.rosterUrl) { return document.createDocumentFragment(); }
+
+        var bar = el('div', 'biobar');
+        var teamId = side.team.team_id;
+
+        var num = document.createElement('input');
+        num.type = 'text';
+        num.inputMode = 'numeric';
+        num.className = 'squadnum';
+        num.placeholder = '#';
+        num.setAttribute('aria-label', 'Shirt number');
+        num.title = 'Optional — a squad may have no numbers at all.';
+
+        var name = document.createElement('input');
+        name.type = 'text';
+        name.className = 'squadname';
+        name.placeholder = 'Add a player';
+        name.setAttribute('aria-label', 'Player name');
+
+        var add = el('button', 'barbtn', 'Add');
+        add.type = 'button';
+
+        function submit() {
+            var value = name.value.trim();
+            if (!value) { name.focus(); return; }
+            add.disabled = true;
+            addPlayers(teamId, [{ num: num.value.trim() || null, name: value }])
+                .then(function (body) {
+                    // Reported by what actually happened, not by what was asked:
+                    // re-adding somebody already there is a no-op and saying
+                    // "added" would be a lie the desk acts on.
+                    flashMessage(body.added.length
+                        ? 'Added ' + body.added[0].name + '.'
+                        : value + ' is already on this squad.');
+                    num.value = '';
+                    name.value = '';
+                    name.focus();
+                })
+                .catch(function (e) { flashMessage(e.message || 'Could not add that player.'); })
+                .then(function () { add.disabled = false; });
+        }
+
+        add.addEventListener('click', submit);
+        [num, name].forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); submit(); }
+            });
+        });
+
+        bar.append(num, name, add);
+        bar.append(el('span', 'muted', 'kept here, not in UltiOrganizer'));
+
+        return bar;
+    }
+
+    /**
+     * Write players to the squad and re-read the roster.
+     *
+     * The roster is cached for the life of the page (`state.teams`), because it
+     * does not change while a game is played — so a write has to clear its own
+     * cache entry or the desk keeps showing the squad from before the addition.
+     */
+    function addPlayers(teamId, rows) {
+        return fetch(CONFIG.rosterUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team: teamId, add: rows })
+        })
+            .then(function (r) {
+                return r.json().then(function (body) {
+                    if (!r.ok || (body && body.error)) {
+                        throw new Error((body && body.error) || ('HTTP ' + r.status));
+                    }
+
+                    return body;
+                });
+            })
+            .then(function (body) {
+                delete state.teams[teamId];
+
+                return api.team(teamId)
+                    .then(function (team) { state.teams[teamId] = team; })
+                    .catch(function () { /* the next refresh retries it */ })
+                    .then(function () { render(); return body; });
+            });
     }
 
     /* ---------------------------------------------------------------
@@ -2968,6 +3205,30 @@ try {
         card.append(el('div', 'sub', rows.length + (rows.length === 1 ? ' change' : ' changes')
             + (began ? ' \u00b7 timed from the last goal' : ' \u00b7 timed from the first change')));
 
+        /**
+         * Undo the last press, focused, so U then Enter is the whole gesture.
+         *
+         * The Studio has had a one-click "Undo last press" all along; this page
+         * had four steps for the same act — open the log, find the last row,
+         * Delete, confirm — and this is the page where possession is actually
+         * pressed. The two-step design here is deliberate rather than an
+         * oversight (a blind key that deletes is not the same risk as a button
+         * beside a visible count), so this keeps the log opening and only
+         * removes the aiming: what is about to go is on screen while the
+         * button that removes it holds focus.
+         */
+        if (rows.length) {
+            var quick = el('button', 'chip', '\u21b6 Undo last press');
+            quick.type = 'button';
+            quick.title = 'Remove the most recent change of possession in this point.';
+            quick.addEventListener('click', function () {
+                correct({ undo: true }, sc);
+            });
+            card.append(quick);
+            // After append, or focus lands on a node with no layout.
+            window.setTimeout(function () { quick.focus(); }, 0);
+        }
+
         if (!rows.length) {
             card.append(el('p', 'muted', 'Nothing recorded for this point.'));
         }
@@ -3120,7 +3381,9 @@ try {
         if (key === 'i') { toggleStoppage(); return; }
         // U opens the log rather than deleting outright: one key still reaches
         // the fix at the speed the mistake was made, but nothing goes without
-        // being seen and confirmed first.
+        // being seen first. The log opens with "Undo last press" focused, so
+        // the whole gesture is U then Enter — as fast as the Studio's single
+        // click, without becoming a blind keypress that deletes.
         if (key === 'u') { openLog(); return; }
         setDefence(key === 'd');
     });
@@ -4078,7 +4341,7 @@ try {
                     ['O', 'The offence has the disc'],
                     ['D', 'The defence has the disc \u2014 a break chance'],
                     ['I', 'Toggle a stoppage'],
-                    ['U', 'Open the possession log, to undo a wrong entry']
+                    ['U', 'Possession log \u2014 opens with Undo last press focused, so U then Enter undoes']
                 ]
             }
         ].forEach(function (group) {
@@ -4545,9 +4808,23 @@ try {
         // game refresh.
         pollPossession();
         setInterval(pollPossession, 2000);
-        // A commentator can be a few seconds behind; no need for the overlay's
-        // tighter cadence.
-        setInterval(function () { refresh().catch(function () {}); }, 10000);
+        // Follow the payload's own cache lifetime rather than a number picked
+        // here. Live! serves a single game with a flat 30s cache, so polling at
+        // 10s asked three times for one answer — and the API's maintainers have
+        // said, with cause, that polling is what hurts their servers. `meta`
+        // carries when the copy goes stale; asking again before then cannot
+        // learn anything.
+        //
+        // Clamped either way: never faster than 10s if the server ever reports
+        // something tiny, never slower than 60s, so a stale expiry cannot strand
+        // a desk on a score that has moved.
+        (function pollGame() {
+            window.setTimeout(function () {
+                refresh().catch(function () {}).then(function () {
+                    pollGame();
+                });
+            }, nextPollDelay());
+        }());
     }
 }());
 </script>

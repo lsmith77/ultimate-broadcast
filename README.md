@@ -7,8 +7,11 @@ Four surfaces, for four different jobs:
 - **Scoreboard** — a broadcast bug on a transparent 1920×1080 canvas. One URL, point a browser source at it, done.
 - **Studio** — a full-frame stage hosting several cards at once, plus the control page that decides what is on it.
 - **Commentator** — a second screen, never on air: rosters, stats, who is on the field.
+- **Match control** — the score and the clock, kept from a phone at the pitch and tolerant of a connection that comes and goes.
 
 Everything reads through Live!'s public JSON API. No overlay touches the database, which is what makes this a drop-in that survives a Live! upgrade.
+
+**It also runs without any of that.** [ultimate-broadcast.org](https://ultimate-broadcast.org) is a live installation with no UltiOrganizer and no Live! behind it — click any stage URL there to watch a whole game play out, or open the commentary desk and match control. Nothing on it needs a sign-in and nothing you do there is written. See [`docs/STANDALONE.md`](docs/STANDALONE.md) for what standalone mode is, and [`docs/DEPLOY.md`](docs/DEPLOY.md) for putting one on a domain of your own.
 
 ![A full frame, as a switcher receives it](docs/images/stage.png)
 

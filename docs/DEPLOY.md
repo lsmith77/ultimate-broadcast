@@ -2,6 +2,8 @@
 
 How to put these overlays on a domain of their own — a PHP host, a directory of files, and nothing else. Everything here was checked against Apache 2.4 with PHP 8.3 serving the tree `deploy.sh` actually produces, rather than reasoned about.
 
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is one of these, on shared hosting, and most of the sharper notes below came from putting it there rather than from planning it.
+
 The hosted deployment is a different thing entirely and is covered by [`README.md`](README.md): there the overlays are a subdirectory of an UltiOrganizer installation, and the install is "make `conf/` writable".
 
 ## 1. What this deploys, and what it is not

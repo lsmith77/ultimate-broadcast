@@ -15,6 +15,12 @@ Four surfaces, for four different jobs:
 
 Everything reads through Live!'s public JSON API. **No overlay touches the database**, which is what makes the whole directory a drop-in that survives a Live! upgrade.
 
+### Seeing it before installing anything
+
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a standalone installation — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
+
+It is a demonstration rather than a service: there is no editor for somebody else's tournament on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one.
+
 ### Why it lives in `live/overlays/`
 
 `live/bin/update-from-github.sh` unzips a Live! release **over** the existing tree without deleting files it does not ship. So a self-contained directory alongside Live!'s own code survives every upgrade, and no file Live! ships is ever edited. That constraint is absolute — see `PLAN.md`.

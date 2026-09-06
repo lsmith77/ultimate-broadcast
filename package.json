@@ -1,5 +1,5 @@
 {
-  "name": "live-by-bula-broadcast",
+  "name": "ultimate-broadcast",
   "private": true,
   "description": "Broadcast overlays for Live! by BULA — development tooling only; the project itself has no build step.",
   "engines": {

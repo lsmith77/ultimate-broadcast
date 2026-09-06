@@ -92,7 +92,7 @@ test.describe('stage configuration file', () => {
       for await (const c of stream) chunks.push(c);
       const doc = JSON.parse(Buffer.concat(chunks).toString());
 
-      expect(doc.kind).toBe('live-by-bula-broadcast/stage');
+      expect(doc.kind).toBe('ultimate-broadcast/stage');
       expect(doc.cards).toHaveLength(3);
       // Every field that changes what appears must survive the round trip.
       const exported = Object.fromEntries(doc.cards.map((c) => [c.id, c]));

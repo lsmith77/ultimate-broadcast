@@ -807,9 +807,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
      */
     var CONFIG_VERSION = 1;
 
+    /**
+     * What an exported stage file calls itself.
+     *
+     * The name changed when the project did. The OLD one is still accepted on
+     * read, and always will be: an operator's saved stage is a file on their
+     * disk, and a rename here would silently turn every one of them into "that
+     * is not a stage configuration". The version field is for format changes;
+     * this is not one.
+     */
+    var CONFIG_KIND = 'ultimate-broadcast/stage';
+    var CONFIG_KINDS = [CONFIG_KIND, 'live-by-bula-broadcast/stage'];
+
     function exportConfig() {
         var doc = {
-            kind: 'live-by-bula-broadcast/stage',
+            kind: CONFIG_KIND,
             version: CONFIG_VERSION,
             logo: show.logo || '',
             cards: (show.cards || []).map(function (c) {
@@ -846,7 +858,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 alert('That is not a JSON file.');
                 return;
             }
-            if (!doc || doc.kind !== 'live-by-bula-broadcast/stage' || !Array.isArray(doc.cards)) {
+            if (!doc || CONFIG_KINDS.indexOf(doc.kind) === -1 || !Array.isArray(doc.cards)) {
                 alert('That is not a stage configuration.');
                 return;
             }

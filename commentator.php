@@ -864,12 +864,39 @@ try {
                 var t = p.teams || {};
                 var ids = [t.hometeam, t.visitorteam].filter(Boolean)
                     .map(function (x) { return x.team_id; }).filter(Boolean);
+                // Rosters once per game, not once per refresh.
+                //
+                // This ran on every poll, so a desk fetched both squads every
+                // ten seconds for the whole game — two thirds of everything
+                // this page asked the API for, re-reading a list that does not
+                // change while a game is being played. Measured at 30 requests
+                // in 95 seconds; 20 of them were these.
+                //
+                // A roster that failed is retried on the next refresh, which is
+                // why the guard is on the STORED value rather than on a flag.
                 return Promise.all(ids.map(function (id) {
+                    if (state.teams[id]) { return null; }
+
                     return api.team(id)
                         .then(function (team) { state.teams[id] = team; })
                         .catch(function () { /* roster is optional */ });
                 }));
             });
+    }
+
+    /**
+     * How long until the game payload is worth asking for again.
+     *
+     * `meta.expires_timestamp` is when Live!'s cached copy goes stale; before
+     * then the answer is the same one already held. Mirrors the rule in
+     * shared/overlay-client.js, which the scoreboard has always followed.
+     */
+    function nextPollDelay() {
+        var meta = (state.payload || {}).meta || {};
+        var expires = Number(meta.expires_timestamp);
+        if (!isFinite(expires) || expires <= 0) { return 10000; }
+
+        return Math.min(60000, Math.max(10000, expires * 1000 - Date.now()));
     }
 
     /** Per-game goals and assists, straight from the goal list. */
@@ -4545,9 +4572,23 @@ try {
         // game refresh.
         pollPossession();
         setInterval(pollPossession, 2000);
-        // A commentator can be a few seconds behind; no need for the overlay's
-        // tighter cadence.
-        setInterval(function () { refresh().catch(function () {}); }, 10000);
+        // Follow the payload's own cache lifetime rather than a number picked
+        // here. Live! serves a single game with a flat 30s cache, so polling at
+        // 10s asked three times for one answer — and the API's maintainers have
+        // said, with cause, that polling is what hurts their servers. `meta`
+        // carries when the copy goes stale; asking again before then cannot
+        // learn anything.
+        //
+        // Clamped either way: never faster than 10s if the server ever reports
+        // something tiny, never slower than 60s, so a stale expiry cannot strand
+        // a desk on a score that has moved.
+        (function pollGame() {
+            window.setTimeout(function () {
+                refresh().catch(function () {}).then(function () {
+                    pollGame();
+                });
+            }, nextPollDelay());
+        }());
     }
 }());
 </script>

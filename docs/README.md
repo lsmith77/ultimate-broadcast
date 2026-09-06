@@ -127,6 +127,14 @@ The document states what runs, how to start it, what is missing, and what the ne
 
 **Go here for:** how to run the overlays with no host, and what is still needed before a tournament could.
 
+### [`DEPLOY.md`](DEPLOY.md) — putting a standalone installation on a domain
+
+The step from `php -S` on a laptop to a PHP host serving the overlays as a site of their own. Three things it exists to get right, each of which fails quietly rather than loudly: the shipped `.htaccess` is for **hosted** mode and would 404 every URL at a document root; `--delete` would take `conf/` and `logos/` apart on every deploy if they were not excluded, and those hold the password hash, what is on air and the desk's notes; and the `conf/` allow-list now exists in three copies that cannot be derived from one another, so a checker keeps them honest.
+
+It is also candid about what a standalone installation can and cannot be today. It replays a **recorded capture** — every surface renders and match control keeps a real score — but there is no editor, so it cannot run somebody's tournament, and it cannot read a remote Live! either, because every page builds its API URL against itself and sends it same-origin.
+
+**Go here for:** the deploy script, the one-time bootstrap, what to check afterwards, and what a visitor to a public installation is able to change.
+
 ### [`SETUP.md`](SETUP.md) — setup, checks and teardown
 
 A concept, with nothing built. These docs ask for a pre-game checklist in **five separate places** — including the same clock item written twice in this file — and no checklist exists anywhere.
@@ -235,7 +243,7 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request: PHP syntax on 8.3 and 8.4, `npm run check`, `npm run test:unit` and `npm run test:standalone`.
 
-**`npm run check` is the repository's own checks, and CI runs exactly that command** rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Four of them:
+**`npm run check` is the repository's own checks, and CI runs exactly that command** rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Five of them:
 
 | Check | What it catches |
 |---|---|
@@ -243,6 +251,7 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 | [`tests/suites.mjs`](../tests/suites.mjs) | a spec run by no config, and — the real one — a **pure spec missing from the unit config**, which still passes locally under the hosted suite while never running in CI at all |
 | [`tests/links.mjs`](../tests/links.mjs) | a relative link in these documents that no longer resolves |
 | [`tests/capture-check.mjs`](../tests/capture-check.mjs) | a committed capture missing a roster or a player history — which fails as "Loading…" forever rather than as an error — or a game absent from the manifest, whose clock then cannot be rebased |
+| [`tests/htaccess.mjs`](../tests/htaccess.mjs) | the `conf/` allow-list drifting between its three copies — the hosted rules, the standalone rules and `app.php` — which serves the desk's notes or breaks the stage on one deployment shape only |
 
 Each one was checked by breaking something and watching it fail, which is the only evidence that a check does anything.
 

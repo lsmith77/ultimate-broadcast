@@ -1,0 +1,86 @@
+# Apache rules for a STANDALONE installation — the overlays as their own site.
+#
+# Deploy this as the `.htaccess` at the root of the installation, replacing the
+# one shipped at the top of this directory. That one is for hosted mode: it
+# rewrites onto UltiOrganizer's front controller at `/index.php?view=live/...`,
+# with `RewriteBase /live/overlays/`. Neither is true here. Served at a document
+# root with no UltiOrganizer above it, `/index.php` is the Studio page itself,
+# which answers 404 because `UO_ROUTED_VIEW` is not defined — so every URL the
+# hosted file produces is a 404 rather than a page.
+#
+# `deploy.sh` installs this file under the right name and excludes the hosted
+# one, so the two cannot both be present. See `docs/DEPLOY.md`.
+#
+# Requires mod_rewrite and AllowOverride All.
+
+# `app.php` is the front controller, so it is also the index. Without this the
+# server reaches for `index.php`, which is the Studio page — a file that
+# deliberately refuses to run unrouted, so the site's own front page 404s.
+DirectoryIndex app.php
+
+# --------------------------------------------------------------------------
+# Operator state
+#
+# The same rule the hosted `.htaccess` states and `app.php` states a third time
+# for the built-in server: `conf/` is closed, and exactly three files are opened
+# by name. The stage polls those three as static assets about once a second, and
+# routing them through PHP would be a bootstrap per second per surface.
+#
+# Everything else in there has a PHP front door that owns its rules — and one of
+# the things in there is the commentary desk's prepared notes, which are notes
+# about named people. Default closed, open one file at a time.
+#
+# `tests/htaccess.mjs` checks that all three copies of this list still agree,
+# because a fourth pollable file added to two of them and forgotten in the third
+# is how the notes end up being served.
+# --------------------------------------------------------------------------
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(show\.json|possession-[0-9]+\.json|score-[0-9]+\.json)$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+RedirectMatch 404 (^|/)conf/(?!(show\.json|possession-[0-9]+\.json|score-[0-9]+\.json)$).*$
+
+# Nothing under `install/` is a page. `make-config.php` refuses to run under a
+# web server on its own, which is the lock that matters; this is the second one.
+RedirectMatch 404 (^|/)install/
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # The URL path of this installation. `/` for a site of its own, which is the
+    # deployment this file exists for; change it if the overlays are served under
+    # a prefix, e.g. /overlays/.
+    RewriteBase /
+
+    # Never rewrite a request for a real file: the CSS and JS under shared/, the
+    # capture under fixtures/, and `app.php` itself are served directly.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # The short URLs, for a video switcher's on-screen keyboard:
+    #
+    #   /s/            the Studio
+    #   /s/702         scoreboard for game 702
+    #   /s/702/green   ... on a chroma-key background
+    #   /s/702/overlay the stage pinned to that game — the browser source
+    #   /s/field/1/overlay  a stage that follows whatever is live on field 1
+    #   /c/702         the commentary desk
+    #   /k/702         match control, on a phone
+    #
+    # One rule rather than the dozen the hosted file needs, because the routes
+    # themselves already live in `app.php` — it has to know them anyway, since
+    # PHP's built-in server reads no `.htaccess` and `php -S` at a venue is a
+    # deployment this project actively recommends. Restating them here would be
+    # a fourth copy to keep in step for no gain.
+    #
+    # The cost is that `app.php` answers these with a redirect to its long form
+    # rather than an internal rewrite, so the address bar ends up at
+    # `/app.php?view=scoreboard&game=702`. That is one round trip on a URL that
+    # is typed once and then lives in a browser source. The reason it cannot be
+    # an internal rewrite is in `app.php`: the pages read their parameters with
+    # `filter_input(INPUT_GET, ...)`, which reads the original request and
+    # ignores anything written into `$_GET`.
+    RewriteRule ^(s|c|k)(/|$) app.php [L,QSA]
+</IfModule>

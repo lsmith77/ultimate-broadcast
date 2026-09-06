@@ -11,6 +11,10 @@
 /logos/*
 !/logos/README.md
 
+# Where one person's installation lives — an SSH target, not a project setting.
+# deploy.env.example is tracked and shows the shape.
+/deploy.env
+
 # Playwright
 /node_modules/
 /test-results/

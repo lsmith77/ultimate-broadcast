@@ -25,28 +25,37 @@ A tournament scored on paper. A club streaming a friendly. A showcase game outsi
 | **Scoring with no signal** | `shared/score-client.js` applies a press locally, queues it, and retries until it lands. Safe only because a goal is written as **the point it creates** rather than as `+1`, so sending it twice is not two goals |
 | **Signing in** | `login.php`, which 404s under a host because the host owns that door |
 | **Knowing where it lives** | `shared/mode.php` — asset and endpoint URLs, rather than `/live/overlays/` written into every page |
+| **Configuring an installation** | `install/make-config.php` — prompts for a password, hashes it, writes `conf/local-config.php`. CLI only |
+| **Putting it on a domain** | `install/standalone.htaccess` and `deploy.sh`, both covered by [`DEPLOY.md`](DEPLOY.md) |
+| **Creating an event** | `event.php` at `/s/event` — teams, games and the pool's rules, in a browser. `install/make-event.php` does the same from a shell, and `shared/event.php` is the one implementation both call |
+| **Squads** | `shared/roster.php`, written from the commentary desk — typed in, or imported from the team's own sheet. **Standalone only**: hosted, a squad belongs to UltiOrganizer |
+| **Demonstrating it publicly** | `'demo' => true` closes the two stores that take unauthenticated writes; `?demo=1` drives the scoreboard and the stage through a whole game from one real payload, writing nothing and needing no sign-in; and the Studio carries an introduction with direct links into it |
 
-Twenty-four tests drive it over HTTP against a tree with no UltiOrganizer above it. They cover the routing, the guards, the login, and a page rendering real payloads with no API call made at all.
+Sixty tests drive it over HTTP against a tree with no UltiOrganizer above it. They cover the routing, the guards, the login, squads, authoring an event, a phone that keeps scoring through an outage and catches up after, and a page rendering real payloads with no API call made at all. It is also the only place the **administrator path** is exercised at all: hosted, those tests skip without `ADMIN_PASS`; here the password is ours to set.
 
 ## 3. Running it
 
 ```
 node tests/capture.mjs --game 702 --out fixtures/payloads/dev   # record a game
+php install/make-config.php --capture=fixtures/payloads/dev     # configure
 php -S 0.0.0.0:8080 -t . app.php                                # serve
 ```
 
-`conf/local-config.php` holds the two settings, and is gitignored and denied over HTTP:
+`conf/local-config.php` is what the middle command writes, and it holds the settings — gitignored and denied over HTTP:
 
 ```php
 <?php
 
 return [
+    'event' => 'standalone',
     'capture' => 'fixtures/payloads/dev',
     'admin_hash' => '<bcrypt hash>',
 ];
 ```
 
-Generate the hash with `php -r 'echo password_hash("your password", PASSWORD_BCRYPT);'`. Without `capture` the pages read Live! as usual; without `admin_hash` nothing can change what is on air.
+Without `capture` the pages read Live! as usual; without `admin_hash` nothing can change what is on air. `event` names the installation in the session key, so two installs on one domain cannot inherit each other's login.
+
+Putting it on a domain rather than on a laptop is [`DEPLOY.md`](DEPLOY.md): a different `.htaccess`, an rsync script, and a list of what must survive `--delete`.
 
 **`app.php` must be the router**, not just a file in the directory. `php -S` reads no `.htaccess`, so the rules that keep `conf/` off the network live in that router — serve the directory without it and the commentary desk's prepared notes, which are notes about named people, are served on request.
 
@@ -56,12 +65,14 @@ Ordered by what would bite first.
 
 | Gap | Consequence | Size |
 |---|---|---|
-| **No way to create `conf/local-config.php`** | A new installation has no administrator until somebody hand-writes a PHP file containing a hash they generated themselves. It is the first thing anyone hits | small |
-| **`.htaccess` still says `RewriteBase /live/overlays/`** | Short URLs work under `php -S`, because `app.php` restates them, and **not** on a standalone Apache | small |
-| **The stage requests a Live!-relative logo path** | `entity=config` carries `TV_SCREEN_LOGO_PATH` pointing into `live/conf/`, which is not there — one 404 per load, no tournament logo | small |
-| **`tests/selftest` is in the allow-list** | A standalone installation has to ship `tests/` to serve the switcher diagnostic, which is otherwise dev-only | small |
+| **A recorded capture still carries Live!'s logo path** | `entity=config` points into `live/conf/`, which a standalone installation does not have: one 404 per stage load, no tournament logo. Authored events set `"logo"` themselves and are fine; only recordings are affected, and a capture is evidence that must not be hand-edited | small |
 | **Nothing checks a capture is current** | `tests/capture-check.mjs` proves a recording is *whole*, not that it matches today's fixture. That needs a live instance, which CI has not got | small |
-| **No editor** | Everything replays a recording. Nothing lets a person create an event, and that is the difference between "runs without a host" and "a tournament can use this" | **large** |
+| **No schedule beyond one pool** | `make-event.php` writes one pool, one series and no standings. A real tournament has brackets, and a bracket is a schedule rather than a list of games | medium |
+| **One pool, no standings** | Everything sits in one series and one pool, so there is nothing to rank and no table to show | small |
+
+**The editor is largely built, and by a smaller thing than it looked.** It turned out to split in two: what a person types once (`install/make-event.php`) and what arrives through a door that already existed (the commentary desk's roster import). Neither needed an authoring UI, because **match control already keeps the score and the clock** — so nothing had to author the part of a game that changes while it is played.
+
+Five gaps that were on this list are now closed: the config bootstrap, the standalone `.htaccess`, shipping `tests/selftest.php` alone, the tournament logo (authored per event rather than inherited from a recording), and creating an event at all.
 
 ## 5. The next steps
 

@@ -74,6 +74,12 @@ php install/make-config.php --capture=fixtures/payloads/dev
 
 It refuses a password under twelve characters, refuses to overwrite an existing config without `--force`, and checks the capture directory exists before writing anything — a path with a typo produces pages that load and then say "Loading…" for ever, which looks like a network fault and is not.
 
+### The directory above the installation is not yours
+
+Worth knowing because the first real deployment ran straight into it. `Overlays\Auth` decides hosted-or-standalone by looking one directory up for Live!, and hosted that directory is Live!'s own. **Standalone it belongs to the host**, and a shared-hosting account's `public_html` can have anything in it — this one had an unrelated `vendor/autoload.php`, left by something else entirely.
+
+The old test was "is there a `vendor/autoload.php` up there", which matched it, and would have `require`d a stranger's autoloader into this process on every auth check. Now the standalone front controller says so itself (`OVERLAYS_STANDALONE`), and the fallback wants Live!'s entry point beside its autoloader before executing anything. `tests/standalone-setup.js` plants a decoy that throws if it is ever loaded, so the suite fails loudly if this comes back.
+
 ## 6. Checking it worked
 
 In this order, because each rules out a different layer:

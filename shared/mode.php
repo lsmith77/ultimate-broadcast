@@ -70,6 +70,40 @@ final class Mode
     }
 
     /**
+     * Where a person goes to sign in.
+     *
+     * Hosted that is Live!'s own admin page, because Live! owns the session and
+     * this project must not offer a second, weaker door beside it. Standalone
+     * there is no Live!, so it is `login.php` — the page that 404s under a host
+     * for exactly that reason.
+     *
+     * It is here rather than written into the Studio because the Studio was not
+     * the only place that knew: three endpoints tell a refused caller where to
+     * log in, and all four said `?view=live/admin`. Standalone that URL is a
+     * 404, so the one affordance a read-only visitor is given was a dead link
+     * — found on the first real standalone deployment.
+     */
+    public static function loginUrl(string $base = ''): string
+    {
+        if (defined('OVERLAYS_SELF')) {
+            return self::viewUrl('login', $base);
+        }
+
+        return rtrim($base, '/') . '/index.php?view=live/admin';
+    }
+
+    /**
+     * Whether signing in happens here rather than in Live!.
+     *
+     * The Studio needs this separately from the URL, because the words differ:
+     * "Live! admin" is right under a host and simply wrong without one.
+     */
+    public static function ownsLogin(): bool
+    {
+        return defined('OVERLAYS_SELF');
+    }
+
+    /**
      * The URL a browser should read a capture from, or null for live.
      *
      * Returns a URL rather than a path because the reader is JavaScript: the

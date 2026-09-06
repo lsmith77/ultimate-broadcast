@@ -334,6 +334,12 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     var API = BASE + '/index.php?view=live/api';
     var CAPTURE = <?= json_encode(\Overlays\Mode::captureBase($base), JSON_UNESCAPED_SLASHES) ?>;
     var POSSESSION_URL = <?= json_encode(\Overlays\Mode::viewUrl('possession', $base), JSON_UNESCAPED_SLASHES) ?>;
+    // Where signing in happens, and whether it happens here. Both come from
+    // Overlays\Mode rather than being written into the markup: hosted it is
+    // Live!'s admin page in a new tab, standalone it is this project's own
+    // login, and the words differ as much as the URL does.
+    var LOGIN_URL = <?= json_encode(\Overlays\Mode::loginUrl($base), JSON_UNESCAPED_SLASHES) ?>;
+    var LOGIN_IS_OURS = <?= \Overlays\Mode::ownsLogin() ? 'true' : 'false' ?>;
     var container = document.getElementById('games');
 
     function el(tag, className, text) {
@@ -448,14 +454,42 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             urlCell.append(link);
             row.append(urlCell);
 
-            // Where the score is actually entered. Scorekeeper has its own login;
-            // an unauthenticated click lands on its login page, not an error.
-            var keeper = el('a', 'action', 'Scorekeeper ↗');
-            keeper.href = BASE + '/scorekeeper/?view=addscoresheet&game=' + id;
-            keeper.target = '_blank';
-            keeper.rel = 'noopener';
-            var keeperCell = el('td');
-            keeperCell.append(keeper);
+            /*
+             * Where the score is entered. Two different answers, and until now
+             * this cell only ever gave the first:
+             *
+             *   HOSTED       UltiOrganizer's own Scorekeeper, which is the
+             *                tournament record and the thing that must be right.
+             *   STANDALONE   match control at /k/<game>, because there is no
+             *                UltiOrganizer to send anybody to — that link was a
+             *                404 on every standalone installation.
+             *
+             * Match control is offered in BOTH, because its reason is latency
+             * rather than the absence of a host: Live! caches a game for thirty
+             * seconds, and a score kept here reaches the overlay in about one.
+             * See docs/MATCHCONTROL.md.
+             */
+            var keeperCell = el('td', 'keepers');
+
+            var control = el('a', 'action', 'Match control ↗');
+            control.href = window.location.origin + BASE + '/k/' + id;
+            control.target = '_blank';
+            control.rel = 'noopener';
+            control.title = 'Keep the score and clock from a phone. Needs the code '
+                + 'nominated in the stage panel above.';
+            keeperCell.append(control);
+
+            if (!LOGIN_IS_OURS) {
+                // Scorekeeper has its own login; an unauthenticated click lands
+                // on its login page, not an error.
+                var keeper = el('a', 'action', 'Scorekeeper ↗');
+                keeper.href = BASE + '/scorekeeper/?view=addscoresheet&game=' + id;
+                keeper.target = '_blank';
+                keeper.rel = 'noopener';
+                keeper.title = 'UltiOrganizer\u2019s own scoresheet — the tournament record.';
+                keeperCell.append(keeper);
+            }
+
             row.append(keeperCell);
 
             body.append(row);
@@ -1927,14 +1961,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         var action = document.getElementById('authAction');
         who.className = 'who' + (state.admin ? ' admin' : '');
         who.replaceChildren(el('span', 'dot'),
-            document.createTextNode(state.admin ? 'Logged in as Live! admin' : 'Read-only'));
+            document.createTextNode(state.admin
+                ? (LOGIN_IS_OURS ? 'Signed in' : 'Logged in as Live! admin')
+                : 'Read-only'));
 
         action.replaceChildren();
-        var link = el('a', 'btn' + (state.admin ? ' ghost' : ''),
-            state.admin ? 'Live! admin ↗' : 'Log in to control');
-        link.href = BASE + '/index.php?view=live/admin';
-        link.target = '_blank';
-        link.rel = 'noopener';
+
+        var label = state.admin
+            ? (LOGIN_IS_OURS ? 'Sign out' : 'Live! admin ↗')
+            : 'Log in to control';
+        var link = el('a', 'btn' + (state.admin ? ' ghost' : ''), label);
+        link.href = LOGIN_URL;
+        if (!LOGIN_IS_OURS) {
+            link.target = '_blank';
+            link.rel = 'noopener';
+        }
         action.append(link);
     }
 

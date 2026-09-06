@@ -189,6 +189,23 @@ test.describe('a page renders from a capture, with no Live! at all', () => {
     }
   });
 
+  test('the stage draws its scoreboard card, not an empty frame', async ({ page }) => {
+    // The card is an iframe pointed at the scoreboard as a PAGE, and its URL
+    // used to be built by rewriting the API URL — which produces the hosted
+    // spelling, `/index.php?view=live/overlays/scoreboard`. Standalone that is
+    // UltiOrganizer's front controller and it is not there, so the stage
+    // mounted a frame around a 404 and showed nothing.
+    //
+    // Nothing failed loudly: the stage is built to degrade quietly so that one
+    // bad card cannot take a broadcast down. It took looking at the DOM.
+    await page.goto('/app.php?view=stage&game=702');
+
+    const frame = page.frameLocator('iframe').first();
+    await expect(frame.locator('#homeScore'), 'the card loaded')
+      .toBeVisible({ timeout: 15000 });
+    await expect(frame.locator('#homeScore')).toHaveText('8');
+  });
+
   test('the clock reads the minute the capture was taken', async ({ page }) => {
     // The rebase, through the whole stack rather than in a unit test. A
     // recording of the 14th minute must not report three days.
@@ -212,6 +229,34 @@ test.describe('the standalone login', () => {
     await page.locator('button[type=submit]').click();
     await page.waitForLoadState('networkidle');
   }
+
+  test('the Studio points a read-only visitor at a login that exists', async ({ page }) => {
+    // The one affordance somebody arriving read-only is given. It was hardcoded
+    // to Live!'s admin page, which standalone is a 404 — so the only thing the
+    // Studio told a visitor to do was the one thing that could not work. Found
+    // on the first real deployment, not by a test, which is why this is here.
+    await page.goto('/app.php?view=index');
+    const link = page.locator('#authAction a');
+    await expect(link).toHaveText('Log in to control');
+
+    await link.click();
+    await expect(page.locator('#password'), 'and it is the login').toBeVisible();
+  });
+
+  test('a stranger\'s vendor/ next door is not a host', async ({ request }) => {
+    // The bug this encodes was found by the first real deployment. Hosted mode
+    // is detected by looking one directory up for Live!'s autoloader — and the
+    // document root's parent on shared hosting is the HOST's, not ours. It had
+    // an unrelated vendor/autoload.php in it, which the old check matched.
+    //
+    // Two things would then have gone wrong, and this asserts both are not:
+    // a stranger's autoloader executed inside every auth check (the decoy in
+    // standalone-setup.js throws, so that shows up as a 500), and login.php
+    // 404ing because the installation believed it had a host to log in through.
+    const response = await request.get('/app.php?view=login');
+    expect(response.status(), 'the login is served, so this is not hosted').toBe(200);
+    expect(await response.text()).toContain('id="password"');
+  });
 
   test('the right password opens the door, and the wrong one does not', async ({ page }) => {
     // Auth::attempt() is the one piece of security code this project owns

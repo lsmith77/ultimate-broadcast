@@ -115,6 +115,9 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     var CONFIG = {
         apiBase: <?= $json($apiBase) ?>,
         captureBase: <?= $json(\Overlays\Mode::captureBase($base)) ?>,
+        // The scoreboard is a card on this stage AND a page of its own, so its
+        // URL is asked for rather than derived. See the note at its src().
+        scoreboardUrl: <?= $json(\Overlays\Mode::viewUrl('scoreboard', $base)) ?>,
         possessionBase: <?= $json($assetBase) ?>,
         assetBase: <?= $json($assetBase) ?>,
         showUrl: <?= $json($store->publicUrl($assetBase)) ?>,
@@ -645,7 +648,16 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                     'lower-center': 'bottom-center',
                     'lower-right': 'bottom-right'
                 };
-                var url = CONFIG.apiBase.replace('view=live/api', 'view=live/overlays/scoreboard');
+                // From Overlays\Mode, not by rewriting the API URL.
+                //
+                // This used to be `CONFIG.apiBase.replace('view=live/api',
+                // 'view=live/overlays/scoreboard')`, which produces the HOSTED
+                // spelling — and standalone that path is UltiOrganizer's front
+                // controller, which is not there, so the card 404ed and the
+                // stage showed an empty frame. Every other endpoint on this page
+                // already came from Mode; this one was the string left behind,
+                // and it is the one card everybody looks at.
+                var url = CONFIG.scoreboardUrl;
                 url += '&game=' + encodeURIComponent(game);
                 url += '&position=' + (POSITIONS[slot] || 'bottom-left');
                 // No &bg=: the stage already paints the chroma background, and a

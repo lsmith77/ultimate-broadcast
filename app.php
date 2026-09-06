@@ -233,9 +233,13 @@ if (!isset($views[$requested])) {
 
 // Before the page runs: it may want to know whether this request is an admin,
 // and Auth reads the session.
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+//
+// Through Auth rather than session_start() directly, because the cookie's
+// attributes matter and there must be one place that sets them — SameSite=Lax
+// is what keeps an administrator's cookie off a cross-site POST, and none of
+// the write endpoints here carry a CSRF token.
+require_once __DIR__ . '/shared/auth.php';
+\Overlays\Auth::begin();
 
 // The guard every page checks. Defined only after the view has been resolved
 // against the allow-list, so nothing can be included without passing it.

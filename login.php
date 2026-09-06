@@ -20,6 +20,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 }
 
 require_once __DIR__ . '/shared/auth.php';
+require_once __DIR__ . '/shared/mode.php';
 
 use Overlays\Auth;
 
@@ -108,12 +109,13 @@ header('Cache-Control: no-store, must-revalidate');
         <form method="post">
             <button type="submit" name="logout" value="1">Sign out</button>
         </form>
-        <p style="margin:.9rem 0 0"><a href="app.php?view=index">Back to the Studio</a></p>
+        <p style="margin:.9rem 0 0"><a href="<?= $e(\Overlays\Mode::viewUrl('index')) ?>">Back to the Studio</a></p>
     <?php else : ?>
         <?php if (!Auth::isConfigured()) : ?>
             <p class="msg bad">
-                No administrator password is set. Put a bcrypt hash in
-                <code>conf/local-config.php</code> as <code>admin_hash</code>.
+                No administrator password is set. Run
+                <code>php install/make-config.php</code> on the server, which writes
+                <code>conf/local-config.php</code> with a hash of the password you give it.
             </p>
         <?php endif; ?>
         <form method="post">

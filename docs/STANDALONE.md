@@ -76,14 +76,13 @@ Five gaps that were on this list are now closed: the config bootstrap, the stand
 
 ## 5. The next steps
 
-**First, the four small ones.** They are an afternoon between them and they are what makes the current state installable by somebody who is not holding this document. The install path matters most: a mode nobody can configure is a mode nobody has.
+**A tournament can now be run, for a value of tournament.** One pool, a handful of games, squads that arrive through the desk, a score kept on a phone. What it cannot do is a bracket, and it cannot be corrected once the day has started — those are the two entries above and they are what stands between this and a real event.
 
-**Then the editor, which is the actual project.** It needs, roughly in order:
+**What that took, for the record**, because it was less than §5 used to claim:
 
-1. **A store** — `conf/standalone/`, holding an event, its teams, and per-game files. Written in **Live!'s payload shape**, which is the constraint everything else rests on (§7).
-2. **An authoring surface** for the things that do not change during a game: the event, the teams with their short names and colours, a game with its field, target score and caps.
-3. **Rosters through the CSV that already exists.** The bio round trip already sends each team a file with `Number` and `Name` columns, already refuses another team's file, already validates matchings. Hosted, those columns are decoration. Standalone they become the source of truth — a promotion, not a new mechanism.
-4. **Score and clock — built.** [`MATCHCONTROL.md`](MATCHCONTROL.md) §0: a store, a phone surface at `/k/<game>`, and a per-game switch deciding whether the scoreboard reads it or upstream. Standalone has no upstream, so there it is simply the score. (It never writes to UltiOrganizer in either mode — that API is read-only.) The clock is three integers; the score is the `goals` array, and the rule that makes it safe is that a goal is written as *the point it creates*, never as `+1`.
+1. **A store** — `events/<name>/`, in **Live!'s payload shape**, which is the constraint everything else rests on (§7). Written by `install/make-event.php` rather than by a UI.
+2. **Rosters through the CSV that already exists.** The bio round trip already sends each team a file with `Number` and `Name` columns and already refuses another team's file. Hosted, those columns are decoration. Standalone they became the source of truth — a promotion, not a new mechanism — and the desk gained a way to type a name in directly for the player who turned up unlisted.
+3. **Score and clock**, which were already built. They never reach UltiOrganizer in either mode, because that API is read-only, so a score kept here is parallel to the tournament record rather than a replacement for it.
 
 **What can wait:** accumulating totals across games within a standalone event. It is real — it is every "Tournament" number a player sheet shows — but it turns a per-game store into an event database, which is the thing this mode exists to avoid needing.
 
@@ -99,7 +98,7 @@ The point of this section is that the answer is small. Everything below was read
 |---|---|---|
 | **PHP** | 8.3 or 8.4 | What CI lints and what the host runs. The code uses no syntax newer than typed properties and arrow functions, so a lower floor is likely and simply untested — do not claim one without testing it. |
 | **Extensions** | `json`, `pcre`, `mbstring`, `filter` | The complete list of extension-dependent calls in the project is `json_encode`/`json_decode`, `preg_match`/`preg_replace`, `mb_substr`, `filter_input`, `flock` and `random_int`. All but `mbstring` are bundled and enabled by default. |
-| **Composer** | **none** | `vendor/autoload.php` is required by exactly three files, solely to reach `Api\ConfigManager` and `Api\SeasonAccess`. The project's own classes are `require_once`d directly. Replace the auth seam (§3) and the autoloader has nothing left to load. |
+| **Composer** | **none** | Only `shared/auth.php` reaches for `vendor/autoload.php`, and only to find Live!'s `Api\ConfigManager` and `Api\SeasonAccess`. Standalone it does not reach at all: the front controller defines `OVERLAYS_STANDALONE` and the lookup returns before touching the filesystem. That is not only tidiness — the directory above a standalone installation belongs to the **host**, and a real shared-hosting document root turned out to have an unrelated `vendor/` in it ([`DEPLOY.md`](DEPLOY.md) §5). |
 | **Database** | **none** | Nothing in this project opens one, in either mode. Hosted mode reaches the database only through Live!'s API over HTTP. |
 | **Web server** | Apache with `mod_rewrite` and `AllowOverride All`, or nginx with the rules translated | The `.htaccess` does two jobs: routing the short URLs, and refusing HTTP access to `conf/` except for the one file the stage polls as a static asset. On nginx both become `location` blocks, and **the `conf/` denial is the one that must not be forgotten** — it is what keeps the desk's notes about named players out of a browser. |
 | **Filesystem** | `conf/` writable by the web server, on a filesystem where `flock` works | `show.php`, `colors.php`, `possession.php` and `notes.php` do their read-modify-write under `flock` on a shared lock file. NFS and some container volume drivers do not implement it faithfully, and the failure is silent interleaving rather than an error. Note that **`lines.php` has no such lock** — a known gap recorded in `AGENTS.md`, not a decision, and one standalone would inherit unchanged. |

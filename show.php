@@ -25,9 +25,11 @@ if (!defined('UO_ROUTED_VIEW')) {
 }
 
 require_once __DIR__ . '/shared/auth.php';
+require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/show.php';
 
 use Overlays\Auth;
+use Overlays\Mode;
 use Overlays\Show;
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -74,7 +76,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 if (!$isAdmin) {
-    fail(403, 'Log in at ?view=live/admin to change what is on air.');
+    // See the note in colors.php: Live!'s admin URL is a 404 on an installation
+    // that has no Live!, so where to log in comes from `Overlays\Mode`.
+    fail(403, Mode::ownsLogin()
+        ? 'Sign in at ' . Mode::loginUrl() . ' to change what is on air.'
+        : 'Log in at ?view=live/admin to change what is on air.');
 }
 
 $payload = json_decode((string) file_get_contents('php://input'), true);

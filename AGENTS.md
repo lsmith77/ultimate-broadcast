@@ -14,7 +14,7 @@ These are not preferences. Breaking any of them breaks the project's reason to e
 
 1. **Never edit a file that Live! ships.** `live/bin/update-from-github.sh` unzips a release over the tree without deleting extra files. A local patch to Live!'s own code disappears at the worst possible moment — mid-tournament, on upgrade, silently. Everything we write lives under `live/overlays/`.
 2. **No overlay reads the database.** Everything goes through `live/api`. This is what makes the directory portable and what keeps us off Live!'s internals. `docs/STUDIO.md` §3.4 contemplates one exception for per-game block data; it is marked open, and it is not a precedent.
-3. **The only file outside this directory is the host's root `.htaccess`**, and only for the optional `/s/` and `/c/` short URLs. It ships as `install/root-htaccess-snippet.conf` for pasting — `.htaccess` has no import mechanism, so `IncludeOptional` is not an option (Apache errors and 500s every request under that directory).
+3. **The only file outside this directory is the host's root `.htaccess`**, and only for the `/s/`, `/c/` and `/k/` short URLs. It ships as `install/root-htaccess-snippet.conf` for pasting — `.htaccess` has no import mechanism, so `IncludeOptional` is not an option (Apache errors and 500s every request under that directory). Adding a short URL means adding it in **four** places that cannot be derived from one another: that snippet, `live/overlays/.htaccess`, `install/standalone.htaccess` and `app.php`'s route table. `/k/` was in two of them for as long as it was, which made the Studio's own Match control link a 404 hosted.
 
 ## Layout
 

@@ -3,7 +3,7 @@
 /**
  * Match control — the score and the clock, on a phone.
  *
- *   /m/702, or ?view=live/overlays/matchcontrol&game=702
+ *   /k/702, or ?view=live/overlays/matchcontrol&game=702
  *
  * One job, and deliberately nothing else on the page: two teams with a large
  * press each, the score, an undo, and a clock. Every feature added here

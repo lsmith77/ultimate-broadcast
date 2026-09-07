@@ -169,6 +169,44 @@ And it ends somewhere unexpected: **the capability may belong upstream rather th
 
 **Go here for:** whether this could be a service, and what would have to be true first.
 
+### [`APPLIANCE.md`](APPLIANCE.md) — a small box that renders the overlay at the field
+
+**A concept, with nothing built**, and deliberately undecided. A pre-configured box renders one of these overlay URLs on hardware we control, instead of inside a switcher's undocumented browser. It has **two shapes read as peers**: the *graphics source*, which stays out of the video path and hands a switcher a keyed overlay for about €60, and the *all-in-one*, which takes the camera feed and streams and records it for €180–270 plus capture, replacing the switcher on a one-camera field.
+
+**Whether the all-in-one gets built is an open question the document refuses to pre-answer** — §12's phase 3 is the experiment, and §12a writes the stopping rule in advance, because an experiment without one is not an experiment. Phases 1 and 2 are worth doing regardless of the result. Read §§4–7 as the list of things phase 3 has to measure rather than as a construction plan.
+
+The cost saving is the least interesting part. What the box actually buys is that **the browser stops being unknown** — the whole reason [`../tests/selftest.php`](../tests/selftest.php) exists — and that it is the local server [`RELAY.md`](RELAY.md) spends a document trying to design its way out of needing. [`STANDALONE.md`](STANDALONE.md) already built the software that would run on it.
+
+Findings that invert the obvious approach. **The Pi 5 is the wrong board**: it dropped the H.264 hardware encoder and the decoder with it, which is exactly this workload, and its faster cores compensate only at `ultrafast` while consuming the machine a browser engine also needs. More generally, **hardware video encoding has quietly regressed across the SBC market** while NPU marketing has advanced — so "newer board, more capable" fails here specifically, and the honest answer for the all-in-one is an **Intel N100**, the only option that offers a real encoder *and* plain mainline Debian instead of making you choose. It costs about what a Pi build costs. **Hardware DRM/KMS planes are an optimisation, not the architecture** — they composite at scanout and an encoder needs a buffer, so they buy nothing for a stream, and audio sync and recording rule them out entirely; GStreamer's `wpevideosrc` already renders a web page into a video pipeline and collapses the hard part into an existing element. **Shipping an OS image is the mistake**, because it means owning an operating system's security updates forever; the update problem is three layers with three owners and only the smallest is ours. And **50 fps is bought for a feature this box does not have** — replay needs an operator no crew size in [`MATCHCONTROL.md`](MATCHCONTROL.md) has spare, the high-quality master is already on the camera's own card, and viewers can scrub a platform's DVR themselves.
+
+Two things it recommends against building, both appealing: an OS image, and a wifi mesh between fields — which would solve a coordination problem the data model deliberately does not have, since state is stored per game precisely so that one field cannot damage another's.
+
+Its organising principle is stated up front in §1a and decides most of the rest: **the goal is not cheaper hardware, it is lowering what an operator has to know.** Cost is a consequence. That is why configuration leaves the field, why recording is always on rather than a button, why audio gain goes to a physical knob, and why **OBS is set aside — on that thesis, not on capability.** Once the board is a normal PC, OBS does most of this already (browser source, replay buffer, VAAPI encoding, streaming, recording, an audio mixer, obs-websocket to drive it), and §7c confirms it runs headless perfectly well. But headless is not the bar — *unattended* is, and a GUI application's error handling is a dialog box, which on a screenless machine is a broadcast that has silently stopped.
+
+So OBS lands somewhere better than rejected: **it is the documented way up, and a better one than buying a switcher.** That produces a ladder ordered by what a crew can do rather than what it can spend — appliance, graphics source, software switcher — where **the bottom two rungs are nearly free because they are what this project already is.** One product to build and two to document. With the uncomfortable corollary that the hardest engineering here serves the crews least able to debug it, which is the point of it and the reason its reliability bar is higher, not lower.
+
+**Local recording is the best value in the document.** A `tee` after the encoder costs nothing, and the resulting file is the only artefact anywhere with the overlay burned in. It also removes [`POSTPRODUCTION.md`](POSTPRODUCTION.md)'s alignment problem for its own footage: a box that knows the wall-clock time of every frame it wrote, and is already polling the API that knows when the goals happened, can emit the anchors itself.
+
+It is honest about the gap: this replaces a browser source, not a switcher. Multi-camera cutting, a battery, a confidence monitor and — the significant one — **replay** go with the Director Mini. Replay is unreachable twice over: no crew size has an operator spare, and scrubbing needs a jog wheel, which is the same finding as audio gain needing a knob. **A show-state store that polls once a second is structurally the wrong instrument for both**, and noticing that pattern is worth more than either instance.
+
+Which is why the document has **two shapes read as peers**. The all-in-one puts the box in the video path and replaces the switcher. **§3b keeps it out of the video path and feeds one** — HDMI out as fill-and-key, or the `/green` chroma form that already exists — so the switcher keeps doing replay, cutting and audio. Every hard constraint in the document comes from being *in* the video path, so the second shape does not merely soften them, it deletes them: no capture device, no encoder, no frame rate problem, and 1080p60 graphics at a frame of latency. It is a €60 accessory rather than a €1,300 replacement, it is where hardware DRM/KMS planes are finally the right answer, and §12 builds it second, before anything is spent.
+
+One finding reaches beyond the appliance: **a stream key would be the first real credential this project stores.** Everything in `conf/` today is a namespace or a note; a stream key is something an attacker can broadcast with, under the tournament's name. The rule that follows — *the tournament's own install holds the tournament's own credentials* — is what keeps this from becoming a service somebody has to operate, and it survives all the way up to §8c's idea of creating platform broadcasts from the schedule, whose real prize is a findable VOD per game rather than one unsearchable eight-hour video per field.
+
+It also answers a question that will be asked again: **an AI HAT does not help.** The Hailo has no video encoder, so it misses the bottleneck entirely, and the statistics it appears to unlock — possession, lineups from jersey numbers — are precisely the claims [`STUDIO.md`](STUDIO.md) exists to refuse. The one transformative use, auto-framing, makes every constraint in the document worse and is a different product.
+
+**Go here for:** why the Pi 4 beats the Pi 5, what the box cannot do, and the phased order in which to find out cheaply — starting with a hub that has no video in it at all.
+
+### [`REPLAY.md`](REPLAY.md) — how replay works, if it is built
+
+**Design notes, nothing built.** The operational half of [`APPLIANCE.md`](APPLIANCE.md) §6c: how a clip is triggered and tagged, how the score and replay event streams are reconciled when they arrive in either order, how a playlist is assembled to fit a stoppage, and what a review surface has to do.
+
+Most of it comes from a workflow that has actually been operated on a Director Mini rather than being proposed here — which is why it is unusually concrete for a document about a feature nobody has approved.
+
+**Two conclusions reach beyond it:** the control surface is about eight keys, so it is a €10 numpad; and the review UI is an application rather than a panel, making it the largest single piece of work `APPLIANCE.md` proposes anywhere.
+
+**Go here for:** why marks are stored and tags derived, why instant air needs an undo rather than a confirmation, and why injury marks an interval and never a clip.
+
 ### [`MATCHCONTROL.md`](MATCHCONTROL.md) — score and clock, and who keeps them
 
 **Built.** §0 is what shipped; the rest is the reasoning that preceded it.

@@ -4,9 +4,11 @@ Guidance for coding agents working on the broadcast overlays. Keep this file sho
 
 ## Project overview
 
-Broadcast graphics for Ultimate tournaments, extending Live! by BULA (which runs on UltiOrganizer 4). Four surfaces: the **scoreboard** bug, the **studio** (a full-frame stage plus the page that controls it), the **commentator** second screen, and **match control** — the score and clock, kept from a phone. See `docs/README.md`.
+Broadcast graphics for Ultimate tournaments. Four surfaces: the **scoreboard** bug, the **studio** (a full-frame stage plus the page that controls it), the **commentator** second screen, and **match control** — the score and clock, kept from a phone. See `docs/README.md`.
 
-Installed by dropping this directory into `live/overlays/` of a Live! install. It is its own repository; the host is not.
+**Two deployment modes, both real, and neither is a fallback for the other.** *Hosted*: dropped into `live/overlays/` of a Live! by BULA install (which runs on UltiOrganizer 4), reading Live!'s API, with the whole tournament behind it. *Standalone*: a site of its own with no host at all — no database, no Composer — where the event is authored in a browser, squads arrive through the commentary desk and match control keeps the score. [ultimate-broadcast.org](https://ultimate-broadcast.org) is a deployed standalone installation. `docs/STANDALONE.md` and `docs/DEPLOY.md`.
+
+This is its own repository; the host, where there is one, is not. **Write for both modes.** Nothing above `shared/provider.js` may know which it is in, `Overlays\Mode` owns every URL, `Overlays\Auth` owns every "may this reach air", and a fact one mode cannot know is *omitted* rather than sent as zero. A feature that works in only one mode says so out loud (`Auth::isHosted()`) and the other mode's endpoint 404s — squads and event authoring are the two that do.
 
 ## Three hard constraints
 

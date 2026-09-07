@@ -2,7 +2,7 @@
 
 ## What this is
 
-A broadcast graphics layer for Ultimate tournaments, extending **[Live! by BULA](https://github.com/layoutd/live-by-bula)** 3.0.6 (which itself runs on UltiOrganizer 4.0). It turns the tournament data an event is already keeping — the score, the clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
+A broadcast graphics layer for Ultimate tournaments. It turns the tournament data an event is keeping — the score, the clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
 
 Four surfaces, for four different jobs:
 
@@ -13,21 +13,41 @@ Four surfaces, for four different jobs:
 | **Commentator** | the people talking | A second screen, never on air: rosters, stats, who is on the field. Nothing here reaches a viewer, which is why it can show numbers a graphic must refuse. |
 | **Match control** | whoever is watching the game | The score and the clock, from a phone at the pitch. Applies a press locally and sends it afterwards, so a bar of signal never makes anybody wait. |
 
-Everything reads through Live!'s public JSON API. **No overlay touches the database**, which is what makes the whole directory a drop-in that survives a Live! upgrade.
+### Two modes, both real
+
+The project began as an extension to **[Live! by BULA](https://github.com/layoutd/live-by-bula)** 3.0.6 (which itself runs on UltiOrganizer 4.0), and that is still the mode that gets you a whole tournament. It is no longer the only one.
+
+| | **Hosted** | **Standalone** |
+|---|---|---|
+| Underneath | Live! on UltiOrganizer | nothing |
+| Installed as | a subdirectory of a Live! install | a site of its own, or `php -S` on a laptop |
+| Data | Live!'s public JSON API | an event authored in a browser, squads through the commentary desk, score and clock from a phone |
+| Needs | PHP, MariaDB, Composer, a signed Live! Terms of Use | PHP 8.3+ and a writable `conf/`. No database, no Composer |
+| What you get | brackets, standings, tournament totals, per-player history, spirit | one pool, no bracket, no standings, no history — [`STANDALONE.md`](STANDALONE.md) §4 |
+| Score and clock | UltiOrganizer's Scorekeeper, or match control per game | match control, which is the only source |
+| Read it in | this file and [`PLAN.md`](PLAN.md) | [`STANDALONE.md`](STANDALONE.md) and [`DEPLOY.md`](DEPLOY.md) |
+
+**Nothing above `shared/provider.js` knows which mode it is in.** One renderer, one payload shape — Live!'s, warts included — and two providers behind one function. That is the rule that has kept the modes from becoming two products, and [`STANDALONE.md`](STANDALONE.md) §7 is the full set.
+
+The second rule that makes it work is **absent is not zero**. Standalone has no tournament totals, no history, no blocks, no seeds, no standings and no spirit, because there is no history to have. Those fields are *omitted* rather than sent as `0`, and every consumer already does the right thing with an omission — a player sheet showing this game's numbers and no tournament row is true, where one showing `0 G · 0 A` for somebody who has scored nine is a lie told on air.
+
+Hosted, **no overlay touches the database** — everything goes through Live!'s API over HTTP. That is what makes the whole directory a drop-in that survives a Live! upgrade. Standalone there is no database to touch.
 
 ### Seeing it before installing anything
 
-[ultimate-broadcast.org](https://ultimate-broadcast.org) is a standalone installation — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
+**[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation** on ordinary shared hosting — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
 
-It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own.
+It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own, and most of its sharper notes came from putting that one on a host rather than from planning it.
 
-### Why it lives in `live/overlays/`
+### Why hosted mode lives in `live/overlays/`
 
 `live/bin/update-from-github.sh` unzips a Live! release **over** the existing tree without deleting files it does not ship. So a self-contained directory alongside Live!'s own code survives every upgrade, and no file Live! ships is ever edited. That constraint is absolute — see `PLAN.md`.
 
+Standalone the question does not arise: the directory *is* the document root, and `Overlays\Mode` is asked for every URL rather than `/live/overlays/` being written into a page. That assumption was in every one of them and broke the moment this directory was served from a root of its own.
+
 ---
 
-## Getting started
+## Getting started — hosted
 
 ### Requirements
 
@@ -48,9 +68,9 @@ There is no build step and nothing to compile. The directory is the installation
 
    Every page degrades to read-only rather than erroring when it is not writable, and says so.
 
-2. **Optionally add the `/s/` and `/c/` short URLs.** Paste [`install/root-htaccess-snippet.conf`](../install/root-htaccess-snippet.conf) at the end of the host's root `.htaccess`. This is the only file the project cannot install itself, because it belongs to the UltiOrganizer root rather than to `live/overlays/` — and `.htaccess` has no import mechanism, so it has to be pasted rather than included (Apache rejects `IncludeOptional` in `.htaccess` outright and 500s every request under it).
+2. **Optionally add the `/s/`, `/c/` and `/k/` short URLs.** Paste [`install/root-htaccess-snippet.conf`](../install/root-htaccess-snippet.conf) at the end of the host's root `.htaccess`. This is the only file the project cannot install itself, because it belongs to the UltiOrganizer root rather than to `live/overlays/` — and `.htaccess` has no import mechanism, so it has to be pasted rather than included (Apache rejects `IncludeOptional` in `.htaccess` outright and 500s every request under it).
 
-   Skip it if you like. `live/overlays/.htaccess` ships with the project and already serves `/live/overlays/702`, `/live/overlays/702/overlay` and the rest, and `?view=live/overlays/...` always works. The short forms exist because the thing typing them is often a switcher's on-screen keyboard.
+   Mostly optional. `live/overlays/.htaccess` ships with the project and already serves `/live/overlays/702`, `/live/overlays/702/overlay` and the rest, and `?view=live/overlays/...` always works. The short forms exist because the thing typing them is often a switcher's on-screen keyboard — but **the Studio's own Match control link is `/k/<game>`**, which only the snippet provides, so skipping it leaves that link a 404 and match control reachable only as `?view=live/overlays/matchcontrol&game=702`.
 
 3. **Check a URL resolves.** Open `/s/` (or `/live/overlays/` without the snippet). If it 404s, the rewrite rules are not being read — check `mod_rewrite` and `AllowOverride All`, and use `?view=live/overlays/index` meanwhile.
 
@@ -58,20 +78,60 @@ There is no build step and nothing to compile. The directory is the installation
 
 5. **Point the switcher at one URL** and leave it there. In auto mode, with no `conf/show.json` at all, the stage runs the scoreboard and nothing else.
 
-### URLs
+## Getting started — standalone
+
+No UltiOrganizer, no Live!, no database, no Composer, no build step. [`STANDALONE.md`](STANDALONE.md) §6 is what a server needs, read off the code; [`DEPLOY.md`](DEPLOY.md) is putting one on a domain.
+
+### On a laptop, in three commands
+
+```
+node tests/capture.mjs --game 702 --out fixtures/payloads/dev   # record a game from a live instance
+php install/make-config.php --capture=fixtures/payloads/dev     # prompts for a password, hashes it
+php -S 0.0.0.0:8080 -t . app.php                                # serve
+```
+
+The repository already ships `fixtures/payloads/dev` — two games, 84 players, both rosters and every player history — so the first command is only needed to record a different instance. Leave `--capture` out entirely and the pages read a live Live! instead.
+
+**`app.php` must be the router**, not merely a file in the directory. `php -S` reads no `.htaccess`, so the rules keeping `conf/` off the network live in that front controller — serve the tree without it and the commentary desk's prepared notes, which are notes about named people, are served on request.
+
+### Authoring your own event
+
+A recording is somebody else's games. Two doors to your own, both writing through `shared/event.php` so the payload shape exists once:
+
+- **In a browser**, signed in: the Studio's **Edit event** button, or `/s/event`. Name, teams, games, the pool's rules. Saved and served immediately. This is the surface for the person the mode is for — running a club's stream, with a laptop and no reason to have SSH anywhere.
+- **Over SSH**: `php install/make-event.php my-event.json --set-capture`.
+
+**Squads are deliberately not in that file** — nobody should type forty names into JSON, and the commentary desk already has a door for them. It exports a team's sheet, the team fills it in, and the desk imports it back; standalone that import also *creates* the players it does not recognise, and a field on the same bar types in whoever turned up unlisted.
+
+Team and game ids are yours to choose and must not change afterwards: `conf/score-<game>.json` is keyed by game id, so is every URL typed into a switcher, and a squad and its prepared notes are keyed by team and player id.
+
+### On the open internet
+
+`php install/make-config.php --demo …` closes the two stores that take unauthenticated writes. `lines.php` and `notes.php` are unauthenticated by design — a room code is a namespace rather than a credential, so a commentator can join without an operator in the loop — and on a public domain that means anyone who guesses five characters can write into the prepared notes. Reads are untouched, an administrator still writes normally, and the desk says so before anybody starts typing.
+
+`/s/imprint` names whoever runs the installation, from `conf/local-config.php`, since a publicly reachable site run from Switzerland, Germany or Austria has to. The same page carries an inventory of what the software stores about named people, written from the constants the stores actually prune by.
+
+## URLs
 
 Replace `702` with the game id. The Studio shows the URL for the game you have selected, so these are for reference rather than for typing.
 
-| URL | what it is |
-|---|---|
-| `/s/` | **Studio** — game list, control, colours, logo. Public read-only; controls appear when logged in. |
-| `/s/702/overlay` | **Stage** — the full-frame graphics layer. This is the browser source. |
-| `/s/702` | **Scoreboard alone**, if you want just the bug with no stage. |
-| `/s/702/green` | Scoreboard on a chroma-key background. Also `blue`, `magenta`, `black`, or any 6-digit hex. |
-| `/s/702/overlay/green` | The same, for the stage. |
-| `/c` | **Commentator** landing — pick a game. |
-| `/c/702` | Commentator page for that game. |
-| `?view=live/overlays/tests/selftest` | Switcher self-test (below). |
+Hosted, the short forms need the root `.htaccess` snippet; standalone they are what `install/standalone.htaccess` and `app.php` serve, and the long form is `app.php?view=…` rather than `index.php?view=live/overlays/…`.
+
+| URL | what it is | mode |
+|---|---|---|
+| `/s/` | **Studio** — game list, control, colours, logo. Public read-only; controls appear when logged in | both |
+| `/s/702/overlay` | **Stage** — the full-frame graphics layer. This is the browser source | both |
+| `/s/field/1/overlay` | A stage that **follows whatever is live on field 1**, so a switcher set up in the morning survives every round change | both |
+| `/s/702` | **Scoreboard alone**, if you want just the bug with no stage | both |
+| `/s/702/green` | Scoreboard on a chroma-key background. Also `blue`, `magenta`, `black`, or any 6-digit hex | both |
+| `/s/702/overlay/green` | The same, for the stage | both |
+| `/c` | **Commentator** landing — pick a game | both |
+| `/c/702` | Commentator page for that game | both |
+| `/k/702` | **Match control** — the score and clock, on a phone | both |
+| `/s/event` | **Edit the event** — name, teams, games, pool rules | standalone |
+| `/s/imprint` | Who runs this installation, and what it stores about named people | standalone |
+| `?demo=1` | On any scoreboard or stage URL: plays a whole game through from one real payload. Writes nothing | both |
+| `?view=live/overlays/tests/selftest` | Switcher self-test (below). Standalone it is `?view=tests/selftest` | both |
 
 Transparent by default. Use `?bg=` / the `green` form only if the switcher cannot key alpha.
 
@@ -79,9 +139,10 @@ Transparent by default. Use `?bg=` / the `green` form only if the switcher canno
 
 Do these before a broadcast, in this order — they cost minutes and each rules out a whole class of failure:
 
-1. **`?view=live/overlays/tests/selftest`** on the switcher, watching the **program output**, not a laptop. Four panels move independently (JS timer, requestAnimationFrame, pure CSS, network poll). Whichever are frozen tell you which layer the device is not running. "The overlay does not update" has at least five distinct causes and this separates them.
+1. **The self-test** on the switcher, watching the **program output**, not a laptop. Four panels move independently (JS timer, requestAnimationFrame, pure CSS, network poll). Whichever are frozen tell you which layer the device is not running. "The overlay does not update" has at least five distinct causes and this separates them.
 2. **`/s/702?demo=1`** — walks every display state from one real payload: scheduled, live, hold, break, timeout, cap, paused, final. The only way to see a running clock without a live game, and the sharpest test there is, since no polling or server cache sits in the path.
-3. **Confirm the scorekeeper starts the clock.** `timer_start` is only ever written by Scorekeeper. If nobody starts it there is no clock on air and the overlay quietly falls back to a status word. Worth a line on the pre-game checklist.
+3. **Confirm somebody starts the clock.** Hosted, `timer_start` is only ever written by UltiOrganizer's Scorekeeper; standalone it is written by match control. Either way, if nobody starts it there is no clock on air and the overlay quietly falls back to a status word. Worth a line on the pre-game checklist.
+4. **Standalone or through match control, check the board is reading it.** The Studio's **Score from** switch decides, and until it points at match control the scorekeeper's phone shows a banner saying so. A whole game scored into a store nothing reads looks exactly like working.
 
 ---
 
@@ -239,11 +300,15 @@ mariadb -uroot -p<root-password> ultiorganizer < live/overlays/fixtures/dev-fixt
 live/overlays/fixtures/dev-score.sh home      # or visitor / undo / show
 ```
 
-It writes straight to the database, bypassing Scorekeeper. Development only.
+It writes straight to the database, bypassing Scorekeeper. Development only, and hosted only — there is no database standalone.
+
+**Standalone develops against the committed capture** instead: `fixtures/payloads/dev` is those same two games recorded as API responses, which is what `npm run test:standalone` and [ultimate-broadcast.org](https://ultimate-broadcast.org) both serve. `node tests/capture.mjs --game 702 --out fixtures/payloads/dev` re-records it from a running hosted instance after a fixture change. A capture is evidence of what Live! actually sends, so it is re-recorded rather than hand-edited — adjust one and it stops being evidence and becomes a fake with extra steps. Variation belongs in a mutation layer over the recording, which is how `shared/demo.js` already works.
 
 ### Settings that change what the overlays can show
 
-Nothing here is an overlay setting — every one of them belongs to UltiOrganizer, Live! or the pool format, and the overlays simply render whatever is available. Collected in one place because an overlay that "does not show timeouts" is almost always a pool that has none configured rather than a bug.
+**Hosted.** Nothing here is an overlay setting — every one of them belongs to UltiOrganizer, Live! or the pool format, and the overlays simply render whatever is available. Collected in one place because an overlay that "does not show timeouts" is almost always a pool that has none configured rather than a bug.
+
+Standalone none of this table applies: there is no `uo_setting`, no Live! admin and no pool table. The equivalents are authored with the event (the pool's time cap, its timeout allowance, the tournament logo) or are simply absent — blocks, seeds, standings and spirit have no source, so those columns and cards do not appear at all rather than appearing empty. The installation's own two settings live in `conf/local-config.php`: `capture`, which decides where payloads come from, and `admin_hash`, without which nothing can change what is on air.
 
 | setting | where | ships as | what it changes |
 |---|---|---|---|

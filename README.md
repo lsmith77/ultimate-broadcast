@@ -1,17 +1,32 @@
-# Broadcast overlays for Live! by BULA
+# Broadcast overlays for Ultimate
 
-A broadcast graphics layer for Ultimate tournaments, extending [Live! by BULA](https://github.com/layoutd/live-by-bula). It turns the data an event is already keeping — score, clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
+A broadcast graphics layer for Ultimate tournaments. It turns the data an event is keeping — score, clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.
 
-Four surfaces, for four different jobs:
+There are **two ways to run it, and both are real deployments.**
+
+| | **Hosted** | **Standalone** |
+|---|---|---|
+| What is underneath | [Live! by BULA](https://github.com/layoutd/live-by-bula) on UltiOrganizer 4 | nothing — a directory of PHP files and a writable `conf/` |
+| Where it goes | `live/overlays/` of a Live! install | a domain of its own, or `php -S` on a laptop at the venue |
+| Where the data comes from | Live!'s public JSON API | an event authored in a browser, squads through the commentary desk, score and clock from a phone |
+| Needs | PHP, MariaDB, Composer, a signed Live! Terms of Use | PHP 8.3+. **No database, no Composer, no build step** |
+| Gets you | a whole tournament — brackets, standings, tournament totals, per-player history | one pool, no bracket, no standings, no history ([`docs/STANDALONE.md`](docs/STANDALONE.md) §4) |
+| For | an event already running Live! | a club stream, a showcase game, a tournament scored on paper, a pitch its federation's Live! does not cover |
+
+The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/provider.js) knows which mode it is in — one renderer, one payload shape, two providers — which is why the modes have not drifted apart.
+
+## Try it without installing anything
+
+**[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation** on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.
+
+[`docs/DEPLOY.md`](docs/DEPLOY.md) is how to put one of your own on a domain, and most of its sharper notes came from putting that one there rather than from planning it.
+
+## Four surfaces, for four different jobs
 
 - **Scoreboard** — a broadcast bug on a transparent 1920×1080 canvas. One URL, point a browser source at it, done.
 - **Studio** — a full-frame stage hosting several cards at once, plus the control page that decides what is on it.
 - **Commentator** — a second screen, never on air: rosters, stats, who is on the field.
 - **Match control** — the score and the clock, kept from a phone at the pitch and tolerant of a connection that comes and goes.
-
-Everything reads through Live!'s public JSON API. No overlay touches the database, which is what makes this a drop-in that survives a Live! upgrade.
-
-**It also runs without any of that.** [ultimate-broadcast.org](https://ultimate-broadcast.org) is a live installation with no UltiOrganizer and no Live! behind it — click any stage URL there to watch a whole game play out, or open the commentary desk and match control. Nothing on it needs a sign-in and nothing you do there is written. See [`docs/STANDALONE.md`](docs/STANDALONE.md) for what standalone mode is, and [`docs/DEPLOY.md`](docs/DEPLOY.md) for putting one on a domain of your own.
 
 ![A full frame, as a switcher receives it](docs/images/stage.png)
 
@@ -30,7 +45,7 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 | ![Studio](docs/images/studio.png) | ![Commentator](docs/images/commentator-daylight.png) |
 | **Studio** — what is on air, and where | **Commentator** — daylight by default, because the job happens beside a pitch |
 | ![Player sheet](docs/images/player-sheet.png) | ![Commentator at night](docs/images/commentator-night.png) |
-| **Player sheet** — everything Live! publishes about one player | **Night** — for a booth or an evening game |
+| **Player sheet** — everything the event publishes about one player | **Night** — for a booth or an evening game |
 
 ![Play by play](docs/images/commentator-play.png)
 
@@ -38,25 +53,27 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 
 ## Features
 
+Everything below works in **both modes** unless a row says otherwise.
+
 ### Scoreboard — the on-air bug
 
 | | |
 |---|---|
 | Score | Live, with a flash on change, and a HOLD / BREAK tab over the scoring side |
-| Score source | Per game, an operator chooses whether the scoreboard reads Live! or **match control** — this project's own scorekeeping, on a phone at the pitch. Live! caches a game for 30 seconds, so a goal is on air up to half a minute late; through match control it is about a second. The scorekeeper's page says plainly when it is *not* the source |
+| Score source | Hosted, an operator chooses per game whether the scoreboard reads Live! or **match control**. Live! caches a game for 30 seconds, so a goal is on air up to half a minute late; through match control it is about a second. Standalone there is no other source, so it is simply the score. The scorekeeper's phone says plainly when it is *not* the source |
 | Scorekeeping offline | Every press is applied on the phone at once and sent afterwards; what cannot be sent queues and retries **against this project's own server**. Safe because a goal is written as **the point it completes**, so the same point sent twice stores one goal. **It does not sync to UltiOrganizer or Live!** — their API is read-only, so there is nowhere to send it; a game kept here is a parallel score the overlay can be pointed at, and UO's own scoresheet is unaffected |
+| Timeouts | Ticks under each name, with the half-time reset where the format has one. Hosted these come from UltiOrganizer's game events; standalone they are recorded in match control, numbered per side by the same rule that makes a goal safe to retry |
 | Clean holds | HOLD becomes CLEAN HOLD when the defence never touched the disc that point — only where possession was actually being tracked |
 | Break chance | A red tab while the defence has the disc, driven by whoever is tracking possession |
 | On defence | A quieter standing tag, always true, shown whenever nobody is tracking possession |
 | Game clock | Counts up, or down to the pool's time cap. Derived from `timer_start`, ticks locally between polls, corrected for server skew |
 | Caps | Half cap amber, time cap red, with the new point cap spelled out. Dropped once the game is not running |
-| Timeouts | Ticks under each name, with the half-time reset where the format has one |
 | Kit colours | Entered in the Studio minutes before the pull. Neutral until both sides are set |
-| Team logos | Per-team files in `logos/`, falling back to Live!'s own team photos |
+| Team logos | Per-team files in `logos/`, falling back to Live!'s own team photos where there is a Live! |
 | Context ribbon | Pool, round, field |
 | Layout | Auto-fitting team names, `?size=compact`, four corner positions, light/dark logo plate |
 | Backgrounds | Transparent by default; `?bg=green\|blue\|magenta\|black\|<hex>` for switchers that cannot key alpha |
-| `?demo=1` | Walks every display state from one real payload — scheduled, live, hold, break, timeout, cap, paused, final |
+| `?demo=1` | Walks every display state from one real payload — scheduled, live, hold, break, timeout, cap, paused, final. Writes nothing, needs no sign-in |
 | `?reload=<s>` | Meta-refresh fallback for a browser source that rasterises once and never runs timers |
 | `?at=…` | Renders one deterministic frame of a stated instant and stops — the basis for adding an overlay to a game that was recorded without a switcher |
 
@@ -71,21 +88,25 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 | On air | One switch per card. Several cards may be *placed* in a position; one may be *on air* |
 | Displacement warning | Hovering a control that would take something off air flags the card that would lose, before the click. Nothing is ever disabled for conflict |
 | Auto mode | A card shows itself at the moment it is about: 15s after a goal, 30s at the halftime cap, 45s at full time, or continuously until the first pull. Each card is offered only the moments that suit it |
+| Match control bar | Nominate, generate or revoke the scorekeeping code, beside the **Score from** switch — per game, administrator only. The bar says *no code set* until one is, because switching the board to a store nobody can write is how a scoreboard freezes on 0-0 |
 | Config file | Export the whole arrangement and import it on another field — or feed it to post-production, so a recording gets the same overlay the broadcast used |
 | All off air | Clears the frame in one click, keeping every position and preload intact |
 | Undo | One level — the mistakes worth reversing are always the last action |
-| Tournament logo | `TV_SCREEN_LOGO_PATH` in a chosen corner, kept clear of whatever else is there |
-| Break chance mode | Enable it, then declare possession with **O** and **D** on the keyboard, or hand tracking to a commentator by naming their room code |
+| Tournament logo | A chosen corner, kept clear of whatever else is there. Hosted from `TV_SCREEN_LOGO_PATH`; standalone authored with the event |
+| Break chance mode | Enable it, then declare possession with **O** and **D** on the keyboard, or hand tracking to a commentator or the scorekeeper by naming a code |
 | Keyboard reference | A Keys button on every operator surface — the Studio and both commentator modes — opens the shortcut list, with the live keys inert behind it |
 | Connected commentators | How many commentator pages are live on that code |
+| **Edit event** | **Standalone only** — the event's name, the teams, the games and the pool's rules, in a browser at `/s/event`. Hosted the button does not render, because the event belongs to UltiOrganizer |
+| **Introduction** | **Standalone only** — a short panel saying what a visitor is looking at, with direct links into a game, a mixed game and the desk. Dismissed per browser; the **About** button brings it back |
 
 ### Stage — one URL per broadcast at `/s/<game>/overlay`
 
 | | |
 |---|---|
 | Single browser source | One URL for the whole broadcast, pinned to one game, so several fields can run side by side |
+| Field-following | `/s/field/1/overlay` follows whatever is live on field 1, so a switcher set up in the morning survives every round change without being retyped |
 | Slots | Nine positions plus a full-frame takeover and a companion slot that rides with the scoreboard |
-| Cards | Scoreboard, last goal, last assist, last goal + assist, top players (4 per team, at least one FMP and one MMP in mixed), and pre-game / half-time / full-time summaries with records, seeds and breaks |
+| Cards | Scoreboard, last goal, last assist, last goal + assist, top players (4 per team, at least one FMP and one MMP in mixed), and pre-game / half-time / full-time summaries with records, seeds and breaks. Cards needing tournament history are simply absent standalone rather than showing zeros |
 | Arm then show | Every card loads and decodes before it is revealed, so nothing pops in half-drawn on air |
 | Auto mode | With no configuration at all, the stage runs the scoreboard and nothing else |
 
@@ -94,10 +115,11 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 | | |
 |---|---|
 | Daylight first | A high-contrast light theme measured at 7:1 or better throughout, because the page is used beside a pitch. A night theme for booths, remembered per device |
-| Team stats | Record, points for and against, difference, pool, standing, with deep links into the tournament site |
+| Team stats | Record, points for and against, difference, pool, standing, with deep links into the tournament site. Hosted only — standalone there is no history to have, and the rows are omitted rather than sent as zeros |
 | Rosters | Both squads side by side, sorted by number, goals, assists, points, tournament total, or blocks |
 | Player sheet | This game and the tournament, blocks and callahans where recorded, games and points per game, a game-by-game history, and the team-mate they most often score with |
 | Bio round trip | Export a CSV — or Copy for Sheets, which puts the same table on the clipboard and opens a fresh Google Sheet to paste into. The players fill in their own rows, and a final TEAM row takes the team's history and achievements; import fills only what is empty here, never what the desk typed, one channel at a time. Every row and the file name say whose sheet it is, and the wrong team's file is refused with a pointer to the right panel |
+| **Squads** | **Standalone only** — that same import also *creates* the players it does not recognise, and a field on the bar types in whoever turned up unlisted. Hosted the endpoint 404s: a squad belongs to UltiOrganizer and an import must not invent people into somebody's tournament |
 | Identity fields | Nickname, pronouns, name pronunciation, captaincy, nationality, position and throwing hand — and, in mixed divisions, the FMP/MMP matching, stored as exactly those two terms — as structured fields, self-declared through the CSV or corrected at the desk, shown beside the name on the roster, the player sheet and the field view. Less common pronoun sets are emphasised — those are the ones a reading habit gets wrong — and the full line rides on hover on the field view. A prep-time review maps variant spellings onto the two common sets — or keeps any declared set (she/they, xe/xem, …) exactly as written, tweakable in place, never asked again and never mapped automatically |
 | Quick cards | Type a shirt number — or click the chip — to pin that player's compact card under the lines: identity line, scoring, the prepared note. Up to two side by side; a number both teams wear pins both, labelled; Esc clears. A Keys button explains every shortcut |
 | Line selection | Who is on the field, shared between two commentators through a room code |
@@ -105,27 +127,68 @@ Everything reads through Live!'s public JSON API. No overlay touches the databas
 | Possession | Track offence and defence with **O** and **D**; turnover counts for this point and the last |
 | Blocks | A column and a sort, but only where the installation actually records them |
 
+### Match control — the phone at `/k/<game>`
+
+| | |
+|---|---|
+| The job | Two large presses, the score, a clock and an undo. Nothing else on the page, because everything added competes with the one thing it exists to do |
+| Offline | Each press is applied on the screen first, queued, and retried until it lands. A press carries the time it was *pressed*, not the time it arrived — `timer_start` is absolute, so a start delivered after a five-minute outage would otherwise run the rest of the game five minutes short, on air. The queue survives a reload |
+| The **More** panel | Possession, timeouts, an injury stoppage and the first point's ratio — behind a toggle, because they are not the job, and the phone remembers whoever opened it |
+| Who may write | The administrator session, or the five-character code an operator nominates and reads out. Two capabilities on purpose: the scorekeeper should not also be able to change what is on air |
+| Says when it is idle | A banner when the scoreboard is not reading this store — the failure worth preventing is a whole game scored carefully into something nothing reads, which looks exactly like working |
+| Not collected | Who scored and who assisted. A scorekeeper on a phone is not going to pick two players out of a squad per point, so `scorer` is *omitted* rather than sent as zero, and a top-scorer card shows nothing instead of a whole squad on nought |
+
 ### Underneath
 
 | | |
 |---|---|
-| Two polls | Show state and possession on a ~1s static channel; game data on Live!'s own cache life. An operator's click is instant; a break chance is never ten seconds late |
+| Two polls | Show state and the local score on a ~1s static channel; game data on the provider's own cache life. An operator's click is instant; a break chance is never ten seconds late |
+| One provider | [`shared/provider.js`](shared/provider.js) is the one way anything reads a payload — Live! or a recorded capture, one error contract, chosen on one setting |
 | Store-side rules | Slot and visibility rules live in the store, so no client can write an illegal frame |
 | Optimistic locking | Two people on the control page cannot silently overwrite each other |
+| Absent is not zero | A field a mode cannot know is omitted, never sent as `0`. A player sheet showing `0 G · 0 A` for somebody who has scored nine is a lie told on air; one showing this game and no tournament row is true |
+| Demonstration mode | `'demo' => true` closes the two stores that take unauthenticated writes, for an installation on the open internet. Reads are untouched and the desk says so before anybody types |
+| Imprint | `/s/imprint` names whoever runs a public installation, and carries an inventory of what the software stores about named people, written from the constants the stores actually prune by |
 | Self-test | `tests/selftest.php` — four independently moving panels, so a switcher that fails to update can be diagnosed by *which* layer is frozen |
 | Fixtures | A complete two-team tournament, idempotent, with a script to add goals and watch an overlay react |
 
 ## Requirements
 
+### Hosted
+
 A working [Live! by BULA](https://github.com/layoutd/live-by-bula) 3.0.6 installation with a published season. Live! v3 in turn requires [UltiOrganizer](https://github.com/ktolonen/ultiorganizer) 4, PHP 8.3+ and MariaDB 10.11+.
 
 Note that Live! by BULA has its own prerequisite: its [Terms of Use](https://github.com/layoutd/live-by-bula/blob/main/Terms%20of%20Use%20-%20Live%20by%20BULA.pdf) must be signed and returned to live@beachultimate.org before use.
 
+### Standalone
+
+PHP 8.3 or 8.4 with `json`, `pcre`, `mbstring` and `filter` — all but `mbstring` on by default. A `conf/` the web server can write, on a filesystem where `flock` works. Apache with `mod_rewrite` and `AllowOverride All`, or nginx with the rules translated. TLS in practice, since a browser source loading an overlay over plain HTTP from an HTTPS page is blocked as mixed content.
+
+**No database, no Composer, no build step.** Nothing in this project opens a database in either mode. That is what makes shared hosting, or a laptop running `php -S` at a venue with no uplink, a realistic deployment. [`docs/STANDALONE.md`](docs/STANDALONE.md) §6 is the full account, read off the code rather than assumed.
+
 ## Install
 
-Unzip or clone into `live/overlays/` — beside Live!'s own code, the same way Live! is installed beside UltiOrganizer's — and make `conf/` writable by the web server. There is no build step.
+### Hosted
 
-Recorded a game without a switcher? [docs/POSTPRODUCTION.md](docs/POSTPRODUCTION.md) covers adding the same overlay afterwards.
+Unzip or clone into `live/overlays/` — beside Live!'s own code, the same way Live! is installed beside UltiOrganizer's — and make `conf/` writable by the web server.
+
+Then paste [`install/root-htaccess-snippet.conf`](install/root-htaccess-snippet.conf) into the host's root `.htaccess` for the `/s/`, `/c/` and `/k/` short URLs. It is the one file the project cannot install itself, because it belongs to the UltiOrganizer root. Skipping it leaves everything reachable through `?view=live/overlays/...`, but the Studio's own **Match control** link is `/k/<game>` and will 404.
+
+### Standalone
+
+```
+node tests/capture.mjs --game 702 --out fixtures/payloads/dev   # record a game, or author your own
+php install/make-config.php --capture=fixtures/payloads/dev     # configure: password, hashed
+php -S 0.0.0.0:8080 -t . app.php                                # serve
+```
+
+`app.php` must be the router rather than just a file in the directory — `php -S` reads no `.htaccess`, so the rules keeping `conf/` off the network live in that front controller, and `conf/` holds the commentary desk's notes about named people.
+
+Putting it on a domain instead of a laptop is [`docs/DEPLOY.md`](docs/DEPLOY.md): a different `.htaccess`, an rsync script, and a list of what must survive `--delete`.
+
+### Either way
+
+Recorded a game without a switcher? [`docs/POSTPRODUCTION.md`](docs/POSTPRODUCTION.md) covers adding the same overlay afterwards.
 
 Full instructions, URLs, and the reasoning behind the design: **[docs/README.md](docs/README.md)**.
 
@@ -136,6 +199,8 @@ Two kinds of help would make more difference to this project than more features.
 **Design.** The graphics work and are measured — contrast, title-safe insets, colour-blind separation, names that fit — but measured is not the same as *good*. The scoreboard bug and the cards would benefit from somebody who designs broadcast graphics for a living, and the operator and commentator interfaces from anyone who does UX. If a layout here looks amateur to you, that is useful information and I would like to hear it.
 
 **Testing.** This has never run at a real tournament. It has never run on a Magewell Director Mini or a Yolobox at all, and the single assumption everything rests on — that a hardware switcher's browser source keeps running JavaScript — is still unverified on hardware. `tests/selftest.php` answers that in about ten seconds on the device.
+
+Standalone mode lowers the bar for trying: [ultimate-broadcast.org](https://ultimate-broadcast.org) can be pointed at from a switcher today, with no install and nothing to sign, purely to find out whether the device runs the page at all.
 
 If you are broadcasting an Ultimate event and willing to try it, or to run the self-test and report what happened, that is worth more than any amount of further development. Failures are the useful part: an overlay that never updated, a graphic that looked wrong on air, an instruction that made no sense at the side of a pitch.
 
@@ -153,8 +218,11 @@ Two of those conventions are worth stating here, because they shape everything e
 
 ```
 npm install
-npm test                      # the suite
+npm test                      # the suite, against a running hosted instance
 ADMIN_PASS=... npm test       # including the tests that change what is on air
+npm run test:unit             # the pure logic alone: no browser, no instance
+npm run test:standalone       # routing, guards and scoring on php -S, no host at all
+npm run check                 # the repository's own checks, exactly as CI runs them
 npm run shots                 # regenerate the images above
 ```
 
@@ -162,7 +230,7 @@ Playwright, against a running dev instance rather than a mock — the payload sh
 
 The assertions are deliberately about **geometry, contrast and state transitions** rather than markup, because that is how this code has actually failed: a companion card overlapping the scoreboard by 22px, a stage rendering below the fold in a normal window, a heading that read backwards to a screen reader, two caps that looked like bounds and bounded nothing. `expect(box.right).toBe(other.left)` is a claim about what goes on air; `expect(html).toContain('<div>')` is not.
 
-Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and anything that writes show state restores it afterwards — the suite borrows the same files a real broadcast reads.
+The standalone suite is the one CI can run end to end, because standalone mode needs no UltiOrganizer, no Live!, no database and no Apache — which also makes it the only place the administrator path is exercised at all. Hosted, those tests skip themselves without `ADMIN_PASS`, and anything that writes show state restores it afterwards: the suite borrows the same files a real broadcast reads.
 
 ## Licence
 

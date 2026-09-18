@@ -86,6 +86,13 @@ echo "==> $REMOTE"
 #                     installation serves
 #   package*.json,
 #   node_modules/     the project has no build step; npm is for the test runner
+#   tools/            run on a laptop against a log downloaded from the host,
+#                     never on the server. visitors.php refuses to run under a
+#                     web server anyway; this is the second lock
+#   fixtures/*.log    the sample access log is for tests/visitors.mjs
+#
+# robots.txt IS deployed, and only works here: a crawler reads it from the
+# domain root, which standalone is this directory. See docs/ANALYTICS.md.
 # ---------------------------------------------------------------------------
 "$RSYNC" \
   --archive \
@@ -109,6 +116,8 @@ echo "==> $REMOTE"
   --exclude='*.md' \
   --exclude='/fixtures/*.sql' \
   --exclude='/fixtures/*.sh' \
+  --exclude='/fixtures/*.log' \
+  --exclude='/tools/' \
   --exclude='/package.json' \
   --exclude='/package-lock.json' \
   --exclude='/node_modules/' \

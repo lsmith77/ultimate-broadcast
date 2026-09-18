@@ -1,0 +1,47 @@
+# What crawlers may index on a standalone installation.
+#
+# This file only has an effect STANDALONE, where this directory is the document
+# root. Hosted, it would sit at /live/overlays/robots.txt, and a crawler reads
+# robots.txt from the domain root only — so hosted it is inert, and the host's
+# own file is the one that counts.
+#
+# Two reasons it exists, and the second is the important one:
+#
+# 1. Bot traffic is most of what reaches a small public site, and it is the
+#    thing that makes an access-log visitor count meaningless. See
+#    docs/ANALYTICS.md — the counts there are only worth reading because the
+#    well-behaved crawlers stay out of them.
+#
+# 2. The commentary desk can display PREPARED NOTES ABOUT NAMED PLAYERS, and
+#    match control and the stage are live operational surfaces. None of those
+#    should ever appear in a search result. This is not a security control —
+#    a crawler that ignores robots.txt ignores this file too, and the room code
+#    is what actually keeps notes private — but a search engine that indexes a
+#    note room is a foreseeable, preventable way for one to escape.
+
+User-agent: *
+
+# The front page is the Studio, and it is what the project wants found.
+Allow: /$
+
+# The imprint is a legal page; it is meant to be reachable and findable.
+Allow: /s/imprint
+
+# Everything else under /s/ is a live surface: the scoreboard, the stage, and
+# the event editor. They render one tournament's current state and mean nothing
+# out of context.
+Disallow: /s/
+
+# The commentary desk. The one that matters — see note 2 above.
+Disallow: /c
+
+# Match control, the scorekeeper's phone.
+Disallow: /k
+
+# Operator state. Already 404 for everything but the three files the stage
+# polls, but there is no reason for a crawler to be asking.
+Disallow: /conf/
+
+# The front controller's long form. The short URLs redirect here, so without
+# this a crawler indexes every page twice under two addresses.
+Disallow: /app.php

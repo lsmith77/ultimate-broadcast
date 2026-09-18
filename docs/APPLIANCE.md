@@ -409,11 +409,11 @@ Audio looks like the biggest gap and is not. [`COMMENTATOR.md`](COMMENTATOR.md) 
 
 ### 3a. Audio
 
-The instinct is that adding commentary means building a mixer, with level controls in the Studio. **Both halves of that are wrong**, and seeing why removes most of the work.
+Adding commentary looks like it means building a mixer with level controls in the Studio. It does not, and dropping both halves of that assumption removes most of the work.
 
-**The box already has to emit audio.** RTMP and SRT to any platform want an audio track, and a stream with none misbehaves in platform-specific ways. So the floor is not *no audio* — it is passing through whatever audio arrives embedded in the video source, which costs one element in the pipeline. That is the fallback, and it is also what a camera-mounted mic already gives you. Commentary is an upgrade from *one source* to *two mixed*, not a new subsystem from zero.
+The box already has to emit audio. RTMP and SRT both want an audio track, and a stream without one misbehaves in platform-specific ways. So the floor is not silence but passing through whatever audio is embedded in the video source, which costs one pipeline element. That is also what a camera-mounted mic gives you. Commentary is an upgrade from one source to two mixed, not a new subsystem.
 
-Gain belongs to hardware, not to the Studio. A web UI cannot ride a fader: show state polls at about a second, and a control with a second of latency is unusable for the one thing live gain is for. A two-input USB interface with physical gain knobs and direct monitoring — the €60–90 class — hands each commentator control of their own level, which is how every broadcast has ever done it, and gives them zero-latency foldback in their headphones for free. That is a knob replacing a feature, and it is the whole reason this section is short.
+Gain belongs to hardware, not to the Studio. A web UI cannot ride a fader: show state polls at about a second, and a control with a second of latency is unusable for the one thing live gain is for. A two-input USB interface with physical gain knobs and direct monitoring — the €60–90 class — hands each commentator control of their own level, which is how every broadcast has ever done it, and gives them zero-latency foldback in their headphones for free. A knob replaces a feature, which is why this section is short.
 
 What software should own is the part hardware cannot:
 
@@ -421,35 +421,39 @@ What software should own is the part hardware cannot:
 - **Level meters surfaced in the Studio**, which are telemetry rather than control — is a mic dead, is one commentator inaudible, is the source clipping. This is exactly the class of thing [`SETUP.md`](SETUP.md) argues for: a checklist item the software can *verify*, and one nobody can check today.
 - **Fixed relative levels in `conf/`**, set once per rig, applied at start. Set-and-forget is a configuration value, not a mixing desk.
 
-**Two things that will actually bite.** First, **clock drift**: a USB audio interface and a USB capture device have independent clocks, and over a ninety-minute game they diverge. GStreamer can slave one to the other, but this is the failure that appears forty minutes in rather than at setup, so it needs a long soak test rather than a smoke test. It is also avoidable entirely — see the wireless-mic route below, where the audio never becomes a second clock. Second, and worth stating as a decision rather than a detail: mixing audio on the box kills §7's hardware-plane variant outright. If the video never enters a software pipeline there is nothing for the audio to be timestamped against. Planes remain viable only for the venue-screen case where the box is not producing a stream at all.
+Two problems to plan for.
+
+**Clock drift.** A USB audio interface and a USB capture device have independent clocks, and over a ninety-minute game they diverge. GStreamer can slave one to the other, but the failure appears forty minutes in rather than at setup, so it needs a soak test rather than a smoke test. The wireless-mic route below avoids it entirely, because the audio never becomes a second clock.
+
+**Mixing audio on the box rules out §7's hardware-plane variant.** If the video never enters a software pipeline, there is nothing to timestamp the audio against. Planes stay viable only for the venue-screen case, where the box produces no stream.
 
 Where the commentators physically sit decides the difficulty, and the answer is cheap. §1b's rig B uses a Ulanzi AM18 wireless lavalier kit — two clip-on transmitters, one receiver, around €90, with roughly 100m of usable range. Beside the box it is a cable; across the field it is **not** audio over the network and not a different project — it is RF, for roughly what the USB interface would have cost.
 
 And feeding those mics into the camera rather than the box removes the hardest problem in this section. If the receiver goes into the camcorder, the commentary arrives *embedded in the video signal* — which is §3a's floor, already the plan. There is then no second clock, and therefore no drift: the failure above that appears forty minutes into a game simply cannot happen, because there is only one audio path and it is timestamped with the picture.
 
-That is the cheapest correct answer in the whole section, and it costs a purchase rather than a pipeline. Its limits are real but narrow: roughly 100m of range, so the commentators must be near the camera; the transmitters are summed rather than mixed; and per-mic level is set on the transmitters — hardware gain again, per §1c. A booth far from the camera, or a crew wanting a genuine mix, still needs the interface.
+That is the cheapest correct answer here, and it costs a purchase rather than a pipeline. Its limits are narrow: roughly 100m of range, so the commentators must be near the camera; the transmitters are summed rather than mixed; and per-mic level is set on the transmitters — hardware gain again, per §1c. A booth far from the camera, or a crew wanting a genuine mix, still needs the interface.
 
 ### 3b. The graphics source: the box out of the video path
 
 §3 concedes replay, multi-camera cutting and audio to the switcher. There is a version of this idea that feeds the switcher instead of competing with it. It is cheaper, more reliable, and shares nearly all the same software, which is why it is a peer of the all-in-one rather than a footnote. It is the middle rung of §1a's ladder: for a crew that has a switcher and somebody who can run it.
 
-And it is not speculative. §1b's rig A already runs this topology — a laptop's HDMI output feeding an ATEM as a keyed graphics layer, with the switcher cutting two cameras and streaming. What follows is therefore a cost reduction of something proven, not a design being proposed for the first time, which is the best position any section of this document is in.
+And it is not speculative. §1b's rig A already runs this topology — a laptop's HDMI output feeding an ATEM as a keyed graphics layer, with the switcher cutting two cameras and streaming. What follows is a cost reduction of something proven rather than an untried design.
 
 The Pi renders the overlay and outputs it over HDMI. A switcher does the cutting, the replay, the audio and the streaming. The box is a *hardware browser source* and nothing else.
 
 Every hard constraint in this document comes from the box being in the video path. §4's capture device, §5's missing encoder, §5a's thermals and 80% CPU, §6's frame rate, §7a's disk backpressure — all of it. Take the box out of the video path and they do not get easier, they cease to exist. What is left is a €60 computer rendering a web page to an HDMI port at 1080p60, which is a thing a Raspberry Pi is extremely good at and has been for a decade.
 
-Two ways to give the switcher a key, and this project already ships the second. Fill and key on the Pi 4's two HDMI outputs, for switchers that accept a separate key input — cleaner, because alpha is exact. Or chroma, for switchers that do not: `/s/702/green`, `/s/702/overlay/green`, or any six-digit hex, are already in the URL table because a switcher that cannot key alpha was always an anticipated case. Chroma fringes on thin white text against a busy background, so fill-and-key is worth having where the hardware allows it, but the fallback needs no new code at all.
+Two ways to give the switcher a key, and this project already ships the second. Fill and key on the Pi 4's two HDMI outputs, for switchers that accept a separate key input — cleaner, because alpha is exact. Or chroma, for switchers that do not: `/s/702/green`, `/s/702/overlay/green`, or any six-digit hex, are already in the URL table because a switcher that cannot key alpha was always an anticipated case. Chroma fringes on thin white text against a busy background, so use fill-and-key where the hardware allows it. The fallback needs no new code.
 
 This is where §7's hardware planes finally earn their keep. The argument against them was that an encoder needs one buffer in memory and a scanout plane never produces one. With no encoder anywhere in the path that objection evaporates: the HVS blends video-free graphics at scanout, output latency is a frame, and the frame rate is the display's rather than an encoder's. The plane approach was the wrong answer for §7 and is the right answer here.
 
-What it costs is honesty about the comparison. This does not replace a Director Mini — it needs one, or an ATEM, or whatever the tournament already owns. It is an accessory. What it buys for roughly €60 is §2's first reason: the browser stops being unknown, which is the single thing [`../tests/selftest.php`](../tests/selftest.php) exists to worry about, on the device that has always been the least inspectable part of the rig. Measured as value per euro that is probably the best idea in this document.
+What it costs is honesty about the comparison. This does not replace a Director Mini — it needs one, or an ATEM, or whatever the tournament already owns. It is an accessory. What it buys for roughly €60 is §2's first reason: the browser stops being unknown. That is what [`../tests/selftest.php`](../tests/selftest.php) exists to check, on the least inspectable device in the rig. Per euro, it is the best value in this document.
 
-And the two shapes are not a fork. Same WPE rendering, same overlay URLs, same `conf/`, same central provisioning and field-following from §8b. They differ only in what sits downstream of the browser, which means **building this one first de-risks the other rather than competing with it** — see §12.
+And the two shapes are not a fork. Same WPE rendering, same overlay URLs, same `conf/`, same central provisioning and field-following from §8b. They differ only in what sits downstream of the browser, so building the graphics source first de-risks the all-in-one rather than competing with it. See §12.
 
 ### 3c. The frozen scoreboard over a replay
 
-A hazard that looks like a §3b drawback, is not one, and is worth separating carefully because the real version is worse and applies everywhere.
+This looks like a §3b drawback. It is not: the real version is worse and applies everywhere.
 
 §3b does not hand the switcher a combined view. Fill-and-key, and the `/green` chroma form, exist precisely so the switcher receives the graphics as a *separate layer* and composites them itself. The problem arises one step later: if the switcher's replay buffer taps the program feed, it records the graphics burned in — and a replay of a goal then carries the post-goal score over footage of the play that produced it.
 
@@ -465,17 +469,17 @@ And it is not a §3b problem. It is inherent to burned-in graphics, which is wha
 - **A replay state that hides the score.** A REPLAY bug and no scoreboard asserts nothing false, which is this project's standing preference: refuse to claim rather than claim wrongly. One toggle, and at rungs 2 and 3 there is an operator to press it.
 - **Rewind the scoreboard, using the renderer that already exists.** `?at=<seconds>&goals=<n>&phase=…` draws a deterministic single frame for [`POSTPRODUCTION.md`](POSTPRODUCTION.md), by handing the existing `render()` a truncated payload — *"one renderer, never two"*. Told the game-time of the moment being replayed, the overlay can show the score **as it was**, which is what a broadcast actually does. The feature is built; what is missing is only the signal telling the box a replay is running and from when.
 
-**That third one is the interesting one**, because it costs almost nothing and nobody would build it from scratch for this. It is also an argument for rung 3: OBS knows when its replay buffer is playing, and obs-websocket can say so.
+The third costs almost nothing, because nobody would build that renderer from scratch for this and it already exists. It is also an argument for rung 3: OBS knows when its replay buffer is playing, and obs-websocket can report it.
 
 ---
 
 ## 4. Getting video in: a capture device is always needed
 
-Stated plainly, because it is the single most load-bearing fact in this document and it is easy to assume otherwise: no board here has an HDMI input. The HDMI ports on a Raspberry Pi, on a Radxa X4 and on an N100 mini PC are **outputs only**, and this is not a driver limitation that can be worked around. HDMI source and sink are different roles in hardware: receiving requires a chip that decodes TMDS and handles EDID and HDCP, and general-purpose computers do not have one. A machine with four HDMI ports still cannot accept a camera.
+No board here has an HDMI input. This is the most load-bearing fact in the document and the easiest to assume away. The HDMI ports on a Raspberry Pi, on a Radxa X4 and on an N100 mini PC are **outputs only**, and this is not a driver limitation that can be worked around. HDMI source and sink are different roles in hardware: receiving requires a chip that decodes TMDS and handles EDID and HDCP, and general-purpose computers do not have one. A machine with four HDMI ports still cannot accept a camera.
 
 So a capture device is mandatory for the all-in-one shape — it is not optional and it is not cheap. At €30–150 it is the most variable line in §11's budget and, per §10, the component most likely to misbehave at a field.
 
-Except in §3b, where the question does not arise at all. There the Pi's HDMI is an *output* going to the switcher, and the switcher owns the inputs — which is one more reason that rung is the easy one, and worth being clear about before conflating the two shapes. What that rung buys instead is the keying question in §3c.
+The question does not arise in §3b. There the Pi's HDMI is an output going to the switcher, and the switcher owns the inputs. That is one more reason the graphics source is the easier shape. What it buys instead is the keying question in §3c.
 
 ### 4a. The options
 
@@ -504,27 +508,27 @@ Two caveats. Something upstream is already encoding that stream, so the box deco
 
 HDMI in is where the difficulty actually lives, and §4a lists the hardware. The bandwidth arithmetic is what decides which of those options survives on a Pi: the Pi 4's CSI is two lanes, putting 1080p50 right at the limit, and its USB 3 ports run through a VL805 on a single PCIe 2.0 lane — about 4 Gbps for everything — while uncompressed 1080p50 YUY2 is roughly 1.7 Gbps of it. Feasible; not comfortable. At the 1080p30 §6 settles on it is comfortable, and on x86 (§5d) the question does not arise: USB 3.2 at 10 Gbps has room to spare.
 
-The operational point matters more than the bandwidth arithmetic: **a €30 dongle that drops frames on a hot afternoon is worse than the box it replaced**, because the box it replaced fails in ways its manufacturer has already found.
+The operational point matters more than the bandwidth arithmetic. A €30 dongle that drops frames on a hot afternoon is worse than the box it replaced, because that box fails in ways its manufacturer has already found.
 
 ### 4c. Why network input wins on the field
 
-§4b calls network input the easier half to *build*. That undersells it: **it is also the better thing to deploy**, and the reason has nothing to do with software.
+§4b calls network input the easier half to build. It is also the better thing to deploy, for reasons that have nothing to do with software.
 
 HDMI does not travel far on passive cable — about 5m — but optical HDMI does, and §1b's rig A uses exactly that from camera monitors back to base. So this is a real choice rather than a dead end. Optical HDMI keeps the picture uncompressed, with no encode-decode hop and no generation loss, which is the one thing network transport cannot offer. It costs more per run, the cable is directional and fragile, and it carries no power.
 
 Ethernet goes 100m on €15 of Cat6 that venues already run and people already expect on the ground, and a 20m HDMI run of any kind is heavier and more of a trip hazard across the route everybody walks.
 
-**And PoE is the detail that decides it.** One Cat6 run carries the video *and* the power to the camera position. No mains at the tripod, no battery to watch, no second cable — which is §10b's problem solved for half the rig by choosing a transport.
+PoE decides it. One Cat6 run carries the video and the power to the camera position. No mains at the tripod, no battery to watch, no second cable — which is §10b's problem solved for half the rig by choosing a transport.
 
 The real argument underneath is placement. The box wants mains or a battery, a network, shade, and to be near whoever is operating it. The camera wants a tripod on a sideline. Those are different places, and HDMI forces them to be the same place. Network transport decouples them, and that is worth more at a tournament than any of the bandwidth arithmetic in §4b.
 
-#### Two corrections worth making
+#### Two common misconceptions
 
-**RTMP is not limited to 30 fps.** Nothing in the protocol caps frame rate — platforms ingest 1080p60 over RTMP routinely, and encoder hardware advertises 60 fps RTMP output. Where the belief comes from is individual devices that cap it, plus RTMP's general air of being legacy.
+RTMP is not limited to 30 fps. Nothing in the protocol caps frame rate — platforms ingest 1080p60 over RTMP routinely, and encoder hardware advertises 60 fps RTMP output. Where the belief comes from is individual devices that cap it, plus RTMP's general air of being legacy.
 
 But RTMP is still the wrong protocol for this hop. It has no error correction and more latency than the alternatives, and it is designed for *egress*. The clean split: NDI|HX or SRT into the box, RTMP out of it. SRT in particular retransmits, which is what an imperfect field link needs.
 
-**One Pi-specific note.** Full NDI is SpeedHQ at roughly 130 Mbps, and decoding it is CPU work — too much to ask of a Pi 4 that is also running a browser. NDI|HX2/HX3 is H.264 or H.265 underneath, so the Pi 4's hardware decoder handles it. On x86 (§5d) either is fine. So on a Pi, choose HX or SRT, not full NDI.
+Full NDI is SpeedHQ at roughly 130 Mbps, and decoding it is CPU work — too much to ask of a Pi 4 that is also running a browser. NDI|HX2/HX3 is H.264 or H.265 underneath, so the Pi 4's hardware decoder handles it. On x86 (§5d) either is fine. So on a Pi, choose HX or SRT, not full NDI.
 
 #### What owning a ZowieBox means
 
@@ -728,13 +732,13 @@ This is the one place where the obvious answer is wrong.
 
 The Raspberry Pi 5 removed the H.264 hardware encoder, and the H.264 hardware decoder with it — not an aberration but part of a pattern [§5c](#5c-the-sbc-market-is-moving-away-from-this) sets out. It keeps HEVC decode; H.264 in both directions is software on the A76 cores. The Pi 4 has both in hardware.
 
-The box's job is *decode H.264 in, encode H.264 out*. That is precisely the workload the Pi 5 gave up and the Pi 4 still does in silicon. **The 8GB Pi 4 already owned is the better board here, and a Pi 5 is a downgrade for this specific task** — the opposite of the usual advice, and the opposite of the assumption this idea started from.
+The box's job is to decode H.264 in and encode H.264 out. That is the workload the Pi 5 gave up and the Pi 4 still does in silicon. So the 8GB Pi 4 is the better board here, and a Pi 5 is a downgrade for this task.
 
 Two secondary points. A 2GB board is too little once a browser engine is resident; 4GB is the floor and the 8GB Pi 4 is comfortably right. And boot from a USB SSD rather than an SD card — see §10.
 
 ### 5a. Software encoding on the Pi 5
 
-The obvious rebuttal to §5 is that the A76s are much faster than the A72s, so the missing silicon should not matter. **For decode, that is correct. For encode, it is true in a way that does not help.**
+The obvious rebuttal to §5 is that the A76s are much faster than the A72s, so the missing silicon should not matter. That holds for decode. For encode it is true in a way that does not help.
 
 | task | Pi 4 | Pi 5 |
 |---|---|---|
@@ -750,13 +754,13 @@ It only works at `ultrafast`, and `ultrafast` is worst at exactly our content. T
 
 It consumes the machine, and this machine has another job. 80% of four cores for 1080p30 leaves very little for WPE rendering the overlay page, the PHP server, audio (§3a) and NDI depacketisation. The reports are specific on this point: software encoding performance *"drops significantly when additional graphic applications are running"* — and a browser engine compositing a 1920×1080 layer is precisely an additional graphics application. The measurement that matters is therefore not "can a Pi 5 encode 1080p" in isolation; it is whether it can encode while doing everything else in §12's phase 3, and nobody has published that.
 
-**Sustained beats peak.** A benchmark runs for a minute; a game runs ninety. Four A76s pinned near 100% in a sealed case at a summer tournament will throttle, and throttling on a live stream is a soft failure — dropped frames that look like a bug in our software rather than a hot board. It also puts the Pi 5's 5V/5A supply requirement on the critical path (§10).
+Sustained load matters more than peak. A benchmark runs for a minute; a game runs ninety. Four A76s pinned near 100% in a sealed case at a summer tournament will throttle, and throttling on a live stream is a soft failure — dropped frames that look like a bug in our software rather than a hot board. It also puts the Pi 5's 5V/5A supply requirement on the critical path (§10).
 
 The Pi 4's hardware encoder has none of these properties. It is a corner of the die doing one job at roughly constant power, leaving all four cores for the browser, and it does not care how long the game is.
 
 ### 5b. If 50p becomes non-negotiable
 
-**It is not a different Pi.** If the frame rate in §6 is ever mandatory, the answer is a board with a real encoder — RK3588 (Orange Pi 5, Radxa Rock 5, around €100) does H.264 and H.265 in hardware far beyond 1080p60, with better I/O as well.
+The answer is not a different Pi. If the frame rate in §6 is ever mandatory, it is a board with a real encoder — RK3588 (Orange Pi 5, Radxa Rock 5, around €100) does H.264 and H.265 in hardware far beyond 1080p60, with better I/O as well.
 
 Keeping this option open costs nothing. No part of the software plan is Pi-specific: GStreamer, V4L2 M2M encoding, WPE, PHP and a systemd unit all move to another ARM board largely unchanged. So choosing the Pi 4 now is a reversible decision.
 
@@ -768,7 +772,7 @@ A vendor BSP kernel is exactly the obligation §9 exists to refuse. So the hones
 
 ### 5c. The SBC market is moving away from this
 
-Worth stating because it explains why the board question keeps coming out badly. **Single-board computing's energy is going into NPUs, and hardware video encoding has quietly regressed.** The Pi 5 dropped H.264 encode and decode (§5). NVIDIA's Jetson Orin Nano dropped the NVENC block its predecessor had. RK3588 has a good encoder that mainline Linux still cannot drive (§5b). Meanwhile TOPS figures climb on every product page.
+This explains why the board question keeps coming out badly. Single-board computing's development effort is going into NPUs, and hardware video encoding has regressed. The Pi 5 dropped H.264 encode and decode (§5). NVIDIA's Jetson Orin Nano dropped the NVENC block its predecessor had. RK3588 has a good encoder that mainline Linux still cannot drive (§5b). Meanwhile TOPS figures climb on every product page.
 
 So "newer board, more capable" fails here, and §5e explains why the accelerators filling that space do not help either. The capability this project needs peaked a generation ago on ARM SBCs, which is why a five-year-old Pi 4 beats its successor at this job.
 
@@ -776,7 +780,7 @@ It has not regressed everywhere, though. It has been sitting on x86 the entire t
 
 ### 5d. x86 instead of a Pi
 
-The strongest option is the boring one, and it is the only category that satisfies **both** constraints at once — a real hardware encoder *and* a mainline-supported distribution with a security team behind it. Every ARM answer so far has made you choose.
+x86 is the only category that satisfies both requirements at once: a real hardware encoder and a mainline-supported distribution with a security team. Every ARM answer so far forces a choice between them.
 
 | | encoder | distro | rough cost |
 |---|---|---|---|
@@ -785,7 +789,7 @@ The strongest option is the boring one, and it is the only category that satisfi
 | RK3588 | good, needs vendor BSP | Armbian or a vendor image | ~€100 |
 | **Intel N100 / N150** | **QuickSync — H.264 and HEVC** | **plain Debian, mainline** | **~€60–80 board, ~€110–140 complete** |
 
-The numbers are not close. **QuickSync on an N100 transcodes three to four simultaneous 1080p streams at almost no CPU cost, and around ten for 1080p H.264 to H.264.** This box needs *one*. Every constraint §5a agonises over — 80% CPU, `ultrafast` quality, thermal throttling over ninety minutes, the browser competing with the encoder — simply does not arise. The 6W TDP is in the Pi's class, and a complete mini PC draws 8–12W under load.
+The numbers are not close. QuickSync on an N100 transcodes three to four simultaneous 1080p streams at almost no CPU cost, and around ten for 1080p H.264 to H.264. This box needs one. Every constraint §5a agonises over — 80% CPU, `ultrafast` quality, thermal throttling over ninety minutes, the browser competing with the encoder — simply does not arise. The 6W TDP is in the Pi's class, and a complete mini PC draws 8–12W under load.
 
 Two form factors, and they suit different halves of this document.
 
@@ -795,11 +799,11 @@ A **generic N100 mini PC** at €110–140 arrives with RAM, SSD, case, cooler a
 
 And it answers the objection that killed RK3588. The concern with leaving the Pi was losing a mainstream platform. But on x86 the *software* is the most mainstream target in existence — plain Debian, `i915`, VAAPI, no vendor kernel, no BSP, no board-specific image — so the community that matters is not the board's. Nor is the board a dependency: any N100 machine runs the same install, so unlike RK3588 there is no vendor to be locked to and nothing to be stranded by. What is genuinely given up is Raspberry Pi's long availability guarantee and its unmatched community for *hardware* questions, which is real but narrower than it first appears.
 
-**The split that falls out is clean.** §3b's graphics source needs no encoder at all, so a Pi is the right board for it and the cheapest. The all-in-one needs an encoder that is not embarrassing, so it wants x86. The two shapes want different hardware, and neither choice constrains the other, because §5b's portability argument holds in this direction too — and holds better, since x86 needs no porting at all.
+The split is clean. §3b's graphics source needs no encoder at all, so a Pi is the right board for it and the cheapest. The all-in-one needs an encoder that is not embarrassing, so it wants x86. The two shapes want different hardware, and neither choice constrains the other, because §5b's portability argument holds in this direction too — and holds better, since x86 needs no porting at all.
 
 The one place the Pi keeps a clear advantage is power. It runs on 5V over USB-C from any bank; N100 machines mostly want 12V on a barrel jack, which at a field is a genuine problem rather than an inconvenience — §10b. That reinforces the split rather than complicating it: the low-power shape is the one that has to survive on a battery.
 
-**None of which changes §12.** The Pi 4 on the desk is still the right prototype: it is free, it is there, and phases 1 and 2 need no encoder. This is a purchasing decision for the day phase 3 succeeds, not a reason to buy anything now.
+None of this changes §12. The Pi 4 on the desk is still the right prototype: it is free, it is there, and phases 1 and 2 need no encoder. This is a purchasing decision for the day phase 3 succeeds, not a reason to buy anything now.
 
 *Also considered and not recommended: the ZimaBoard 2 (N150, PCIe 3.0 x4, dual SATA, dual 2.5GbE) is the same silicon class in a NAS-shaped board at $339–399 retail. The SATA ports and second network interface are not features this box has any use for, and the price is triple a mini PC that does the same job.*
 
@@ -811,16 +815,16 @@ It also costs something concrete. The AI HAT+ and the M.2 HAT+ both use the Pi 5
 
 What it could plausibly do, worst to best:
 
-- **Possession and turnover detection.** `AGENTS.md` is blunt: turnovers do not exist in the schema, and anything needing possession is *"impossible, not merely hard"*. Filling that absence with computer-vision guesses would invert the most valuable discipline in [`STUDIO.md`](STUDIO.md) — refusing to put a number on air that the data cannot support. The absence is a feature. This is the worst idea on the list precisely because it is the most tempting.
+- **Possession and turnover detection.** `AGENTS.md` is blunt: turnovers do not exist in the schema, and anything needing possession is *"impossible, not merely hard"*. Filling that absence with computer-vision guesses would abandon [`STUDIO.md`](STUDIO.md)'s rule against putting a number on air that the data cannot support. The absence is deliberate.
 - **Jersey numbers, to populate the line automatically.** [`COMMENTATOR.md`](COMMENTATOR.md)'s line picking is manual and this looks like the obvious win. It is the same trap one step down: numbers on moving players in a 1080p wide shot are read unreliably, and this project's characteristic failure is a graphic quietly asserting something untrue, which looks completely normal in a screenshot. A lineup that is 80% right is worse than no lineup.
 - **Highlight and clip detection — which needs no accelerator at all.** The API already says when a goal happened. The one thing you would reach for AI to find, this project gets from data it is already polling, and §7a's recording is already timestamped against it.
-- **Auto-framing, which was the only genuinely transformative one — and is already a product you can buy.** A robot camera operator attacks the binding constraint rather than a convenience, because [`MATCHCONTROL.md`](MATCHCONTROL.md)'s finding is that no crew size has anybody spare. But §4d settles it: XbotGo- and Pix4Team-class devices do this today, cheaply, better, and without touching this box at all. Building it here would also have made every constraint in the document worse — cropping without upscaling needs a 4K source, far past §4's ingest budget, and the crop still has to be encoded (§5a) — for a result that is purchasable.
+- **Auto-framing, the only transformative one, and already purchasable.** A robot camera operator attacks the binding constraint rather than a convenience, since [`MATCHCONTROL.md`](MATCHCONTROL.md) finds that no crew size has anybody spare. §4d settles it: XbotGo- and Pix4Team-class devices do this today, cheaply and better, without touching this box. Building it here would also worsen every constraint in the document. Cropping without upscaling needs a 4K source, far past §4's ingest budget, and the crop still has to be encoded (§5a).
 
 So the AI HAT has no remaining use case here. Every candidate is a trap this project's discipline forbids, a thing the API already answers, or a commodity product. Not this box, and not any box — the question is closed rather than deferred.
 
 ### 5f. Is a Pi still the answer?
 
-Yes — and on two of §1a's three rungs it is not a compromise but the correct choice. The x86 case from §5d is narrower than that section, read alone, makes it sound.
+Yes. On two of §1a's three rungs it is the correct choice rather than a compromise, and the x86 case in §5d is narrower than that section alone suggests.
 
 Rung 2 (§3b) belongs to the Pi outright, and x86 would be actively worse. No encoder is needed there, so the whole of §5 is moot. What matters instead: two HDMI outputs for fill and key, a ~5–7W draw on 5V USB-C — which per §10b is a full tournament day from one power bank, where the x86 box needs a trigger cable and manages four hours — and DRM/KMS planes (§7) being the Pi's home ground rather than an exotic option. Cheaper, cooler, simpler, better.
 
@@ -828,7 +832,7 @@ Rung 3 wants a Pi too, just not for video. A skilled crew runs OBS on their own 
 
 Rung 1 is where x86 earns its place, and less decisively than §5d implies. The Pi 4's encoder does 1080p30 in hardware, and §6 settled on 25/30p for reasons that have nothing to do with silicon. At that frame rate §4's capture bandwidth is comfortable as well. The all-in-one on a Pi 4 therefore **works**; what it lacks is headroom.
 
-And every case where the Pi loses is one this document has already declined on other grounds. 50p — wanted for slow motion, which §6b shows comes from a laptop's replay buffer rather than from this box's frame rate. Replay *on the box* — blocked by operators and control surfaces, not silicon (§6a). OBS resident on the appliance — set aside by the thesis (§1a). The Pi's weakness is real and it sits entirely inside territory already ruled out.
+Every case where the Pi loses has already been declined on other grounds. 50p is wanted for slow motion, which §6b shows comes from a laptop's replay buffer rather than this box's frame rate. Replay on the box is blocked by operators and control surfaces rather than silicon (§6a). OBS resident on the appliance is set aside by §1a. The Pi's weakness is real, and it sits entirely inside territory already ruled out.
 
 The honest reason to keep x86 in view is a different one, and it is §13's first line. If phase 2 or 3 finds `wpevideosrc` marginal on VideoCore, Intel's `i915` and Mesa are a far better-supported target for WPE. So x86 is the recovery path as much as the upgrade, which is why §5d covers it at length before it is needed.
 
@@ -890,7 +894,7 @@ The frame rate is the requirement that drives the board choice, so it is worth b
 
 **Motion rendering.** 50p genuinely looks better live than 25p on a fast horizontal pan following a disc, and this is real rather than pixel-peeping. It is also a modest difference on a laptop or a phone, which is where this is watched.
 
-**Slow motion.** This is the substantial one — 25p slowed to half speed is a slideshow, 50p is not. But slow motion is only worth having if somebody can *play it*, and replay control is the Director Mini's headline feature, not this box's. §3 already conceded it.
+**Slow motion.** The substantial reason. 25p slowed to half speed is a slideshow; 50p is not. But slow motion needs somebody able to play it, and replay control is the Director Mini's headline feature rather than this box's. §3 already conceded it.
 
 That concession settles the frame rate, and it settles it more firmly than a performance argument could:
 
@@ -920,7 +924,7 @@ Two implementation details would still need care. The replay buffer wants **shor
 
 So the hardware answer is yes, comfortably. What remains is the pair that has nothing to do with silicon: it needs the operator [`MATCHCONTROL.md`](MATCHCONTROL.md) says no crew size has spare, and — the one that actually closes it —
 
-there is no control surface, which is the same finding as §3a's faders arriving somewhere new. Replay is scrubbing: find the moment, mark in, mark out, roll. That is a jog wheel and dedicated keys, and it is a task where the operator's hand and the picture have to agree in tens of milliseconds. Show state polls at about a second. A web UI is the wrong instrument for this in the same way it is the wrong instrument for riding a fader — not underbuilt, but structurally unsuited, and no amount of work on this project's side fixes it. Twice now the answer to "should the Studio control this?" has been *no, that belongs to hardware with knobs on it*, and noticing the pattern is worth more than either instance.
+there is no control surface, which is the same finding as §3a's faders arriving somewhere new. Replay is scrubbing: find the moment, mark in, mark out, roll. That is a jog wheel and dedicated keys, and it is a task where the operator's hand and the picture have to agree in tens of milliseconds. Show state polls at about a second. A web UI is structurally unsuited to this, in the same way it is unsuited to riding a fader, and no amount of work on this project's side fixes it. Twice now the answer to "should the Studio control this?" has been no, it belongs to hardware with knobs. The pattern matters more than either instance.
 
 So the conclusion is unchanged but its reason has moved, which matters for what to buy. Replay is blocked by people and instruments, not by silicon — so no future board purchase unblocks it, and equally, choosing §5d's hardware for other reasons quietly leaves the door open should the control-surface question ever get a good answer. In the meantime replay comes from a switcher, via §3b, which is why that section is written as a peer rather than a fallback.
 
@@ -994,7 +998,7 @@ How a clip is triggered and tagged, how the two event streams are reconciled, ho
 
 This is a replay system, and that is a different product — the same warning §8c carries about broadcast management. The difference is that this one sits directly on top of the asset that makes this project distinctive rather than off to one side, which makes it far more defensible. It is still not small.
 
-And it favours the all-in-one, which little else does. Replay needs the video, the marks and the output in one place. §3b's graphics source never touches the video and cannot do this at all; the OBS rung could, driven over obs-websocket. Alongside §4d's RTMP ingest, this is the second real argument for building the box — and §12a should weigh it, because a feature nothing else can deliver is worth more than a cost saving anything can.
+And it favours the all-in-one, which little else does. Replay needs the video, the marks and the output in one place. §3b's graphics source never touches the video and cannot do this at all; the OBS rung could, driven over obs-websocket. Alongside §4d's RTMP ingest, this is the second real argument for building the box. §12a should weigh it: no other option delivers this feature, whereas anything can deliver a cost saving.
 
 ---
 
@@ -1122,7 +1126,7 @@ The load-bearing thing is detection, not visibility, and it needs no monitor at 
 - **A watchdog over obs-websocket.** Poll liveness *and* the output statistics. If a modal blocks the UI thread the socket likely stops answering; if it answers while the encode has stalled, the output stats say so. Either way it is caught, whether or not anybody is watching.
 - **Supervised restart with the scene collection regenerated from `conf/` on every start.** A hang or crash then costs about ten seconds rather than the rest of the game, and comes back deterministically — which is also what makes OBS’s own persistence safe to ignore.
 
-That pair clears [§1a](#1a-the-goal-and-the-two-constraints)’s bar without depending on a person looking at a screen, and it is worth having under the pipeline route too. **So a monitor is a good idea for [§10c](#10c-a-monitor-on-the-box)’s reasons — not the tie-breaker for this one**, and making it a hard requirement would add a per-field cost and a power draw ([§10b](#10b-running-off-a-battery)) for a job a watchdog does better.
+That pair clears [§1a](#1a-the-goal-and-the-two-constraints)'s bar without depending on a person watching a screen, and it applies to the pipeline route too. So a monitor is worth having for [§10c](#10c-a-monitor-on-the-box)'s reasons rather than as a tie-breaker here. Making it mandatory would add a per-field cost and a power draw ([§10b](#10b-running-off-a-battery)) for a job a watchdog does better.
 
 Which makes phase 3’s test concrete rather than a judgement call: build the watchdog and the supervised restart, then try hard to make OBS fail — kill it, block it, pull the network, corrupt the collection — and see whether every failure is caught and recovered. If yes, it is very likely the right engine and a great deal of work disappears. If it is merely *probably* fine, that is a no, and the pipeline wins despite costing more to write. [§12](#12-what-to-do-first)'s phase 3 answers it in about a day, and it deserves to be one of the first things tried rather than a footnote.
 
@@ -1284,7 +1288,7 @@ This also settles a conflict in §10. **Read-only root is out for now** — it f
 
 There is a case where this all changes, and §13 decides it rather than preference: **if the `gstreamer1.0-wpe` that Raspberry Pi OS ships cannot do transparent overlays** (§7), the alternative is vendoring a newer WPE WebKit — and the moment that is vendored, its CVEs are ours, which is the obligation this whole section exists to avoid. At that point a container is the better container for the mess: pin the pipeline stack in an OCI image, keep the host OS stock and self-updating, and accept ownership of one clearly bounded userspace instead of an operating system.
 
-The cost of that branch is worth knowing in advance. A container needs `/dev/video*`, `/dev/dri` and probably `/dev/snd` passed through, and the userspace inside it has to stay compatible with the host's kernel and firmware — so it buys reproducibility and gives back some of the isolation that made it attractive. **Do not choose between these two now.** Phase 3's first test chooses, and it is a day's work.
+That branch has a known cost. A container needs `/dev/video*`, `/dev/dri` and probably `/dev/snd` passed through, and its userspace has to stay compatible with the host's kernel and firmware. So it buys reproducibility and gives back some of the isolation that made it attractive. Do not choose now: phase 3's first test decides, and it is a day's work.
 
 One thing this section has not absorbed: §5d. If the all-in-one lands on x86, the OS row above becomes plain Debian rather than Raspberry Pi OS, the Imager step in "The shape" is replaced by a normal Debian install, and the apt repository has to carry both `arm64` and `amd64` — because §3b's graphics source stays on a Pi regardless (§5f). That is a packaging detail rather than a change of plan, but it doubles the build matrix and should be assumed from the first `.deb` rather than retrofitted.
 
@@ -1456,11 +1460,11 @@ That is a statement about the decision to build, not about who the result is for
 
 ## 12. What to do first
 
-**Five phases, numbered from zero**, ordered so that each is worth having if the next never happens and so that risk only ever increases. Phases 0 to 2 need no capture device, no encoder and no packaging, and between them they deliver most of §2's argument. Phase 3 is where money and uncertainty start, and §12a is the rule that decides whether to enter it.
+Five phases, numbered from zero, ordered so each is worth having if the next never happens and so risk only increases. Phases 0 to 2 need no capture device, no encoder and no packaging, and between them they deliver most of §2's argument. Phase 3 is where money and uncertainty start, and §12a is the rule that decides whether to enter it.
 
 Phase 0, and cheaper than all of them: talk to people. Two conversations, neither needing anything built.
 
-**The DFV.** A federation already publishes a reference rig, already carries a MacBook and an ATEM, and — if its events run on UltiOrganizer — already has somebody keeping score twice at every game. Getting these overlay URLs into that document reaches more fields than the appliance would, needs nothing built, and answers §12a's unanswerable stop condition about what cameras and kit tournaments actually own. It also risks being told no, which is information worth having before phase 3 rather than after.
+**The DFV.** A federation already publishes a reference rig, already carries a MacBook and an ATEM, and — if its events run on UltiOrganizer — already has somebody keeping score twice at every game. Getting these overlay URLs into that document reaches more fields than the appliance would, needs nothing built, and answers §12a's unanswerable stop condition about what cameras and kit tournaments actually own. It also risks being told no, which is better learned before phase 3 than after.
 
 **Once.sport.** [§4d](#4d-automated-cameras-and-rtmp-only-sources)'s fixed-camera tier rests on four unpublished facts — the delay and its variance, whether audio survives processing, whether footage carries event time, and what hardware the real-time mode needs. A small company and an existing beta relationship makes that a short email rather than a research project, and the answers decide whether that tier is usable at all.
 
@@ -1509,7 +1513,7 @@ Two things only the all-in-one can do, worth weighing against the stop condition
 
 **It ingests sources nothing else will.** §4d: a hardware switcher cannot take RTMP, so where a cheap automated camera is the source, the box is not the cheaper option — it is the only one.
 
-It can do data-driven replay, and that replay pays for itself. §6c: the marks already exist as data, and replay needs the video, the marks and the output in one place. §6d adds the economics — producing replays is what lets the stream stay at 30p, a recurring bandwidth saving against the cost §10a says never stops. A capability nobody else offers is worth more than a cost saving anyone can match. If phase 3 goes well, this is the feature that would justify the box — not the €1,000 saved.
+It can do data-driven replay, and that replay pays for itself. §6c: the marks already exist as data, and replay needs the video, the marks and the output in one place. §6d adds the economics: producing replays is what lets the stream stay at 30p, a recurring saving against the cost §10a says never stops. No other option offers this capability, whereas anything can match a cost saving. If phase 3 goes well, this feature justifies the box rather than the €1,000 saved.
 
 #### The likely answer is neither, and that is worth planning for
 
@@ -1547,7 +1551,7 @@ Every claim this rests on that has not been measured. In this project's terms: u
 - The Pi 4's encoder sustains the target frame rate for a full game, in a closed case, at ambient field temperature (§6, §10).
 - `wpevideosrc` frame pacing survives a card animation without visible judder — a stuttering lower-third is an on-air defect (§6).
 - A Pi 5, if one is ever used, can encode **while** WPE is compositing — the published numbers measure encoding alone, and this box is exactly the "additional graphics application" they warn degrades it (§5a).
-- QuickSync's transcoding headline survives contact with this pipeline: those figures are file-to-file transcodes, and what §5d needs is a live capture plus a WPE layer plus a limiter, sustained (§5d).
+- QuickSync's transcoding figures hold for this pipeline. The published numbers are file-to-file transcodes, and §5d needs a live capture plus a WPE layer plus a limiter, sustained (§5d).
 - WPE and `wpevideosrc` are as well behaved on Intel `i915`/Mesa as on the Pi's VideoCore — likely better, but assumed rather than measured, and §12's phase 3 is where it would be found out (§5d).
 - OBS's failures are all *detectable* over obs-websocket — a blocked UI thread, a stalled encode, a lost output — and a supervised restart with the scene collection regenerated from `conf/` recovers each of them in seconds. Headless is proven and not the question; **detection and recovery are**, and they are tested by breaking it deliberately rather than by running it and hoping (§7b, §7c).
 - The distro's `gstreamer1.0-wpe`, PHP and WPE versions are new enough to depend on rather than vendor — the premise the whole of §9 rests on (§9).
@@ -1570,7 +1574,7 @@ Every claim this rests on that has not been measured. In this project's terms: u
 - A fixed-camera tier's worst-case delay can be bounded well enough to hold score changes behind it. The delay does not need to be stable — only bounded — but a tier whose worst case is unbounded cannot be used with a live scoreboard at all (§4d).
 - What a fixed-camera tier's processing machine costs and draws for a given camera and frame rate. RTX-class or Apple Silicon is published; the minimum is not, and an Apple Silicon mini and an RTX desktop are very different answers for both cost and power (§4d).
 - Timeout and half-time durations are knowable precisely enough to pack a playlist against, given `uo_pool.timeouts` records an allowance rather than a length. If not, the assembler fits to a configured nominal and relies on pre-emption (§6c).
-- Scorekeeper lag has a shape worth knowing: log the goal-entry stream against a real game's video and measure the distribution, since §6c's auto-tagging rests on the claim that a clip can be attributed to a point but not reliably to a goal (§6c).
+- Scorekeeper lag distribution: log the goal-entry stream against a real game's video and measure it. §6c's auto-tagging rests on the claim that a clip can be attributed to a point but not reliably to a goal (§6c).
 - A second clean encode runs alongside the program one without disturbing it — the precondition for replay being usable at all, and free only where a device is already recording a clean master (§6c, §4c).
 - The overlay's wall-clock knowledge is precise enough to generate post-production anchors that [`POSTPRODUCTION.md`](POSTPRODUCTION.md) would accept — its own threshold is that a fit more than twenty seconds out should refuse to render (§7a).
 - The audio question has an answer at all. Without one this is a graphics box, not a broadcast (§3, §3a).

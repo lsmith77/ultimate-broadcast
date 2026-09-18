@@ -41,6 +41,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/event.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Auth;
 use Overlays\Event;
@@ -155,6 +156,7 @@ header('Content-Type: text/html; charset=UTF-8');
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Event — overlays</title>
+<?= \Overlays\Brand::head('studio', '') ?>
 <style>
     :root { color-scheme: dark; --bg: #0b1220; --panel: #0f1a30; --line: #1e293b;
             --ink: #e2e8f0; --mute: #94a3b8; --accent: #1d4ed8; --bad: #f87171;

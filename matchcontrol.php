@@ -41,6 +41,7 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
 }
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/score.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Mode;
 use Overlays\Score;
@@ -66,6 +67,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="color-scheme" content="light dark">
 <title>Match control</title>
+<?= \Overlays\Brand::head('score', $base) ?>
 <style>
     :root {
         --bg: #0d1420; --panel: #16202f; --line: #2a3a52; --ink: #f2f6fb;

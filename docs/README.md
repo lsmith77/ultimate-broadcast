@@ -200,6 +200,24 @@ It is also candid about what a standalone installation can and cannot be today. 
 
 **Go here for:** the deploy script, the one-time bootstrap, what to check afterwards, and what a visitor to a public installation is able to change.
 
+### [`ANALYTICS.md`](ANALYTICS.md) — counting visitors without collecting anything
+
+**Built, and it adds nothing to the software.** How to tell how many people open a public installation and how many run the demo, by reading the web server's access log rather than putting a tracker on pages that reach air.
+
+It records why the obvious answers were rejected, because they will be proposed again: a third-party script would phone home **from the scoreboard and the stage, which are on air**, on the one device nobody can debug; and a self-hosted counter — genuinely viable, and the thing to build if this stops being enough — would cost the imprint's bold claim that this installation runs no analytics, which is worth more than a more accurate number.
+
+The demo turns out to be unusually countable, by accident of a decision made for another reason: `shared/demo.js` fetches one payload and mutates copies in the browser rather than polling, so a run is a single countable event instead of an hour of poll lines.
+
+**Go here for:** the tool, what its numbers are worth (an order of magnitude, never a headcount), and why `robots.txt` matters more for keeping a note room out of a search index than for the counts.
+
+### [`BRAND.md`](BRAND.md) — the mark, the tab icons, and the social card
+
+**Built.** A stylised old-school camera on a disc — a frisbee, and the film reel an old camera carries — with one icon per surface, because an operator has the Studio, a stage, a scoreboard, the desk and a phone open at once and was telling them apart by reading titles.
+
+Each surface differs in **shape as well as colour**, which is `AGENTS.md`'s rule about colour never being the only carrier, applied where it is easiest to forget: a tab icon is sixteen pixels, and at that size colour is most of what a person perceives. The palette was run through protanopia, deuteranopia and tritanopia matrices rather than assumed, which is how match control stopped being a hue — Okabe-Ito's reddish purple came out a pale washed-out grey-green under two of the three.
+
+**Go here for:** why UB is spelled out rather than made a monogram, the two reasons a social preview card comes out blank, and the command that regenerates the PNGs.
+
 ### [`SETUP.md`](SETUP.md) — setup, checks and teardown
 
 A concept, with nothing built. These docs ask for a pre-game checklist in **five separate places** — including the same clock item written twice in this file — and no checklist exists anywhere.

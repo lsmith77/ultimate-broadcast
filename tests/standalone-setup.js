@@ -46,7 +46,9 @@ function routedFiles() {
   return files;
 }
 
-const RUNTIME = ['app.php', 'shared', 'images', '.htaccess', ...routedFiles()];
+const RUNTIME = [
+  'app.php', 'shared', 'images', 'brand', 'robots.txt', '.htaccess', ...routedFiles(),
+];
 
 /**
  * A capture, recorded from the dev instance by `tests/capture.mjs`.

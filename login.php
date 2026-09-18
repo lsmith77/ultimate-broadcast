@@ -21,6 +21,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/mode.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Auth;
 
@@ -64,6 +65,7 @@ header('Cache-Control: no-store, must-revalidate');
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in — overlays</title>
+<?= \Overlays\Brand::head('studio', '') ?>
 <style>
     :root { color-scheme: light dark; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center;

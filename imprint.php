@@ -39,6 +39,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/notes.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Auth;
 use Overlays\Mode;
@@ -64,6 +65,7 @@ header('Content-Type: text/html; charset=UTF-8');
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Imprint — overlays</title>
+<?= \Overlays\Brand::head('studio', '') ?>
 <style>
     :root { color-scheme: dark; }
     body { margin: 0; padding: 2rem 1.5rem; background: #0b1220; color: #e2e8f0;

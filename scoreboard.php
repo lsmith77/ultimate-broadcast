@@ -28,6 +28,7 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/colors.php';
 require_once __DIR__ . '/shared/logos.php';
+require_once __DIR__ . '/shared/brand.php';
 
 $gameId = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
@@ -191,6 +192,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 <meta http-equiv="refresh" content="<?= (int) $reload ?>">
 <?php endif; ?>
 <title>Scoreboard — game <?= (int) $gameId ?></title>
+<?= \Overlays\Brand::head('onair', rtrim($prefix, '/')) ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/overlay-base.css'), ENT_QUOTES) ?>">
 <style>body { background-color: <?= htmlspecialchars($background, ENT_QUOTES) ?>; }</style>
 </head>

@@ -34,6 +34,7 @@ require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/show.php';
 require_once __DIR__ . '/shared/logos.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Show;
 
@@ -101,6 +102,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <head>
 <meta charset="UTF-8">
 <title>Overlay stage</title>
+<?= \Overlays\Brand::head('onair', $base) ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/overlay-base.css'), ENT_QUOTES) ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/stage.css'), ENT_QUOTES) ?>">
 <style>body { background-color: <?= htmlspecialchars($background, ENT_QUOTES) ?>; }</style>

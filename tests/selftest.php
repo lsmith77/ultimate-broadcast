@@ -41,12 +41,20 @@ $bgParam = strtolower((string) filter_input(INPUT_GET, 'bg'));
 $background = $backgrounds[$bgParam] ?? '#101418';
 
 $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+
+// The only shared code this page takes, and it is worth the exception: an
+// operator runs the self-test with several tabs already open, which is exactly
+// the moment a nameable tab icon earns its place. Everything else here stays
+// self-contained on purpose — this file is the diagnostic, so it must not fail
+// for a reason it is meant to be diagnosing.
+require_once __DIR__ . '/../shared/brand.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Overlay self-test</title>
+<?= \Overlays\Brand::head('onair', '') ?>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 

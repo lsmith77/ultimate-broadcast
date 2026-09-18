@@ -40,6 +40,7 @@ require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/lines.php';
 require_once __DIR__ . '/shared/notes.php';
+require_once __DIR__ . '/shared/brand.php';
 
 use Overlays\Lines;
 use Overlays\Notes;
@@ -83,6 +84,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Commentator</title>
+<?= \Overlays\Brand::head('desk', $base) ?>
 <script>
 // Applied before the first paint, not with the rest of the script at the end of
 // the body. A reader who chose night gets a full white flash otherwise — which

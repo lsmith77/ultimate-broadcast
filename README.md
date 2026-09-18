@@ -234,4 +234,10 @@ The standalone suite is the one CI can run end to end, because standalone mode n
 
 ## Licence
 
-CC BY-NC-ND 4.0, matching Live! by BULA. See [LICENSE.txt](LICENSE.txt).
+**AGPL-3.0**, with an additional permission under section 7 for combining with Live! by BULA and UltiOrganizer. See [LICENSE.txt](LICENSE.txt).
+
+In plain terms: use it for anything, including events with sponsors; fork it and change it; and if you run a modified version that people reach over a network, publish your changes. There is no non-commercial restriction and no bar on derivative works.
+
+It was previously CC BY-NC-ND 4.0, matching Live! by BULA. That was the wrong instrument twice over. Creative Commons themselves recommend against CC licences for software — they say nothing about source code, linking, or patents — and *NonCommercial* and *NoDerivatives* between them ruled out the two things this project is asking for above: an association streaming an event with sponsor boards, and anybody publishing an improvement to the graphics.
+
+The exception exists because hosted mode loads Live!'s own autoloader and calls its classes in the same process ([`shared/auth.php`](shared/auth.php)), which is linking rather than arm's-length use, and Live! is under terms that cannot be relicensed. It is scoped to those two programs and changes nothing about their licences. Standalone, no combination occurs and the exception is never engaged.

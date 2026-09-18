@@ -321,8 +321,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     <h2>A scoreboard for your Ultimate stream</h2>
     <p>
         Put a live scoreboard, team statistics and player graphics over your video — or
-        add them to a game you have already filmed. <strong>Free to use, and there is
-        nothing to sign up for.</strong> Everything described here is running on this page
+        add them to a game you have already filmed. <strong>Free and open source, and
+        there is nothing to sign up for.</strong> Everything described here is running on this page
         now; the links below play a real game through, start to finish.
     </p>
     <p class="introdemo" id="introDemo"></p>

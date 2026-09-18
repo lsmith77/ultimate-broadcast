@@ -1,7 +1,8 @@
 {
   "name": "ultimate-broadcast",
   "private": true,
-  "description": "Broadcast overlays for Live! by BULA — development tooling only; the project itself has no build step.",
+  "license": "AGPL-3.0-only",
+  "description": "Broadcast overlays for Ultimate, hosted on Live! by BULA or standalone — development tooling only; the project itself has no build step.",
   "engines": {
     "node": ">=18"
   },

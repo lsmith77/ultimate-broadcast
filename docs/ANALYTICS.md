@@ -2,7 +2,7 @@
 
 How to get a sense of how many people open a public installation and how many run the demo, without adding tracking to software whose imprint page says it has none.
 
-The short version: **read the web server's access log, which already exists, and add nothing to the site.** [`../tools/visitors.php`](../tools/visitors.php) does the reading.
+The short version: **read the web server's access log, which already exists, and add nothing to the site.** One command — [`../tools/stats.sh`](../tools/stats.sh) — pulls it from the host and reads it.
 
 ## 1. Why not analytics
 
@@ -18,24 +18,37 @@ That is the whole argument. The cost is accuracy, and §4 is honest about how mu
 
 ## 2. Running it
 
-Download a log from the host and read it locally. The tool never runs on the server — it is excluded from `deploy.sh`, and it refuses to run under a web server.
-
 ```
-scp <host>:~/logs/ultimate-broadcast.org/access_log .
-php tools/visitors.php access_log
+tools/stats.sh
 ```
 
-Rotated logs are usually gzipped, and it reads standard input, so a whole month is one pipe:
+That is the whole thing. [`../tools/stats.sh`](../tools/stats.sh) finds the access log on the host, streams it here, and reads it — one command and one SSH connection. **Nothing is written on the server and no log is stored here**: it is piped straight through, so the only thing that lands on this machine is the counts.
+
+It takes the host from `deploy.env`, which already names it for `deploy.sh`. The alternative was a second setting holding the same hostname, and two places to change when it moves is how one of them ends up wrong. `deploy.env` is gitignored, so no hostname enters the repository this way either.
 
 ```
-zcat ~/logs/*.gz | php tools/visitors.php
+tools/stats.sh                       # everything the host still has
+tools/stats.sh --json > counts.json  # the same numbers as a document
+tools/stats.sh --file access.log     # a log already on this machine
+tools/stats.sh --log-dir ~/weird/path # when a host puts logs somewhere odd
 ```
 
-`--json` gives the same numbers as a document, for keeping a series over time:
+It prints which log files it chose, on stderr, so a wrong guess is visible rather than silent. If it finds nothing it says where it looked and how to find out:
 
 ```
-php tools/visitors.php --json access_log > counts/2026-09.json
+find $HOME -maxdepth 3 -iname '*access*' -type f
 ```
+
+**This works retroactively**, which is the quiet advantage of reading a log rather than installing a tracker: the numbers go back as far as the host still keeps logs, rather than starting from the day analytics were added. How far back is the host's retention policy, not ours.
+
+The tool underneath can also be run directly, which is what `--file` does and what the check uses:
+
+```
+php tools/visitors.php access.log
+gzip -cdf ~/logs/*.gz | php tools/visitors.php --json
+```
+
+It never runs on the server: `tools/` is excluded from `deploy.sh`, and `visitors.php` refuses to run under a web server.
 
 What it prints:
 
@@ -100,5 +113,7 @@ It allows the Studio front page and the imprint, and disallows everything else.
 [`../tests/visitors.mjs`](../tests/visitors.mjs), run by `npm run check`.
 
 [`../fixtures/access-log-sample.log`](../fixtures/access-log-sample.log) is a log with a known answer, carrying one of each thing that has to be handled: a short URL answered `302` then `200`, a virtual host logged before the address, an IPv6 client, a stylesheet, two crawlers, and a line in no format at all. Every address in it is from the ranges reserved for documentation, so the fixture describes nobody.
+
+It also checks that `tools/stats.sh` agrees with the tool it wraps, on a plain log and on a gzipped one — the half of the wrapper that can be tested without somebody's server is the reading, and a wrapper reporting different numbers from the thing under test is the failure that would matter.
 
 The check asserts the counts, that every page view is classified to some surface — which is what catches a route added to `app.php` and not to the tool, whose symptom is otherwise "nobody visited the new page" — and that no address appears anywhere in the output. Each assertion was confirmed by breaking the tool and watching it fail.

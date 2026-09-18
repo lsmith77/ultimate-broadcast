@@ -23,6 +23,9 @@
  * Run by `npm run check`, and by hand with `node tests/visitors.mjs`.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -149,6 +152,62 @@ const second = JSON.parse(execFileSync('php', [TOOL, '--json', LOG], { encoding:
 
 is('visitors on a second run', second.visitors, report.visitors);
 is('demo visitors on a second run', second.demo_visitors, report.demo_visitors);
+
+/*
+ * The wrapper agrees with the tool it wraps.
+ *
+ * `tools/stats.sh` exists to be the one command — find the log on the host,
+ * stream it here, read it — and the half that can be tested without somebody's
+ * server is the reading. If the two ever disagree, the numbers a person
+ * actually looks at are not the numbers this file checks.
+ *
+ * It is also the only coverage the argument forwarding gets: `--json` reaches
+ * visitors.php through the wrapper or it does not, and nothing else would say.
+ */
+/** Run the wrapper and parse it, saying which of those two failed. */
+const wrapper = (file) => {
+  let out;
+
+  try {
+    out = execFileSync(join(root, 'tools', 'stats.sh'),
+      ['--file', file, '--json'], { encoding: 'utf8' });
+  } catch (error) {
+    fail(`tools/stats.sh --file did not run: ${error.message}`);
+
+    return null;
+  }
+
+  try {
+    return JSON.parse(out);
+  } catch {
+    // The likeliest cause is the wrapper not forwarding --json, which would
+    // otherwise surface as a JSON syntax error naming no file anybody edited.
+    fail('tools/stats.sh did not return JSON — is --json still forwarded to visitors.php?');
+
+    return null;
+  }
+};
+
+const viaWrapper = wrapper(LOG) ?? {};
+
+is('the wrapper reports the same visitors', viaWrapper.visitors, EXPECTED.visitors);
+is('the wrapper reports the same demo visitors', viaWrapper.demo_visitors, EXPECTED.demo_visitors);
+is('the wrapper reports the same page views', viaWrapper.page_views, EXPECTED.page_views);
+
+/*
+ * A rotated log is a gzipped one, which is most of what a host still has. The
+ * wrapper decompresses; visitors.php on its own does not have to.
+ */
+const gz = join(tmpdir(), `visitors-check-${process.pid}.log.gz`);
+writeFileSync(gz, gzipSync(readFileSync(LOG)));
+
+try {
+  const viaGzip = wrapper(gz) ?? {};
+  is('a gzipped log counts the same', viaGzip.visitors, EXPECTED.visitors);
+  is('a gzipped log counts the same views', viaGzip.page_views, EXPECTED.page_views);
+} finally {
+  rmSync(gz, { force: true });
+}
 
 if (failed === 0) {
   console.log(

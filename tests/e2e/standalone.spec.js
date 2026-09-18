@@ -799,8 +799,8 @@ test.describe('a public demonstration', () => {
     });
 
   test('a logged-out visitor sees the stage tour actually move', async ({ browser }) => {
-    // The introduction on the Studio tells a visitor to add ?demo=1 to a stage
-    // URL, so this asserts exactly that sentence: no session, no operator, and
+    // The introduction's demo buttons are a ?demo=1 stage URL and nothing else,
+    // so this asserts what pressing one has to do: no session, no operator, and
     // something moving on the screen.
     const anon = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const visitor = await anon.newPage();

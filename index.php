@@ -31,6 +31,7 @@ if (!defined('UO_ROUTED_VIEW')) {
 // constant is undefined — see docs/STANDALONE.md.
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/auth.php';
+require_once __DIR__ . '/shared/brand.php';
 
 if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
@@ -60,6 +61,12 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Video overlays</title>
+<?= \Overlays\Brand::head('studio', $base, [
+    'title' => 'Ultimate Broadcast — scoreboard graphics for Ultimate',
+    'description' => 'Put a live scoreboard, team statistics and player graphics over your'
+        . ' Ultimate video, or add them to a game you have already filmed. Free, and there'
+        . ' is nothing to sign up for.',
+]) ?>
 <style>
     :root { color-scheme: dark; }
     body {
@@ -134,8 +141,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     .intro li { margin-bottom: .25rem; }
     .intro code { background: #0b1220; padding: .05rem .3rem; border-radius: 3px;
                   font-size: .85em; }
-    .intro .introdemo { margin: 0 0 .6rem; font-size: .9rem; }
-    .intro .introdemo a { font-weight: 600; }
+    /* The demo links are the one thing a first-time visitor should click, so
+       they sit directly under the opening sentence and are drawn as buttons.
+       As underlined text among four paragraphs of other text they read as
+       footnotes, which is the opposite of what they are: somebody arriving
+       from a link with no idea what this is finds out by pressing one. */
+    .intro .introdemo { margin: 0 0 .9rem; font-size: .95rem; display: flex;
+                        flex-wrap: wrap; gap: .45rem; align-items: center; }
+    .intro .introdemo a { background: #1d4ed8; color: #fff; text-decoration: none;
+                          font-weight: 600; padding: .4rem .85rem; border-radius: 4px; }
+    .intro .introdemo a:hover { background: #2563eb; }
+    .intro .introdemo a:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+    /* Who it is for, as running text rather than a third list — three bullets
+       here would compete with the four above them for the same attention. */
+    .intro .introwho { border-left: 2px solid #1e293b; padding-left: .8rem; }
+    .intro .introwho strong { color: #e2e8f0; }
     .intro .introfoot { margin: 0; font-size: .85rem; }
     .introclose { position: absolute; top: .5rem; right: .6rem; background: none;
                   border: 0; color: #64748b; font-size: 1.1rem; line-height: 1;
@@ -298,27 +318,49 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 -->
 <aside class="intro" id="intro">
     <button type="button" class="introclose" id="introClose" aria-label="Hide this">×</button>
-    <h2>Broadcast graphics for Ultimate</h2>
+    <h2>A scoreboard for your Ultimate stream</h2>
     <p>
-        This turns a game's score, clock and rosters into overlays a video switcher can put
-        on air — and gives the people running the stream somewhere to control them from.
-        It normally runs on top of
-        <a href="https://github.com/layoutd/live-by-bula" rel="noopener">Live! by BULA</a>;
-        this installation is running <strong>standalone</strong>, with no tournament
-        software behind it.
+        Put a live scoreboard, team statistics and player graphics over your video — or
+        add them to a game you have already filmed. <strong>Free to use, and there is
+        nothing to sign up for.</strong> Everything described here is running on this page
+        now; the links below play a real game through, start to finish.
     </p>
-    <p class="introwhat">You can look at all of it without signing in:</p>
-    <ul>
-        <li><strong>Stage</strong> — the full-frame graphics layer a switcher points at.
-            Add <code>?demo=1</code> to a stage or scoreboard URL to watch a whole game
-            play out: holds, breaks, a timeout, the cap, a running clock. No sign-in,
-            and nothing is written anywhere.</li>
-        <li><strong>Commentary desk</strong> at <code>/c/&lt;game&gt;</code> — rosters and
-            prepared notes, never on air.</li>
-        <li><strong>Match control</strong> at <code>/k/&lt;game&gt;</code> — the score and
-            clock, kept from a phone, offline-tolerant.</li>
-    </ul>
     <p class="introdemo" id="introDemo"></p>
+    <ul>
+        <li><strong>Streaming a game</strong> — the scoreboard sits over your picture in
+            OBS, or any streaming software that can show a web page, and keeps itself up
+            to date: score, clock, timeouts, time caps, and whether a point was a hold or
+            a break.</li>
+        <li><strong>Filmed it without streaming?</strong> Most club games are recorded on
+            one camera and nothing else. The same graphics can be added to that footage
+            afterwards.</li>
+        <li><strong>Keeping score</strong> is two large buttons on a phone at the
+            sideline, and it keeps working when the signal does not — which, at a pitch in
+            a park, it frequently does not.</li>
+        <li><strong>Commentators get their own screen</strong>, never on air: both rosters,
+            who is on the field, season statistics, and notes prepared before the game. In
+            mixed divisions it follows the gender ratio and the matchings.</li>
+    </ul>
+    <p class="introwho">
+        <strong>One person with a camera</strong> needs a laptop, a phone and free
+        software — that is the whole kit.
+        <strong>Tournament organisers</strong> can run several fields at once, and where an
+        event already uses tournament software, the schedule, rosters and scores arrive by
+        themselves instead of being typed a second time.
+        <strong>Associations</strong> can run it on their own server, keeping their data,
+        and give every event the same look.
+    </p>
+    <p>
+        Nobody needs an account. A commentator or a scorekeeper is handed a link and a
+        five-character code, and that is the whole of it. Further out — designed, written
+        up, and <em>not</em> built — are instant replays and a small box at the field that
+        draws the graphics so that no laptop has to.
+    </p>
+    <p>
+        <strong>This has never run at a real tournament yet.</strong> If you stream
+        Ultimate and would be willing to try it, or simply to tell me what looked wrong,
+        that is worth more to this project right now than any new feature.
+    </p>
     <p class="introfoot">
         <a href="https://github.com/lsmith77/ultimate-broadcast" rel="noopener">Source and
         documentation on GitHub</a>
@@ -2290,7 +2332,9 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         ].forEach(function (entry) {
             var game = entry[0];
             if (!game) { return; }
-            if (box.childNodes.length > 1) { box.append(document.createTextNode(' · ')); }
+            // No separators: these are drawn as buttons and spaced by the flex
+            // gap, so a interpunct between them would be a stray character
+            // floating beside a control rather than punctuation in a sentence.
             var a = el('a', null, entry[1]);
             a.href = origin + '/s/' + game.game_id + '/overlay?demo=1';
             a.target = '_blank';
@@ -2304,7 +2348,6 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         // what the other two cannot, and it is never on air.
         if (open || mixed) {
             var g = mixed || open;
-            box.append(document.createTextNode(' · '));
             var desk = el('a', null, 'the commentary desk');
             desk.href = origin + '/c/' + g.game_id;
             desk.target = '_blank';

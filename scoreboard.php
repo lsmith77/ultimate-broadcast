@@ -260,6 +260,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 <script src="<?= htmlspecialchars($assetUrl('shared/field.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/stoppage.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/timeouts.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/target.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/overlay-client.js'), ENT_QUOTES) ?>"></script>
@@ -890,34 +891,11 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
     }
 
     /**
-     * The cap that is currently in force, if one has been called.
-     *
-     * UltiOrganizer models exactly two, `GameCapEventTypes()` in
-     * lib/game.functions.php:712 — `half_cap` ("Halftime cap") and `time_cap`
-     * ("Time cap"). Each is a game event carrying the time it was called and,
-     * in `info`, the NEW POINT CAP: the score the game now plays to. UO's own
-     * wording is "Time cap 6.45 - new point cap 4".
-     *
-     * There is deliberately no soft/hard distinction here, because UO has none.
-     * Every cap sets a new target and play continues to it, which is soft-cap
-     * behaviour; a hard cap is only representable as a target equal to the
-     * current score. (`poolinfo.timeoutstimecap: "soft"` is a different thing —
-     * whether timeouts may be taken once time cap is reached.)
+     * The cap in force and the point that decides the game both live in
+     * `shared/target.js`, because both are derivations the stage and the
+     * commentary desk will want the same answer to. The cap resolution was
+     * written here first; it moved rather than being copied.
      */
-    function activeCap(gameEvents) {
-        if (!Array.isArray(gameEvents)) { return null; }
-        var found = null;
-        gameEvents.forEach(function (e) {
-            if (!e || (e.type !== 'half_cap' && e.type !== 'time_cap')) { return; }
-            // A time cap supersedes a halftime cap; otherwise the later one wins.
-            if (!found
-                || (e.type === 'time_cap' && found.type !== 'time_cap')
-                || (e.type === found.type && Number(e.time) > Number(found.time))) {
-                found = e;
-            }
-        });
-        return found;
-    }
 
     function setClock(result, pool, gameEvents) {
         if (timer) {
@@ -925,8 +903,20 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
             timer = null;
         }
 
-        var cap = activeCap(gameEvents);
+        var cap = window.Target.activeCap(gameEvents);
         var capClass = cap ? (cap.type === 'time_cap' ? ' cap-time' : ' cap-half') : '';
+
+        /**
+         * Universe point, and galaxy point at the half.
+         *
+         * It takes the centre line from whatever else would have been there,
+         * cap text included, and it is the one state where that is right: the
+         * cap's own message is the target it set, and at a decider the score
+         * already says what the target is. `shared/target.js` refuses to claim
+         * either unless the game target is actually recorded.
+         */
+        var decider = window.Target.decider(result, pool, gameEvents);
+        var deciderClass = decider ? ' decider' : '';
 
         var start = Number(result.timer_start);
         var running = Number(result.isongoing) === 1 && Number.isFinite(start) && start > 0;
@@ -940,8 +930,12 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
             // than as a record of how the game ended.
             el.clock.className = 'clock hide';
             el.segment.className = 'segment';
-            el.segment.textContent = statusText(result);
-            el.centre.className = 'centre status-only';
+            // A game can be live with nobody running a clock, and a decider is
+            // still a decider then — it is read from the score, not the time.
+            el.segment.textContent = decider
+                ? window.Target.label(decider)
+                : statusText(result);
+            el.centre.className = 'centre status-only' + deciderClass;
             return;
         }
 
@@ -963,11 +957,13 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         var limit = Number(pool && pool.timecap);
         var counting = Number.isFinite(limit) && limit > 0 ? limit * 60 : null;
 
-        el.centre.className = 'centre' + capClass;
+        el.centre.className = 'centre' + capClass + deciderClass;
         el.clock.className = 'clock' + (state.pauseStart ? ' paused' : '');
         el.segment.className = 'segment';
 
-        if (cap) {
+        if (decider) {
+            el.segment.textContent = window.Target.label(decider);
+        } else if (cap) {
             // The new point cap is the useful number once a cap is called.
             var target = Number(cap.info);
             var name = cap.type === 'time_cap' ? 'Time cap' : 'Half cap';

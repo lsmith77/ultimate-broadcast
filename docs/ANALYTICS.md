@@ -8,7 +8,7 @@ The short version: **read the web server's access log, which already exists, and
 
 The obvious answers were all rejected, and the reasons are worth keeping because they will be proposed again.
 
-**A third-party script — Plausible, Fathom, GoatCounter, Umami.** Two problems, and the second is specific to this project. It puts a third-party request on every page, which the imprint page currently promises there is none of. And the pages it would go on include **the scoreboard and the stage, which are on air**. A graphics surface inside a switcher's browser must not phone anywhere: it is the one device nobody can debug, it is often on a venue network with no uplink to spare, and a blocked or slow request from a third-party host is a frame that does not render. Whatever counts visitors must be incapable of running on a broadcast surface, and a `<script>` in a shared header is exactly the opposite.
+A third-party script — Plausible, Fathom, GoatCounter, Umami. Two problems, and the second is specific to this project. It puts a third-party request on every page, which the imprint page currently promises there is none of. And the pages it would go on include **the scoreboard and the stage, which are on air**. A graphics surface inside a switcher's browser must not phone anywhere: it is the one device nobody can debug, it is often on a venue network with no uplink to spare, and a blocked or slow request from a third-party host is a frame that does not render. Whatever counts visitors must be incapable of running on a broadcast surface, and a `<script>` in a shared header is exactly the opposite.
 
 **A self-hosted counter in this project.** Genuinely viable — a cookieless endpoint with a daily-rotating salt is a well-understood design, it would fit the flat-file store pattern, and it would give better numbers than a log. It was not built because of what it costs: the imprint says, in bold, **"No accounts, no tracking, no analytics, no third-party requests."** That sentence is worth more than a more accurate number. Adding a counter means rewriting it, and a privacy claim that erodes one qualifier at a time is how privacy notices become lies. If the log numbers ever stop being enough, this is the thing to build — and the imprint is the first file to change, not the last.
 
@@ -88,15 +88,15 @@ Two parsing details the tool handles, both of which would otherwise inflate the 
 
 Less than they look, and the limits are structural rather than fixable.
 
-**A "visitor" is one address-and-browser pair.** A household, an office or a whole tournament venue behind one address counts once. A phone that moves between wifi and mobile data counts twice. Neither can be corrected without storing something about people, which is the thing not being done.
+A "visitor" is one address-and-browser pair. A household, an office or a whole tournament venue behind one address counts once. A phone that moves between wifi and mobile data counts twice. Neither can be corrected without storing something about people, which is the thing not being done.
 
-**Cross-day unique people is not answerable privately, by anything.** The tool reports distinct pairs over the period, but an address is reassigned, so the same person on Tuesday and Friday may be one or two. Privacy-preserving trackers rotate their salt daily precisely so that this question *cannot* be answered — it is a deliberate limitation there too, not an oversight here.
+Cross-day unique people is not answerable privately, by anything. The tool reports distinct pairs over the period, but an address is reassigned, so the same person on Tuesday and Friday may be one or two. Privacy-preserving trackers rotate their salt daily precisely so that this question *cannot* be answered — it is a deliberate limitation there too, not an oversight here.
 
 **Bots are the largest source of error.** [`../robots.txt`](../robots.txt) keeps the well-behaved crawlers off the pages, and `tools/visitors.php` excludes anything whose browser string says it is a bot. A crawler that says nothing is counted as a person, and there is no fixing that from a log. On a small public site this is the number most likely to be wrong.
 
 So: read them as an order of magnitude and a trend. "Roughly forty people looked at it last month and about a dozen ran the demo" is a true and useful sentence. "Forty-three unique visitors" is not.
 
-**If a line ever stops parsing, the numbers go quiet rather than wrong** — which is why the tool counts unparsed lines and warns when they exceed one in a hundred. A host that changes log format otherwise produces a convincing report of a week when nobody came.
+If a line ever stops parsing, the numbers go quiet rather than wrong — which is why the tool counts unparsed lines and warns when they exceed one in a hundred. A host that changes log format otherwise produces a convincing report of a week when nobody came.
 
 ## 5. robots.txt
 

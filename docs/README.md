@@ -27,7 +27,7 @@ The project began as an extension to **[Live! by BULA](https://github.com/layout
 | Score and clock | UltiOrganizer's Scorekeeper, or match control per game | match control, which is the only source |
 | Read it in | this file and [`PLAN.md`](PLAN.md) | [`STANDALONE.md`](STANDALONE.md) and [`DEPLOY.md`](DEPLOY.md) |
 
-**Nothing above `shared/provider.js` knows which mode it is in.** One renderer, one payload shape — Live!'s, warts included — and two providers behind one function. That is the rule that has kept the modes from becoming two products, and [`STANDALONE.md`](STANDALONE.md) §7 is the full set.
+Nothing above `shared/provider.js` knows which mode it is in. One renderer, one payload shape — Live!'s, warts included — and two providers behind one function. That is the rule that has kept the modes from becoming two products, and [`STANDALONE.md`](STANDALONE.md) §7 is the full set.
 
 The second rule that makes it work is **absent is not zero**. Standalone has no tournament totals, no history, no blocks, no seeds, no standings and no spirit, because there is no history to have. Those fields are *omitted* rather than sent as `0`, and every consumer already does the right thing with an omission — a player sheet showing this game's numbers and no tournament row is true, where one showing `0 G · 0 A` for somebody who has scored nine is a lie told on air.
 
@@ -35,7 +35,7 @@ Hosted, **no overlay touches the database** — everything goes through Live!'s 
 
 ### Seeing it before installing anything
 
-**[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation** on ordinary shared hosting — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
 
 It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own, and most of its sharper notes came from putting that one on a host rather than from planning it.
 
@@ -101,7 +101,7 @@ A recording is somebody else's games. Two doors to your own, both writing throug
 - **In a browser**, signed in: the Studio's **Edit event** button, or `/s/event`. Name, teams, games, the pool's rules. Saved and served immediately. This is the surface for the person the mode is for — running a club's stream, with a laptop and no reason to have SSH anywhere.
 - **Over SSH**: `php install/make-event.php my-event.json --set-capture`.
 
-**Squads are deliberately not in that file** — nobody should type forty names into JSON, and the commentary desk already has a door for them. It exports a team's sheet, the team fills it in, and the desk imports it back; standalone that import also *creates* the players it does not recognise, and a field on the same bar types in whoever turned up unlisted.
+Squads are deliberately not in that file — nobody should type forty names into JSON, and the commentary desk already has a door for them. It exports a team's sheet, the team fills it in, and the desk imports it back; standalone that import also *creates* the players it does not recognise, and a field on the same bar types in whoever turned up unlisted.
 
 Team and game ids are yours to choose and must not change afterwards: `conf/score-<game>.json` is keyed by game id, so is every URL typed into a switcher, and a squad and its prepared notes are keyed by team and player id.
 
@@ -202,7 +202,7 @@ It is also candid about what a standalone installation can and cannot be today. 
 
 ### [`ANALYTICS.md`](ANALYTICS.md) — counting visitors without collecting anything
 
-**Built, and it adds nothing to the software.** How to tell how many people open a public installation and how many run the demo, by reading the web server's access log rather than putting a tracker on pages that reach air.
+Built, and it adds nothing to the software. How to tell how many people open a public installation and how many run the demo, by reading the web server's access log rather than putting a tracker on pages that reach air.
 
 It records why the obvious answers were rejected, because they will be proposed again: a third-party script would phone home **from the scoreboard and the stage, which are on air**, on the one device nobody can debug; and a self-hosted counter — genuinely viable, and the thing to build if this stops being enough — would cost the imprint's bold claim that this installation runs no analytics, which is worth more than a more accurate number.
 
@@ -252,7 +252,7 @@ And it ends somewhere unexpected: **the capability may belong upstream rather th
 
 **A concept, with nothing built**, and deliberately undecided. A pre-configured box renders one of these overlay URLs on hardware we control, instead of inside a switcher's undocumented browser. It has **two shapes read as peers**: the *graphics source*, which stays out of the video path and hands a switcher a keyed overlay for about €60, and the *all-in-one*, which takes the camera feed and streams and records it for €180–270 plus capture, replacing the switcher on a one-camera field.
 
-**Whether the all-in-one gets built is an open question the document refuses to pre-answer** — §12's phase 3 is the experiment, and §12a writes the stopping rule in advance, because an experiment without one is not an experiment. Phases 1 and 2 are worth doing regardless of the result. Read §§4–7 as the list of things phase 3 has to measure rather than as a construction plan.
+Whether the all-in-one gets built is an open question the document refuses to pre-answer — §12's phase 3 is the experiment, and §12a writes the stopping rule in advance, because an experiment without one is not an experiment. Phases 1 and 2 are worth doing regardless of the result. Read §§4–7 as the list of things phase 3 has to measure rather than as a construction plan.
 
 The cost saving is the least interesting part. What the box actually buys is that **the browser stops being unknown** — the whole reason [`../tests/selftest.php`](../tests/selftest.php) exists — and that it is the local server [`RELAY.md`](RELAY.md) spends a document trying to design its way out of needing. [`STANDALONE.md`](STANDALONE.md) already built the software that would run on it.
 
@@ -264,7 +264,7 @@ Its organising principle is stated up front in §1a and decides most of the rest
 
 So OBS lands somewhere better than rejected: **it is the documented way up, and a better one than buying a switcher.** That produces a ladder ordered by what a crew can do rather than what it can spend — appliance, graphics source, software switcher — where **the bottom two rungs are nearly free because they are what this project already is.** One product to build and two to document. With the uncomfortable corollary that the hardest engineering here serves the crews least able to debug it, which is the point of it and the reason its reliability bar is higher, not lower.
 
-**Local recording is the best value in the document.** A `tee` after the encoder costs nothing, and the resulting file is the only artefact anywhere with the overlay burned in. It also removes [`POSTPRODUCTION.md`](POSTPRODUCTION.md)'s alignment problem for its own footage: a box that knows the wall-clock time of every frame it wrote, and is already polling the API that knows when the goals happened, can emit the anchors itself.
+Local recording is the best value in the document. A `tee` after the encoder costs nothing, and the resulting file is the only artefact anywhere with the overlay burned in. It also removes [`POSTPRODUCTION.md`](POSTPRODUCTION.md)'s alignment problem for its own footage: a box that knows the wall-clock time of every frame it wrote, and is already polling the API that knows when the goals happened, can emit the anchors itself.
 
 It is honest about the gap: this replaces a browser source, not a switcher. Multi-camera cutting, a battery, a confidence monitor and — the significant one — **replay** go with the Director Mini. Replay is unreachable twice over: no crew size has an operator spare, and scrubbing needs a jog wheel, which is the same finding as audio gain needing a knob. **A show-state store that polls once a second is structurally the wrong instrument for both**, and noticing that pattern is worth more than either instance.
 
@@ -320,7 +320,7 @@ live/overlays/fixtures/dev-score.sh home      # or visitor / undo / show
 
 It writes straight to the database, bypassing Scorekeeper. Development only, and hosted only — there is no database standalone.
 
-**Standalone develops against the committed capture** instead: `fixtures/payloads/dev` is those same two games recorded as API responses, which is what `npm run test:standalone` and [ultimate-broadcast.org](https://ultimate-broadcast.org) both serve. `node tests/capture.mjs --game 702 --out fixtures/payloads/dev` re-records it from a running hosted instance after a fixture change. A capture is evidence of what Live! actually sends, so it is re-recorded rather than hand-edited — adjust one and it stops being evidence and becomes a fake with extra steps. Variation belongs in a mutation layer over the recording, which is how `shared/demo.js` already works.
+Standalone develops against the committed capture instead: `fixtures/payloads/dev` is those same two games recorded as API responses, which is what `npm run test:standalone` and [ultimate-broadcast.org](https://ultimate-broadcast.org) both serve. `node tests/capture.mjs --game 702 --out fixtures/payloads/dev` re-records it from a running hosted instance after a fixture change. A capture is evidence of what Live! actually sends, so it is re-recorded rather than hand-edited — adjust one and it stops being evidence and becomes a fake with extra steps. Variation belongs in a mutation layer over the recording, which is how `shared/demo.js` already works.
 
 ### Settings that change what the overlays can show
 
@@ -339,7 +339,7 @@ Standalone none of this table applies: there is no `uo_setting`, no Live! admin 
 | **Pool: timeouts** | `uo_pool.timeouts`, `timeoutsper` | unset | The allowance drawn as ticks under each team name. `timeoutsper: "half"` resets the allowance at half time, so only timeouts after the `half_cap` event count in the second half |
 | `CACHE_MINUTES_MODULATOR` | Live! admin | `1.0` | How long game data is cached. **Upstream documents this as "do not lower below 1.0"** — lowering it to chase score latency is not the supported route. See `PLAN.md` §6 for what is |
 
-**Two preconditions that are not settings at all**, and between them account for most of "the overlay is not working":
+Two preconditions that are not settings at all, and between them account for most of "the overlay is not working":
 
 - **A scorekeeper has to start the clock.** `timer_start` is only ever written by UltiOrganizer's Scorekeeper. If nobody starts it there is no clock on air and the overlay quietly falls back to a status word. Worth a line on the pre-game checklist.
 - **Games must be marked ongoing.** Live and final are different states, and almost everything transient — the clock, cap states, hold and break tabs, break chance — is deliberately suppressed once a game is not running.
@@ -368,7 +368,7 @@ Tests needing the Live! admin session skip themselves without `ADMIN_PASS`, and 
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request: PHP syntax on 8.3 and 8.4, `npm run check`, `npm run test:unit` and `npm run test:standalone`.
 
-**`npm run check` is the repository's own checks, and CI runs exactly that command** rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Five of them:
+`npm run check` is the repository's own checks, and CI runs exactly that command rather than a copy of it. That matters more than it sounds: these started as shell inside the workflow file, which meant the only way to run them was to copy them out of YAML — and a check nobody can run locally is a check nobody trusts or maintains. Five of them:
 
 | Check | What it catches |
 |---|---|
@@ -384,7 +384,7 @@ The standalone job is the one here that makes real HTTP requests, and it can onl
 
 It is also the only place the **administrator path** is exercised at all. Hosted, those tests skip without `ADMIN_PASS`; standalone the password is ours to set, so the login, the code nomination and the source switch are covered here and nowhere else.
 
-**It does not run the browser suite, and since the recorded provider landed that is a choice rather than a limit.** A capture is now enough to render every page with no host at all — the standalone job proves exactly that for the commentary desk — so pointing the whole suite at one would work.
+It does not run the browser suite, and since the recorded provider landed that is a choice rather than a limit. A capture is now enough to render every page with no host at all — the standalone job proves exactly that for the commentary desk — so pointing the whole suite at one would work.
 
 It is not done because of what that would quietly stop testing. The suite drives a real instance because the **payload shape** is the thing that has been wrong before: `teams.hometeam` rather than `awayteam`, `poolinfo.timecap` in minutes, an error body that is a string rather than an object. A capture is real data, which makes it far better than a mock, but it is data frozen on the day it was taken. Run the suite against it and every one of those assertions passes forever — including after Live! changes the shape underneath. That is the mock problem in better clothes, and it would fail worst exactly when it mattered.
 
@@ -394,7 +394,7 @@ If that contract ever needs proving automatically, the route is a private Live! 
 
 [`../tests/selftest.php`](../tests/selftest.php) is a different thing: the switcher diagnostic described above, a routed page rather than part of the suite, because it has to be loadable by the device it is diagnosing.
 
-**Every run starts from a configured stage, not an empty one.** `tests/global-setup.js` seeds a logo in a corner, cards placed and on air, both fixture games tracked with a code, a gender ratio and a live stoppage — what a stage looks like ten minutes into a tournament.
+Every run starts from a configured stage, not an empty one. `tests/global-setup.js` seeds a logo in a corner, cards placed and on air, both fixture games tracked with a code, a gender ratio and a live stoppage — what a stage looks like ten minutes into a tournament.
 
 That is not decoration. These tests write to the files a real broadcast reads, so "empty" is not a state that occurs in practice, and a test that reads state it did not set passes or fails on history rather than on the code. Eight did over this project's life, each found only when something unrelated moved. Seeding makes the ninth fail immediately. `resetPossession()` is the helper for the commonest case: turning the mode on does not clear a log, so a test asserting on an event count must empty it first.
 

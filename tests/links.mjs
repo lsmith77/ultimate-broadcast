@@ -96,6 +96,55 @@ for (const rel of files.sort()) {
   }
 }
 
+/*
+ * In-document anchors, which are what a heading rename breaks.
+ *
+ * These documents cross-reference each other by section — §5d, §12a — more than
+ * a hundred times, and every one of those is a `](#slug)` built from the heading
+ * text. Rewording a heading silently invalidates each link pointing at it: the
+ * markdown still renders, the link is still blue, and it goes nowhere. Nothing
+ * above catches that, because the FILE resolves fine.
+ *
+ * Slugging follows GitHub's rule — lowercase, strip anything that is not a word
+ * character, space or hyphen, then spaces to hyphens.
+ */
+const slug = (heading) => heading
+  .toLowerCase()
+  .trim()
+  .replace(/[^\w\s-]/g, '')
+  .replace(/\s/g, '-');
+
+let anchors = 0;
+let danglingAnchors = 0;
+
+for (const rel of files.sort()) {
+  const body = readFileSync(path.join(ROOT, rel), 'utf8');
+  const headings = new Set(
+    [...body.matchAll(/^#{1,6}\s+(.+)$/gm)].map((m) => slug(m[1]))
+  );
+
+  for (const m of body.matchAll(/\]\(#([^)\s]+)\)/g)) {
+    anchors += 1;
+
+    if (!headings.has(m[1])) {
+      console.error(`${rel}: link to a section that does not exist -> #${m[1]}`);
+      danglingAnchors += 1;
+    }
+  }
+}
+
+if (anchors === 0) {
+  console.error('No anchors were checked — the matcher is wrong, not the docs.');
+  process.exit(1);
+}
+
+if (danglingAnchors) {
+  console.error(
+    `\n${danglingAnchors} link${danglingAnchors === 1 ? '' : 's'} point at a heading that was renamed or removed.`
+  );
+  process.exit(1);
+}
+
 if (checked === 0) {
   // A check that silently examines nothing passes forever. This has happened
   // to this project before, in a different check, which is why it is here.
@@ -108,4 +157,6 @@ if (broken) {
   process.exit(1);
 }
 
-console.log(`${checked} relative links across ${files.length} documents all resolve.`);
+console.log(
+  `${checked} relative links and ${anchors} section links across ${files.length} documents all resolve.`
+);

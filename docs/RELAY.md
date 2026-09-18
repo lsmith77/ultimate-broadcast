@@ -1,12 +1,12 @@
 # State in the browser, server as a relay
 
-**A future direction, not a plan. Nothing here is built and nothing here is scheduled.**
+A future direction, not a plan. Nothing here is built and nothing here is scheduled.
 
 [`STANDALONE.md`](STANDALONE.md) is the near-term work and stays deliberately server-based: a small PHP server on the network, the stores as flat files, the architecture that exists. This document is a different shape the project *could* take, written down because the question came up and because the answer turned out to be more encouraging than expected — and because §8 makes clear it is a decision about what the project is, not an optimisation to slip in later.
 
 The question: could the standalone mode's state live entirely in the participating browsers, with a server that only passes messages between them and stores nothing — making it cheap to offer as a service, with no responsibility for anybody's data, and able to run on a local network with no internet at all?
 
-**Short answer: yes, and more comfortably than expected — the whole thing turns on one hardware question that nobody has answered yet.**
+Short answer: yes, and more comfortably than expected — the whole thing turns on one hardware question that nobody has answered yet.
 
 - **The data model is ready.** The stores are already nearly CRDTs, not by design but because each was fixed after "two people wrote and one lost" (§1). Because they merge without coordination, a late joiner can take a snapshot from *any* peer, which is what makes the peer-to-peer version work at all (§2).
 - **On one LAN, peer-to-peer needs no STUN, no TURN and no internet** (§6). The usual "peer-to-peer is not serverless" objection does not apply to a single subnet.
@@ -16,9 +16,9 @@ The question: could the standalone mode's state live entirely in the participati
 
 Two reframings worth keeping:
 
-**Peer-to-peer is not what makes offline possible — a local server already does. What it buys is not needing one.**
+Peer-to-peer is not what makes offline possible — a local server already does. What it buys is not needing one.
 
-**The real cost is not the code, it is a second implementation of every rule** (§8). Migrating the stores is smaller than it looks — the pages are already JavaScript applications with a PHP header, and much of the store code is file locking that disappears when there is no file — but hosted mode keeps its PHP authority and peer-to-peer mode gets a JavaScript one, and the same forty checks then exist twice in two languages.
+The real cost is not the code, it is a second implementation of every rule (§8). Migrating the stores is smaller than it looks — the pages are already JavaScript applications with a PHP header, and much of the store code is file locking that disappears when there is no file — but hosted mode keeps its PHP authority and peer-to-peer mode gets a JavaScript one, and the same forty checks then exist twice in two languages.
 
 **And the destination may not be here.** The capability this is really about — hold state locally, reconcile when a network appears — is the same one UltiOrganizer's Scorekeeper needs and does not have: server-rendered form posts with no offline storage of any kind, on a phone, at a pitch with one bar. Built here it makes the covered games fault-tolerant; built there it fixes every game at every tournament and the overlays inherit it. Noted in [`UPSTREAM.md`](UPSTREAM.md) as shared ground rather than as an ask.
 
@@ -45,17 +45,17 @@ Five of those six merge without coordination. **That is not luck.** The delta sa
 
 A relay that stores nothing can only deliver messages to clients that are connected when they are sent. Everything else follows from that.
 
-**The join problem, and how far a peer answers it.** A client arriving late has no state and must get it from somewhere. The natural answer is *from a peer* — and here that answer is unusually solid, because of §1: the stores merge without coordination, so **any** peer's copy is a legitimate snapshot. There is no "the authoritative one" to elect, and a late joiner that pulls from whoever answers first and then merges whatever else arrives is correct rather than approximately correct. That is a real strength of this data model and it removes most of the objection.
+The join problem, and how far a peer answers it. A client arriving late has no state and must get it from somewhere. The natural answer is *from a peer* — and here that answer is unusually solid, because of §1: the stores merge without coordination, so **any** peer's copy is a legitimate snapshot. There is no "the authoritative one" to elect, and a late joiner that pulls from whoever answers first and then merges whatever else arrives is correct rather than approximately correct. That is a real strength of this data model and it removes most of the objection.
 
 What it does not remove is *who* the late client is. It is not a laptop — it is the **scoreboard running as a browser source inside a video switcher**. It joins when OBS starts, when a source is re-enabled, when the switcher reboots between rounds, and when the browser source crashes and reloads mid-game. It has no keyboard and nobody can refresh it.
 
 So the join problem narrows to one question, and it is a question about hardware rather than architecture: **can that device hold a peer connection at all?** If it can, it joins the mesh, asks a peer, and the objection is gone. If it cannot, something on the network has to answer it over plain HTTP — and that is §7's first experiment, not a thing to reason about further.
 
-**Meanwhile, the two failure windows are narrower than they look.** A stateless relay means the overlay shows nothing if it reloads while no authoring client is connected — at 9am before the operator's laptop is up, or during thirty seconds when a browser is closed. Both are real; neither is common; and an in-memory snapshot on the relay (§4) removes them entirely for the cost of a few KB per room.
+Meanwhile, the two failure windows are narrower than they look. A stateless relay means the overlay shows nothing if it reloads while no authoring client is connected — at 9am before the operator's laptop is up, or during thirty seconds when a browser is closed. Both are real; neither is common; and an in-memory snapshot on the relay (§4) removes them entirely for the cost of a few KB per room.
 
 **The clock genuinely wants a server.** It is three absolute unix timestamps, currently written with the server's `time()`. Peer-to-peer, every participant's clock is slightly wrong and none of them is authoritative — so either the relay stamps messages, which is a small amount of state and logic, or clients negotiate an offset, which is a distributed-clock problem for a scoreboard.
 
-**The device risk is the real blocker, and it is already documented.** `tests/selftest.php` exists because embedded browser engines in switchers — Magewell, Yolobox — publish nothing about what they support, and the failure it detects is not "an overlay looks wrong" but *"an overlay never updates"*. It distinguishes five causes, including a device that **rasterises the page once and never runs a timer again**.
+The device risk is the real blocker, and it is already documented. `tests/selftest.php` exists because embedded browser engines in switchers — Magewell, Yolobox — publish nothing about what they support, and the failure it detects is not "an overlay looks wrong" but *"an overlay never updates"*. It distinguishes five causes, including a device that **rasterises the page once and never runs a timer again**.
 
 Today's design polls HTTP because that is the lowest common denominator, and `conf/show.json` is served as a **static file** so that even the cheapest client can read it. A design built on WebSockets or WebRTC data channels raises the floor on the least capable, least documented device in the chain — the one you find out about at a tournament. That is not a reason not to do it. It is a reason to run `selftest.php` on the actual hardware before designing around a transport, which is advice this project already gives for a different reason.
 
@@ -63,9 +63,9 @@ Today's design polls HTTP because that is the lowest common denominator, and `co
 
 Worth separating two things that sound alike.
 
-**Not storing is not the same as not processing.** The commentary desk's prepared notes are notes about named players — the reason `conf/` is gitignored, denied over HTTP, and auto-deleted after seven days. A relay that fans those out in cleartext handles personal data on every message. It holds none at rest, which genuinely reduces exposure and obligation, but "we store nothing" is not "this is not our problem".
+Not storing is not the same as not processing. The commentary desk's prepared notes are notes about named players — the reason `conf/` is gitignored, denied over HTTP, and auto-deleted after seven days. A relay that fans those out in cleartext handles personal data on every message. It holds none at rest, which genuinely reduces exposure and obligation, but "we store nothing" is not "this is not our problem".
 
-**The thing that would actually earn the claim is end-to-end encryption, and this project is unusually well placed for it.** A room code already exists as a shared secret between the people in a room, and the relay already has no legitimate need to read anything — it routes by room, not by content. Encrypt in the browser, key never sent to the server, and the relay is carrying ciphertext it genuinely cannot read.
+The thing that would actually earn the claim is end-to-end encryption, and this project is unusually well placed for it. A room code already exists as a shared secret between the people in a room, and the relay already has no legitimate need to read anything — it routes by room, not by content. Encrypt in the browser, key never sent to the server, and the relay is carrying ciphertext it genuinely cannot read.
 
 The mechanics fit too: a key can ride in the **URL fragment**, which browsers do not send to servers, so a link handed to a commentator carries the key without the relay ever seeing it. The five-character room code is far too short to *be* a key, but it is already the thing people exchange, so a longer secret behind the same gesture is a UI problem rather than a new concept.
 
@@ -73,7 +73,7 @@ That is the version worth wanting. It is also strictly harder: search, recovery,
 
 ## 4. What I would actually build
 
-**Nearly stateless, rather than stateless.** A relay that keeps one in-memory snapshot per room — no disk, no database, a TTL of a few hours, gone on restart — solves the join problem completely and keeps every operational benefit that matters:
+Nearly stateless, rather than stateless. A relay that keeps one in-memory snapshot per room — no disk, no database, a TTL of a few hours, gone on restart — solves the join problem completely and keeps every operational benefit that matters:
 
 - no backups, no migrations, no per-tenant storage
 - nothing at rest to leak, subpoena, or be asked to delete
@@ -88,17 +88,17 @@ That is not a compromise so much as an admission of where the state has to be: *
 
 A sharper version of the idea: let the authoring clients — the Studio, the commentary desks, match control — talk **directly to each other** over WebRTC, and leave the server out of the conversation entirely.
 
-**The instinct is right, and the reason is that it splits the participants by capability rather than by role.** The desks are laptops and phones running current browsers. The overlays are browser sources inside video switchers whose engines publish nothing about themselves. Those are not the same client and there is no reason to make them speak the same protocol. A mesh of three or four modern browsers is trivial — the message rate is a handful a minute and the payload is a few KB — and the hard constraint from §2 applies only to the overlay.
+The instinct is right, and the reason is that it splits the participants by capability rather than by role. The desks are laptops and phones running current browsers. The overlays are browser sources inside video switchers whose engines publish nothing about themselves. Those are not the same client and there is no reason to make them speak the same protocol. A mesh of three or four modern browsers is trivial — the message rate is a handful a minute and the payload is a few KB — and the hard constraint from §2 applies only to the overlay.
 
 Three things temper it.
 
 **Peer-to-peer is not serverless.** WebRTC needs signalling to introduce peers, which is a server; it needs STUN to discover addresses; and when direct connection fails it needs **TURN**, which relays the traffic — at that point a server is carrying the data anyway, with more moving parts and more bandwidth than the few KB of JSON a plain relay would have carried.
 
-**And the local network is the worst case, which is unfortunate because this is a local-network product.** Venue and conference wifi very often has client isolation switched on, so two laptops on the same SSID sitting next to each other at the same desk cannot address each other at all. That is precisely the deployment this is for — a commentary position and an operator on one venue network — and it is the environment in which peer-to-peer most reliably fails over to TURN. A product whose happy path is "two machines in the same room" should be suspicious of a transport that is hardest between two machines in the same room.
+And the local network is the worst case, which is unfortunate because this is a local-network product. Venue and conference wifi very often has client isolation switched on, so two laptops on the same SSID sitting next to each other at the same desk cannot address each other at all. That is precisely the deployment this is for — a commentary position and an operator on one venue network — and it is the environment in which peer-to-peer most reliably fails over to TURN. A product whose happy path is "two machines in the same room" should be suspicious of a transport that is hardest between two machines in the same room.
 
-**It does not touch the actual constraint.** The overlay still has to read state from somewhere, and it is the client that cannot be helped: no keyboard, unknown engine, joins late, reloads unattended. Whatever the desks agree among themselves, one of them must publish a result the switcher can `GET`. So peer-to-peer removes the server from the *conversation* and not from the *architecture* — and the part it removes is the cheap part.
+It does not touch the actual constraint. The overlay still has to read state from somewhere, and it is the client that cannot be helped: no keyboard, unknown engine, joins late, reloads unattended. Whatever the desks agree among themselves, one of them must publish a result the switcher can `GET`. So peer-to-peer removes the server from the *conversation* and not from the *architecture* — and the part it removes is the cheap part.
 
-**Where it genuinely wins is privacy, not cost.** With a mesh and end-to-end encryption, the commentary desk's prepared notes — notes about named people — never transit a server in any form. That is a stronger claim than §3's, and it is the only argument for this that does not evaporate under examination. If the goal is "we cannot read your data because we never have it", peer-to-peer between the desks plus a published, non-personal projection for the overlays is the shape that delivers it.
+Where it genuinely wins is privacy, not cost. With a mesh and end-to-end encryption, the commentary desk's prepared notes — notes about named people — never transit a server in any form. That is a stronger claim than §3's, and it is the only argument for this that does not evaporate under examination. If the goal is "we cannot read your data because we never have it", peer-to-peer between the desks plus a published, non-personal projection for the overlays is the shape that delivers it.
 
 **What that would look like:** the desks mesh and hold the private state — notes, matchings, line selections, the identity fields. One of them publishes only what actually reaches air — score, clock, on-air card state, the current line as numbers — to a small endpoint the overlay polls. The personal data stays in the room; the broadcast data was always public. That split is real rather than cosmetic, and it is roughly the split `conf/` already makes between the three files served statically and everything behind a PHP door.
 
@@ -106,7 +106,7 @@ Three things temper it.
 
 Assume what a venue can usually be made to provide: every client on one local wifi, reliably. Then the interesting claim is that **once the interfaces have loaded, the whole thing runs with no internet** — and that claim is largely true, with one condition that decides it.
 
-**Peer-to-peer on a LAN needs no STUN and no TURN.** Those exist to get through NAT and to relay when direct connection fails. Two browsers on the same subnet exchange *host candidates* — their own local addresses — and connect directly. `iceServers: []` is a working configuration for this case. So the usual "peer-to-peer is not serverless" objection (§5) does not apply here: on one LAN, it genuinely is.
+Peer-to-peer on a LAN needs no STUN and no TURN. Those exist to get through NAT and to relay when direct connection fails. Two browsers on the same subnet exchange *host candidates* — their own local addresses — and connect directly. `iceServers: []` is a working configuration for this case. So the usual "peer-to-peer is not serverless" objection (§5) does not apply here: on one LAN, it genuinely is.
 
 **Two things still need care.**
 
@@ -118,7 +118,7 @@ Assume what a venue can usually be made to provide: every client on one local wi
 
 Everything above works for the desks. The question is whether the **overlay** is inside or outside the mesh, and the two answers give very different systems.
 
-**If the switcher's browser source can hold a peer connection**, the picture is complete and rather elegant: load every interface once, and from then on the operator's laptop, the commentary desks and the overlays exchange state directly over the LAN. A reloading overlay asks a peer and gets a snapshot (§2). Nothing needs the uplink.
+If the switcher's browser source can hold a peer connection, the picture is complete and rather elegant: load every interface once, and from then on the operator's laptop, the commentary desks and the overlays exchange state directly over the LAN. A reloading overlay asks a peer and gets a snapshot (§2). Nothing needs the uplink.
 
 **If it cannot**, something on the LAN must serve it over HTTP — and a browser cannot listen on a port, so that something is a small server. Which is to say: **a laptop running `php -S`, exactly the deployment [`STANDALONE.md`](STANDALONE.md) §6 already describes.** That configuration is offline today, with no peer-to-peer anywhere in it.
 
@@ -132,7 +132,7 @@ What running offline actually buys is two narrower things, and the second is the
 
 **Local recording.** A venue with no usable uplink can still record a properly graphicked programme to disk and publish it afterwards — which is what a great many tournaments do anyway. Today that fails for the same reason a stream would: the overlays stop updating, so the recording is of a scoreboard that stopped.
 
-**Fault tolerance against an uplink that comes and goes**, which is the common case and much more valuable than the rare one. A venue's internet does not usually fail cleanly at the start; it degrades in the second half. A local-first system carries on: the desks keep talking, the score keeps updating, the overlays keep drawing, the recording stays correct, and when the connection returns the stream resumes with graphics that never stopped being true. A system routing every message through a hosted relay loses all of that and — worse, in this project's terms — loses it *silently*, with a scoreboard that looks entirely normal while asserting a score from four minutes ago.
+Fault tolerance against an uplink that comes and goes, which is the common case and much more valuable than the rare one. A venue's internet does not usually fail cleanly at the start; it degrades in the second half. A local-first system carries on: the desks keep talking, the score keeps updating, the overlays keep drawing, the recording stays correct, and when the connection returns the stream resumes with graphics that never stopped being true. A system routing every message through a hosted relay loses all of that and — worse, in this project's terms — loses it *silently*, with a scoreboard that looks entirely normal while asserting a score from four minutes ago.
 
 That reframing matters for prioritising: this is not a feature that unlocks a new kind of event. It is **insurance on the one dependency nobody at a sports venue controls.**
 
@@ -173,23 +173,23 @@ Two objections that arrive together, and the second is the serious one.
 
 Less than it sounds, and the shape of the answer is more interesting than the size.
 
-**The pages are already JavaScript applications.** `commentator.php` is 4,476 lines of which about 80 run in PHP — the rest is markup, CSS and browser code. Same for the Studio and the stage. What the PHP does there is inject config and validate a query parameter. Those files do not need migrating; they need their header replaced by a fetch.
+The pages are already JavaScript applications. `commentator.php` is 4,476 lines of which about 80 run in PHP — the rest is markup, CSS and browser code. Same for the Studio and the stage. What the PHP does there is inject config and validate a query parameter. Those files do not need migrating; they need their header replaced by a fetch.
 
 **The reading side has already moved.** `shared/` holds 2,408 lines of JavaScript against 2,713 of PHP, and the JavaScript is the part that decides things: the ratio and its ABBA pattern, the stoppage window, the line grouping, timeouts remaining, the payload provider, declared-value reconciliation. `AGENTS.md` has been pushing derivations there for a while, for testing reasons, and the effect is that the interesting logic is already in the language this design would need it in.
 
-**A large slice of the PHP would not move, it would vanish.** Every store carries file locking, atomic temp-file-and-rename, room eviction and staleness sweeps — around a dozen lines each of pure storage concern, plus the structure around them. With no file, there is no `flock`, no partial write to guard against, no LRU.
+A large slice of the PHP would not move, it would vanish. Every store carries file locking, atomic temp-file-and-rename, room eviction and staleness sweeps — around a dozen lines each of pure storage concern, plus the structure around them. With no file, there is no `flock`, no partial write to guard against, no LRU.
 
-**What genuinely has to move is the validation**, and it is the part worth being careful about: roughly forty entry points across the three big stores. Dropping a card in a slot it does not fit, refusing a ratio that is not a ratio, truncating a field, cleaning an event list, rejecting a stale `rev`. That is not much code. It is, however, the code with the history in it.
+What genuinely has to move is the validation, and it is the part worth being careful about: roughly forty entry points across the three big stores. Dropping a card in a slot it does not fit, refusing a ratio that is not a ratio, truncating a field, cleaning an event list, rejecting a stale `rev`. That is not much code. It is, however, the code with the history in it.
 
 ### The strategic cost, which is larger
 
-**Doing this creates a second implementation of every rule, in a second language.** Hosted mode keeps its PHP stores, because there is a server and it is the authority. Peer-to-peer mode gets JavaScript ones, because there is not. Same rules, twice, diverging quietly — which is precisely the failure this project has spent its whole life paying down: `readJson` in three places with only one of them marking a failure fatal, the ratio printed two different ways before `shared/ratio.js`, the URL layout written into every page.
+Doing this creates a second implementation of every rule, in a second language. Hosted mode keeps its PHP stores, because there is a server and it is the authority. Peer-to-peer mode gets JavaScript ones, because there is not. Same rules, twice, diverging quietly — which is precisely the failure this project has spent its whole life paying down: `readJson` in three places with only one of them marking a failure fatal, the ratio printed two different ways before `shared/ratio.js`, the URL layout written into every page.
 
 There are only two honest ways out, and both cost something.
 
-**Either the JavaScript becomes the only implementation** and the PHP stores are reduced to dumb byte buckets that accept whatever a client sends. That keeps the rules in one place — but it contradicts a rule this project holds deliberately: *"the store is the authority, not the UI. Never enforce a rule only in `index.php`."* That rule exists because a check that lives only in a page can be bypassed by anything that is not that page.
+Either the JavaScript becomes the only implementation and the PHP stores are reduced to dumb byte buckets that accept whatever a client sends. That keeps the rules in one place — but it contradicts a rule this project holds deliberately: *"the store is the authority, not the UI. Never enforce a rule only in `index.php`."* That rule exists because a check that lives only in a page can be bypassed by anything that is not that page.
 
-**Or peer-to-peer stays a mode of the standalone build only**, where the participants are a small room that already shares a code, and hosted mode never gets it. Narrower, honest, and it leaves the duplication as a real cost rather than a hidden one.
+Or peer-to-peer stays a mode of the standalone build only, where the participants are a small room that already shares a code, and hosted mode never gets it. Narrower, honest, and it leaves the duplication as a real cost rather than a hidden one.
 
 ### And it changes the relationship with Live! — in both directions
 
@@ -203,7 +203,7 @@ UltiOrganizer's Scorekeeper runs on a phone, at a pitch, and pitches are in park
 
 Capture in the phone and sync when wifi appears is precisely the problem §1 and §2 solve, and the sport's data shape makes it unusually safe: a scoresheet is goals keyed by the point number they create, so a retry cannot double-count and two scorekeepers converge instead of fighting.
 
-**So the honest reading is that this work has two possible destinations, and the better one is upstream.** Built here, it makes the overlays fault-tolerant for the games somebody is covering. Built in Scorekeeper, it fixes *every* game at every tournament, and the overlays inherit it along with everybody else — and one of the main reasons to build a parallel system of record here disappears.
+So the honest reading is that this work has two possible destinations, and the better one is upstream. Built here, it makes the overlays fault-tolerant for the games somebody is covering. Built in Scorekeeper, it fixes *every* game at every tournament, and the overlays inherit it along with everybody else — and one of the main reasons to build a parallel system of record here disappears.
 
 That is written up in [`UPSTREAM.md`](UPSTREAM.md) as a point of shared interest rather than a request: nobody is waiting on it, the overlays work without it, and the reason to mention it at all is that both projects would otherwise solve the same problem twice.
 

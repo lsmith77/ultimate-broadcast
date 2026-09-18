@@ -57,7 +57,7 @@ cp deploy.env.example deploy.env      # fill in REMOTE
 
 **It replaces the `.htaccess`.** The one at the top of the project is for hosted mode: it rewrites onto UltiOrganizer's front controller with `RewriteBase /live/overlays/`, and on a site of its own that means every URL is a 404 — including `/`, because the file the server reaches for is `index.php`, which is the Studio page, which refuses to run unrouted. So that file is excluded and [`../install/standalone.htaccess`](../install/standalone.htaccess) is sent in its place, first, so that a first deployment is never briefly serving `conf/` with no rules in front of it.
 
-**It protects the state that only exists on the server.** `conf/` holds the administrator hash, what is on air, the kit colours and the commentary desk's prepared notes about named players; `logos/` holds a team's own artwork. Both are gitignored, so neither exists locally — and `deploy.sh` uses `--delete`, which without an exclude would take the whole installation apart on every deploy. rsync does not delete excluded paths, which is what makes excluding them the protection.
+It protects the state that only exists on the server. `conf/` holds the administrator hash, what is on air, the kit colours and the commentary desk's prepared notes about named players; `logos/` holds a team's own artwork. Both are gitignored, so neither exists locally — and `deploy.sh` uses `--delete`, which without an exclude would take the whole installation apart on every deploy. rsync does not delete excluded paths, which is what makes excluding them the protection.
 
 The same applies to what the **host** puts in a document root and we never see: `cgi-bin/`, the `.well-known/` an ACME challenge is written into during a certificate renewal, and `error_log`. All three are excluded. The first dry run against cyon said `deleting cgi-bin/`, which is how they got onto the list; the one that would actually hurt is a renewal in flight.
 
@@ -152,7 +152,7 @@ php install/make-event.php my-event.json --set-capture
 
 Both write the same thing through the same code (`shared/event.php`), so the payload shape — the one thing in this project that must not exist twice — exists once. The description is stored in `conf/event.json` and the capture is derived from it, rebuilt on every save; edit in either place and the other opens on it.
 
-**Squads are deliberately not in that file.** Nobody should type forty names into JSON, and there is already a door for them: the commentary desk exports a team's sheet, the team fills it in, and the desk imports it back. Standalone, that import also **creates** the players it does not recognise — and there is a field on the same bar to type one in directly, for whoever turns up unlisted. Hosted, neither is possible and the endpoint 404s, because a squad belongs to UltiOrganizer and an import must not invent people into somebody's tournament.
+Squads are deliberately not in that file. Nobody should type forty names into JSON, and there is already a door for them: the commentary desk exports a team's sheet, the team fills it in, and the desk imports it back. Standalone, that import also **creates** the players it does not recognise — and there is a field on the same bar to type one in directly, for whoever turns up unlisted. Hosted, neither is possible and the endpoint 404s, because a squad belongs to UltiOrganizer and an import must not invent people into somebody's tournament.
 
 Team and game ids are yours to choose and must not change afterwards: `conf/score-<game>.json` is keyed by game id, so is every URL typed into a switcher, and a squad and its prepared notes are keyed by team and player id. Re-running with different ids silently detaches all of it.
 
@@ -206,9 +206,9 @@ Dismissing it is remembered per browser, so an operator reads it once rather tha
 
 Worth knowing before pointing a domain at it, because the answer is not "nothing".
 
-**They cannot change what is on air, and they cannot keep score.** Both need the administrator session, or — for the score — a five-character code that an administrator nominates and hands to a scorekeeper. With no code nominated, `score.php` refuses every write that is not an admin's ([`../score.php`](../score.php)).
+They cannot change what is on air, and they cannot keep score. Both need the administrator session, or — for the score — a five-character code that an administrator nominates and hands to a scorekeeper. With no code nominated, `score.php` refuses every write that is not an admin's ([`../score.php`](../score.php)).
 
-**They can write to the line rooms and the prepared notes.** `lines.php` and `notes.php` are unauthenticated by design: the code is a namespace rather than a credential, so that a commentator can join a room without an administrator being in the loop — the reasoning is in [`COMMENTATOR.md`](COMMENTATOR.md). On a private tournament network that is a fair trade. On a public domain it means anybody who guesses a room code can write in it, and prepared notes are the thing in this project most worth not having strangers in. Nothing about a demo installation is harmed by it; an installation holding a real crew's notes should sit behind something.
+They can write to the line rooms and the prepared notes. `lines.php` and `notes.php` are unauthenticated by design: the code is a namespace rather than a credential, so that a commentator can join a room without an administrator being in the loop — the reasoning is in [`COMMENTATOR.md`](COMMENTATOR.md). On a private tournament network that is a fair trade. On a public domain it means anybody who guesses a room code can write in it, and prepared notes are the thing in this project most worth not having strangers in. Nothing about a demo installation is harmed by it; an installation holding a real crew's notes should sit behind something.
 
 ## 9. Updating
 

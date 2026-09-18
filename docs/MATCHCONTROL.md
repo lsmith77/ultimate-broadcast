@@ -1,6 +1,6 @@
 # Score and clock — where they are kept, and by whom
 
-**Built, and in use as of this document's last revision.** §§1–9 were written before any of it existed and are the reasoning; what follows immediately is what actually shipped, because the reasoning turned out to be right about the shape and wrong about the priority.
+Built, and in use as of this document's last revision. §§1–9 were written before any of it existed and are the reasoning; what follows immediately is what actually shipped, because the reasoning turned out to be right about the shape and wrong about the priority.
 
 ## 0. What exists
 
@@ -14,21 +14,21 @@
 | `shared/score-source.js` | puts a locally kept score into the payload every renderer already reads |
 | The Studio's **Match control** bar | the scorekeeping code — nominate, generate, revoke — beside the **Score from** switch (`upstream` ⇄ `match control`), per game, administrator only |
 
-**The reason it was built was not standalone mode.** It was latency: Live! serves a single game with a flat 30-second cache, so a goal is on air somewhere between at once and half a minute late and no polling rate improves that — the copy being polled is the stale one. Measured through the switch, a goal reaches the scoreboard in **about a second**.
+The reason it was built was not standalone mode. It was latency: Live! serves a single game with a flat 30-second cache, so a goal is on air somewhere between at once and half a minute late and no polling rate improves that — the copy being polled is the stale one. Measured through the switch, a goal reaches the scoreboard in **about a second**.
 
-**The code and the switch are one decision, in one place.** They were not: the switch shipped in the Studio and the code could only be nominated over the API, so `matchcontrol.php` told a scorekeeper to "ask the operator to set one" and the operator had nothing to set it with. The only person who could keep score was an administrator, who may write without a code — which is not a hand-off. Found by trying to use the first real installation, and fixed by putting both controls in one bar: switching the source to a store nobody can write is how a scoreboard freezes on 0-0, so the bar says "no code set" until one is.
+The code and the switch are one decision, in one place. They were not: the switch shipped in the Studio and the code could only be nominated over the API, so `matchcontrol.php` told a scorekeeper to "ask the operator to set one" and the operator had nothing to set it with. The only person who could keep score was an administrator, who may write without a code — which is not a hand-off. Found by trying to use the first real installation, and fixed by putting both controls in one bar: switching the source to a store nobody can write is how a scoreboard freezes on 0-0, so the bar says "no code set" until one is.
 
-**A press carries the time it was pressed.** Not the time it arrived — which over a bad connection is a different second, and for the clock a materially different one: `timer_start` is absolute, so a start delivered after a five-minute outage would run the rest of the game five minutes short, on air. The queue also survives a reload, because a bad connection is exactly when somebody pulls to refresh to see whether that helps.
+A press carries the time it was pressed. Not the time it arrived — which over a bad connection is a different second, and for the clock a materially different one: `timer_start` is absolute, so a start delivered after a five-minute outage would run the rest of the game five minutes short, on air. The queue also survives a reload, because a bad connection is exactly when somebody pulls to refresh to see whether that helps.
 
-**The rest of what only somebody at the pitch knows.** Possession, an injury stoppage and the opening ratio were reachable from the Studio and the commentary desk and nowhere else — while the person actually watching the game closely enough to press a button per point was holding a phone with two buttons on it. They are the same kind of fact as the score: true about the game and recorded nowhere upstream. So the **scorekeeping code now opens them too** (`possession.php`), rather than asking one person to carry two five-character codes, and it grants nothing upward — switching the mode on, nominating a code and changing the game stay the operator's.
+The rest of what only somebody at the pitch knows. Possession, an injury stoppage and the opening ratio were reachable from the Studio and the commentary desk and nowhere else — while the person actually watching the game closely enough to press a button per point was holding a phone with two buttons on it. They are the same kind of fact as the score: true about the game and recorded nowhere upstream. So the **scorekeeping code now opens them too** (`possession.php`), rather than asking one person to carry two five-character codes, and it grants nothing upward — switching the mode on, nominating a code and changing the game stay the operator's.
 
-**Timeouts are recorded here now, and were recorded nowhere before.** UltiOrganizer keeps them as game events, so a standalone installation had no way to note one and the allowance drawn on air never moved however many were called. They live in the score store, numbered **per side** by the same rule that makes a goal safe to retry — "home's second timeout" written twice is one timeout — and `shared/score-source.js` puts them into `gameevents`, which is the shape `shared/timeouts.js` already counts from. Switching the scoreboard's source switches the timeouts with it, because a board showing this project's score beside Live!'s timeouts would be two answers about one game.
+Timeouts are recorded here now, and were recorded nowhere before. UltiOrganizer keeps them as game events, so a standalone installation had no way to note one and the allowance drawn on air never moved however many were called. They live in the score store, numbered **per side** by the same rule that makes a goal safe to retry — "home's second timeout" written twice is one timeout — and `shared/score-source.js` puts them into `gameevents`, which is the shape `shared/timeouts.js` already counts from. Switching the scoreboard's source switches the timeouts with it, because a board showing this project's score beside Live!'s timeouts would be two answers about one game.
 
-**Possession is offence and defence, not home and away.** The store records which SIDE has the disc relative to the point being played, and whose offence it is changes at every goal without anybody re-declaring it. Naming the teams there would have asked the scorekeeper for the wrong fact — and did, in the first version of this panel.
+Possession is offence and defence, not home and away. The store records which SIDE has the disc relative to the point being played, and whose offence it is changes at every goal without anybody re-declaring it. Naming the teams there would have asked the scorekeeper for the wrong fact — and did, in the first version of this panel.
 
 **The panel is behind a toggle.** The two big buttons are the job; eight more controls in front of them is how somebody presses the wrong one at 13-12. Whoever wants it opens it once and the phone remembers.
 
-**The phone says when it is not the source.** A banner across the top, shown whether or not that phone may write. The failure it prevents is somebody keeping a whole game's score carefully into a store nothing reads, which looks exactly like working until somebody watches the broadcast.
+The phone says when it is not the source. A banner across the top, shown whether or not that phone may write. The failure it prevents is somebody keeping a whole game's score carefully into a store nothing reads, which looks exactly like working until somebody watches the broadcast.
 
 **What is deliberately not collected:** who scored and who assisted. A scorekeeper on a phone is not going to pick two players out of a squad per point, so the goals carry the point number and the side and nothing else — and `scorer` is *omitted* rather than sent as zero, so a top-scorer card shows nothing instead of a whole squad on nought.
 
@@ -64,7 +64,7 @@ Worth stating precisely, because the intuition is backwards.
 
 **The volume is tiny.** A game to 15 is about 30 goals over 80–100 minutes: one input every three minutes. The clock is start, halftime, restart, and the odd stoppage — under a dozen presses a game. Compare that with the surfaces this project already asks people to drive: line selection is seven picks per point (~200 a game), and possession is several presses per point.
 
-**The consequence is the largest on the page.** The score is the one number every viewer independently knows, and a wrong one is not a degraded graphic but a visibly false one. It is also the input with the widest blast radius internally: the `goals` array drives the point number, the ABBA slot, hold/break, the progression card and the per-point strip.
+The consequence is the largest on the page. The score is the one number every viewer independently knows, and a wrong one is not a degraded graphic but a visibly false one. It is also the input with the widest blast radius internally: the `goals` array drives the point number, the ABBA slot, hold/break, the progression card and the per-point strip.
 
 So this is a **low-frequency, high-consequence** input, and that combination has design consequences:
 
@@ -78,7 +78,7 @@ This is the part that decides the design, and it is easy to miss until two peopl
 
 **`+1` is not safe to send.** Line selection is last-write-wins and possession presses are dropped when they change nothing, because both are *statements of current state*. A goal button that means "add one" is a statement of a **delta**, and two people pressing it for the same goal produces 2–0 from one point. So does one person pressing it twice on a laggy connection, which is the likelier case.
 
-**So a goal write must state the result, not the change.** The store already works this way everywhere else: possession events are filed under the score they were made at (`score: "9-6"`), notes skip a write that would change nothing, and the line store now does too. A goal should carry the point it creates — "home scored point 10, making it 6–4" — and the store should accept it only if point 10 is the next one to exist.
+So a goal write must state the result, not the change. The store already works this way everywhere else: possession events are filed under the score they were made at (`score: "9-6"`), notes skip a write that would change nothing, and the line store now does too. A goal should carry the point it creates — "home scored point 10, making it 6–4" — and the store should accept it only if point 10 is the next one to exist.
 
 That single rule makes the whole crew question tractable:
 
@@ -90,15 +90,15 @@ It also means **more than one surface can hold the button without anybody having
 
 ## 5. Decided for now: one phone-optimised surface
 
-**A separate page, built for a phone, and nothing embedded anywhere.** That is the v1, and the rest of this section is why that is a scoping decision rather than a limitation, and what has to be true now so that it stays one.
+A separate page, built for a phone, and nothing embedded anywhere. That is the v1, and the rest of this section is why that is a scoping decision rather than a limitation, and what has to be true now so that it stays one.
 
 `/m/<game>` — its own URL, following the convention the root `.htaccess` already states for `/c/`: *"a different job and a different person: /s/ is the operator deciding what goes on air, /c/ is the person talking over it."* Keeping score is a third job and often a third person.
 
 **What is on it:** the two teams with a large press each, the current score, an undo, and a clock with start / pause / half. A visible sync state. Nothing else — every feature added here competes with the one job the surface exists for.
 
-**Phone-optimised is the requirement, not the fallback.** The person keeping score is frequently standing at the pitch rather than sitting at a desk: behind a camera, beside the scoresheet, away from the laptop. Designing for the phone first and letting it work on a laptop is the right way round; the reverse produces a page with buttons too small to press without looking.
+Phone-optimised is the requirement, not the fallback. The person keeping score is frequently standing at the pitch rather than sitting at a desk: behind a camera, beside the scoresheet, away from the laptop. Designing for the phone first and letting it work on a laptop is the right way round; the reverse produces a page with buttons too small to press without looking.
 
-**A second device is an acceptable ask, and that is what makes this simple.** Even a solo crew can be assumed to have a laptop and a phone. Without that assumption, v1 would have to be embedded somewhere, and then the question of *where* has to be answered for every crew size before anything can ship.
+A second device is an acceptable ask, and that is what makes this simple. Even a solo crew can be assumed to have a laptop and a phone. Without that assumption, v1 would have to be embedded somewhere, and then the question of *where* has to be answered for every crew size before anything can ship.
 
 **Not called "Scorekeeper".** UltiOrganizer already ships `scorekeeper/`, `timekeeper/` and `spiritkeeper/`, and in hosted mode its Scorekeeper is the authority this must not pretend to be (§8).
 
@@ -106,7 +106,7 @@ It also means **more than one surface can hold the button without anybody having
 
 Bringing score to the other two surfaces is the obvious later move — it would let a two-person crew keep score without a third device, and give any crew a fallback when the phone dies. Deferred, not rejected.
 
-**And when it comes, it is probably keys rather than a panel.** The commentator page is already keyboard-driven and has a reference dialog listing every shortcut: digits type a shirt number, `L`/`R` open a sheet, `O`/`D`/`I`/`U` drive possession. Two more keys cost no screen space on a page whose play view is deliberately ordered so nothing scrolls during a point — where a panel would cost the field rows.
+And when it comes, it is probably keys rather than a panel. The commentator page is already keyboard-driven and has a reference dialog listing every shortcut: digits type a shirt number, `L`/`R` open a sheet, `O`/`D`/`I`/`U` drive possession. Two more keys cost no screen space on a page whose play view is deliberately ordered so nothing scrolls during a point — where a panel would cost the field rows.
 
 That is a genuinely lighter change than embedding a control, but it carries a risk a panel does not, and the project has already been bitten by the general form of it. The quick-card design records retiring a letter-row mapping because *"it was a single blind keypress and it was wrong"* — for a different reason, but the caution transfers: **the score is the highest-consequence thing on the page and a mis-press reaches air.** So if keys are added:
 
@@ -114,7 +114,7 @@ That is a genuinely lighter change than embedding a control, but it carries a ri
 - **Undo in one press**, which §3 already requires of every mounting.
 - **Pick keys that are not neighbours of anything destructive**, and add them to the Keys dialog in the same change — `AGENTS.md` now requires that pairing precisely because a gesture missing from that dialog does not exist as far as a user is concerned.
 
-**Deferring it is free if, and only if, §4 holds.** Because a goal is written as *the point it creates* rather than as `+1`, a second surface can be added later without touching the store and without any risk of double entry: whichever press lands first creates point 10, and anything else claiming point 10 becomes a no-op. If instead v1 ships a `+1` endpoint — which is the tempting shortcut when there is only one surface and it obviously cannot race itself — then embedding later means changing the write protocol, migrating whatever has been stored, and re-testing every consumer.
+Deferring it is free if, and only if, §4 holds. Because a goal is written as *the point it creates* rather than as `+1`, a second surface can be added later without touching the store and without any risk of double entry: whichever press lands first creates point 10, and anything else claiming point 10 becomes a no-op. If instead v1 ships a `+1` endpoint — which is the tempting shortcut when there is only one surface and it obviously cannot race itself — then embedding later means changing the write protocol, migrating whatever has been stored, and re-testing every consumer.
 
 So the rule to hold now, while it costs nothing:
 
@@ -136,9 +136,9 @@ With one phone surface, the allocation question becomes simply *who is holding t
 | **3** | A dedicated keeper, or a team volunteer at the pitch | Three + phone | Frees the commentator's hands for lines and possession, the high-frequency inputs. |
 | **4** | A dedicated keeper | Four + phone | Operator, two commentators, keeper. |
 
-**The two-person case is the load-bearing one**, because it is the most common and because the obvious allocation is wrong. Giving score to the operator "because they have the admin login" optimises for the permission model instead of for attention.
+The two-person case is the load-bearing one, because it is the most common and because the obvious allocation is wrong. Giving score to the operator "because they have the admin login" optimises for the permission model instead of for attention.
 
-**The keeper is often not broadcast crew at all.** At three or more the natural candidate is the person already keeping the paper scoresheet. They should be able to hold the score capability without being able to touch what is on air — exactly the shape the room code already has, and the strongest argument for capability grants over a single admin password.
+The keeper is often not broadcast crew at all. At three or more the natural candidate is the person already keeping the paper scoresheet. They should be able to hold the score capability without being able to touch what is on air — exactly the shape the room code already has, and the strongest argument for capability grants over a single admin password.
 
 ## 7. Timeouts — the desk now shows them; the Studio deliberately does not
 
@@ -156,17 +156,17 @@ And the operator can already see it. **They are watching the programme output, a
 
 That is not an assumption made for this decision. The Studio already states it twice and has built on it both times: possession is `O` and `D` on the keyboard because *"an operator is watching the programme output, not this page"*, and the off-air flash is `aria-live` because *"an operator watching the program monitor is not looking at this bar"*. Two existing features exist in the shape they do precisely because the operator's eyes are on the output rather than on the Studio.
 
-**What it does rest on is a fact about the room:** that the operator has a programme monitor or a switcher multiview. The Studio has no preview of its own — no iframe, no thumbnail — so an operator working from the Studio page alone would see nothing. That is a fair assumption for a switcher setup and a poor one for somebody running a laptop and a webcam, which is the deployment standalone mode is aimed at (`STANDALONE.md` §6). If the Studio ever grows a preview, the timeouts arrive with it for free and this section is moot.
+What it does rest on is a fact about the room: that the operator has a programme monitor or a switcher multiview. The Studio has no preview of its own — no iframe, no thumbnail — so an operator working from the Studio page alone would see nothing. That is a fair assumption for a switcher setup and a poor one for somebody running a laptop and a webcam, which is the deployment standalone mode is aimed at (`STANDALONE.md` §6). If the Studio ever grows a preview, the timeouts arrive with it for free and this section is moot.
 
 If a use emerges that the output does not serve — a warning that a team is about to run out, say — revisit it, but not before.
 
-**One thing this makes plain about standalone.** Timeouts are `gameevents`, so in standalone nothing would produce them and both surfaces would correctly show nothing. Taking a timeout is therefore a fourth thing match control would record, alongside score, clock and half — and an argument for the surface being about *the match* rather than only about score and clock.
+One thing this makes plain about standalone. Timeouts are `gameevents`, so in standalone nothing would produce them and both surfaces would correctly show nothing. Taking a timeout is therefore a fourth thing match control would record, alongside score, clock and half — and an argument for the surface being about *the match* rather than only about score and clock.
 
 ## 8. Hosted mode has the same problem, and one real gap
 
 In hosted mode score and clock come from UltiOrganizer's Scorekeeper, driven by a tournament volunteer at the pitch. That separation is healthy and should not be dissolved: **the scoresheet is the tournament's record and the overlay is a picture of it.** Standalone recreates the picture; it must not quietly become the record for a game the tournament also records elsewhere.
 
-**That prediction was half wrong, and what shipped is worth stating plainly.** Hosted mode *does* take a second score input, because latency made it worth one: an operator can switch a game's scoreboard to match control and the overlay then reads this score instead of Live!'s (§0). What has not changed is the direction of travel —
+That prediction was half wrong, and what shipped is worth stating plainly. Hosted mode *does* take a second score input, because latency made it worth one: an operator can switch a game's scoreboard to match control and the overlay then reads this score instead of Live!'s (§0). What has not changed is the direction of travel —
 
 > **Nothing here is ever written back to UltiOrganizer or Live!.** Their API is read-only, six endpoints and GET only, so there is nowhere to send a goal even if we wanted to. A game kept in match control is a **parallel** score that the overlay can be pointed at; UO's own scoresheet remains whatever UO's scorekeeper entered, and the tournament's record is unaffected either way.
 
@@ -196,7 +196,7 @@ It should say which it is doing, in words, on the screen. A clock that is the ov
 
 Surveyed rather than designed, so the state is written down before somebody assumes it is consistent.
 
-**Every surface has an undo, and they are not the same thing.** The Studio's card undo restores a snapshot; its possession undo removes the last press; match control's removes the last point. Three actions, one word. Each is right for its own risk, and nothing shares an implementation.
+Every surface has an undo, and they are not the same thing. The Studio's card undo restores a snapshot; its possession undo removes the last press; match control's removes the last point. Three actions, one word. Each is right for its own risk, and nothing shares an implementation.
 
 **The two desks already share a key set** — `O` and `D` for possession, `I` for a stoppage, `U` — and both document it in a **Keys** dialog. But `U` does two different things:
 
@@ -206,7 +206,7 @@ Surveyed rather than designed, so the state is written down before somebody assu
 
 That is deliberate, and the reason survives examination: the operator is looking at the possession bar with its press count, while the commentator is looking at the pitch. A blind key that deletes is not the same risk as a button beside a visible number. The desk's log now opens with **"↶ Undo last press" focused**, so the gesture is `U` then `Enter` — as quick as the Studio's, without becoming a blind delete.
 
-**So the rule that actually holds is not "same key, same action".** It is *same key, same intent — undo — with the confirmation matched to how blind the press is.* That is a defensible rule and it was nowhere written down; it was only recoverable by reading two comment blocks in two files.
+So the rule that actually holds is not "same key, same action". It is *same key, same intent — undo — with the confirmation matched to how blind the press is.* That is a defensible rule and it was nowhere written down; it was only recoverable by reading two comment blocks in two files.
 
 **Known gaps, none urgent:**
 

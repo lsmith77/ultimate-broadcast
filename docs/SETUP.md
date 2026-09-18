@@ -76,7 +76,7 @@ What a profile holds:
 
 The failure mode is obvious and worth naming before anyone writes code.
 
-**It must not become a project-management app.** Assignees, deadlines, completion history, per-tournament reporting, "85% ready" — every one of those is a plausible next feature and none of them helps anybody get a picture on air. The scoping rule:
+It must not become a project-management app. Assignees, deadlines, completion history, per-tournament reporting, "85% ready" — every one of those is a plausible next feature and none of them helps anybody get a picture on air. The scoping rule:
 
 > An item earns its place if the software can **check** it, or if getting it wrong puts something **false or missing on air**. Everything else belongs on paper.
 
@@ -86,21 +86,21 @@ The failure mode is obvious and worth naming before anyone writes code.
 
 **It must not become a gate.** Nothing here should block going on air. A crew that is behind and knows it does not need the software refusing to help. Show the state; let them decide.
 
-**It must not claim a check it did not do.** A tick for "the overlay is reachable from the switcher" cannot be inferred from the Studio being able to reach it — the Studio is a laptop and the switcher is the device in question. That is the whole reason `selftest.php` runs *on the device*. Any item the software cannot honestly determine is an asserted one, and should look different from a verified one so the distinction stays visible.
+It must not claim a check it did not do. A tick for "the overlay is reachable from the switcher" cannot be inferred from the Studio being able to reach it — the Studio is a laptop and the switcher is the device in question. That is the whole reason `selftest.php` runs *on the device*. Any item the software cannot honestly determine is an asserted one, and should look different from a verified one so the distinction stays visible.
 
 ## 7. Reminders during the broadcast
 
 A checklist is a thing you do once. The more interesting version is one that keeps going — *"have you looked at the output lately?"* — and it needs handling carefully, because it runs straight into the principle everything else here defers to.
 
-**The case for it is the strongest case in the project.** `AGENTS.md` names the characteristic failure: *"not a crash but a graphic quietly asserting something untrue — a tab outliving its point, a rate without its denominator, a field-following overlay silently showing the wrong game. Those look completely normal in a screenshot."* Nothing announces those. An operator forty minutes into a close final is watching the play, and a wrong graphic can sit there for a whole half because it looks exactly like a right one.
+The case for it is the strongest case in the project. `AGENTS.md` names the characteristic failure: *"not a crash but a graphic quietly asserting something untrue — a tab outliving its point, a rate without its denominator, a field-following overlay silently showing the wrong game. Those look completely normal in a screenshot."* Nothing announces those. An operator forty minutes into a close final is watching the play, and a wrong graphic can sit there for a whole half because it looks exactly like a right one.
 
-**The case against is `MATCHCONTROL.md` §2.** The operator's attention is not spare capacity, and it is contended hardest precisely when the broadcast matters most. A timer that fires every ten minutes fires during points, and a prompt that interrupts a point is worse than the thing it is guarding against. Worse still, it trains the reflex that closes it unread — and then the one real alert is invisible.
+The case against is `MATCHCONTROL.md` §2. The operator's attention is not spare capacity, and it is contended hardest precisely when the broadcast matters most. A timer that fires every ten minutes fires during points, and a prompt that interrupts a point is worse than the thing it is guarding against. Worse still, it trains the reflex that closes it unread — and then the one real alert is invisible.
 
 Three things resolve that, and they are all applications of rules already in this codebase.
 
 ### Fire at breaks, not on a timer
 
-**The system already knows when play stops.** The score changing ends a point. `half_cap` is the break. `timeout` events are stoppages, and `shared/stoppage.js` already computes whether one is active. Those are moments when the operator's attention is genuinely free, and they arrive several times a game without a clock being involved.
+The system already knows when play stops. The score changing ends a point. `half_cap` is the break. `timeout` events are stoppages, and `shared/stoppage.js` already computes whether one is active. Those are moments when the operator's attention is genuinely free, and they arrive several times a game without a clock being involved.
 
 So a reminder should be scheduled in *game* events rather than in wall-clock minutes: "at the next break after fifteen minutes have passed". That converts an interruption into something that rides along, which is the same §2 axis applied to output instead of input. It also fixes the cadence problem for free — a scrappy game with many stoppages offers more moments than a fast one, which is roughly when a distracted operator needs more of them.
 
@@ -122,9 +122,9 @@ A reminder rendered quietly into the Studio's toolbar would therefore be seen by
 
 ### Why the obvious answer — a beep — is usually the wrong one
 
-**Audio leaks into the commentary microphone.** A laptop chime at a desk with an open mic is on the broadcast, and unlike a graphic it cannot be taken back. Nothing in these overlays has ever made a sound; that is not an oversight to correct casually.
+Audio leaks into the commentary microphone. A laptop chime at a desk with an open mic is on the broadcast, and unlike a graphic it cannot be taken back. Nothing in these overlays has ever made a sound; that is not an oversight to correct casually.
 
-**And it interacts badly with the rule above.** Firing at breaks in play is right for attention and wrong for audio: **a break is exactly when the mic is hot.** The commentators are filling the gap between points, which is when they talk most and when a beep is most certain to be heard. "Fire at breaks" and "use a sound" are each sensible and jointly wrong, which is the kind of thing that only shows up on the broadcast.
+And it interacts badly with the rule above. Firing at breaks in play is right for attention and wrong for audio: **a break is exactly when the mic is hot.** The commentators are filling the gap between points, which is when they talk most and when a beep is most certain to be heard. "Fire at breaks" and "use a sound" are each sensible and jointly wrong, which is the kind of thing that only shows up on the broadcast.
 
 Worth contrasting with the sibling app: UltiOrganizer's Timekeeper *does* make sound, because there the audio **is** the product — it signals a time limit to players on the pitch, and everybody hearing it is the point. Here, everybody hearing it is the failure.
 
@@ -135,11 +135,11 @@ So the ladder runs silent-first:
 3. **A phone buzz**, if the match-control surface (`MATCHCONTROL.md`) is in somebody's hand. Silent, physical, and reaches a person who is nowhere near a screen. The honest limit: the Vibration API works on Android browsers and **not on iOS Safari**, so it is a bonus rather than a mechanism to rely on.
 4. **A sound, last, opt-in, and off by default** — for the rigs where no open microphone is near the operator.
 
-**Whether audio is safe is a fact about the rig, which is what a profile is for** (§5). A commentary booth acoustically separate from the operator can beep freely; a two-person crew sharing a table cannot. Nobody but the crew knows which they are, so nobody but the crew should be setting it — and the default has to be the safe one.
+Whether audio is safe is a fact about the rig, which is what a profile is for (§5). A commentary booth acoustically separate from the operator can beep freely; a two-person crew sharing a table cannot. Nobody but the crew knows which they are, so nobody but the crew should be setting it — and the default has to be the safe one.
 
 ### The limit worth stating plainly
 
-**A crew watching a hardware multiview cannot be reached by a browser at all.** No notification, wash or buzz appears on an ATEM's monitor output. For that setup the reminder can only reach somebody sitting at the laptop, and if nobody is, it reaches nobody.
+A crew watching a hardware multiview cannot be reached by a browser at all. No notification, wash or buzz appears on an ATEM's monitor output. For that setup the reminder can only reach somebody sitting at the laptop, and if nobody is, it reaches nobody.
 
 That is not a bug to design around; it is a boundary to admit. It also points the same way as `MATCHCONTROL.md` §7 did: if the Studio ever grows a preview of the output, the operator has a reason to look at the page, and every one of these problems gets easier at once.
 
@@ -172,7 +172,7 @@ This is the item worth building the whole feature for, because the information i
 
 `POSTPRODUCTION.md` aligns the video timeline to the game timeline using **anchors** — *"goal n happens at this position in the video"*. One is required; more are free checks. Without one, footage cannot be scored at all by the deterministic renderer.
 
-**And how many you need depends on data the software can already assess, at exactly the moment somebody could still act on it.** `POSTPRODUCTION.md` §2 sets it out:
+And how many you need depends on data the software can already assess, at exactly the moment somebody could still act on it. `POSTPRODUCTION.md` §2 sets it out:
 
 | How the game was scored | `timer_start` | Goal times | Anchors needed |
 |---|---|---|---|
@@ -184,7 +184,7 @@ So the teardown step is not a generic "note the timecode". It is a computed inst
 
 **Halftime is the other one.** The game clock stops at the break and the video does not, so an anchor either side keeps both halves honest — and the break is *"exactly the part of the timeline UltiOrganizer does not describe."* If the crew notes anything at all, the video position of the last goal before the break and the first after it is worth more than everything else on this list.
 
-**Why this lives here and not in `POSTPRODUCTION.md`.** That document describes the tool. This describes the five minutes in which the tool's only required input is still obtainable — and the tool does not exist yet, which makes capturing the input *now* worth more, not less. Footage shot this season is alignable whenever it gets written.
+Why this lives here and not in `POSTPRODUCTION.md`. That document describes the tool. This describes the five minutes in which the tool's only required input is still obtainable — and the tool does not exist yet, which makes capturing the input *now* worth more, not less. Footage shot this season is alignable whenever it gets written.
 
 ## 9. Where it would live
 

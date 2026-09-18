@@ -19,7 +19,8 @@
  * WHY THE DESCRIPTION IS NOT ITSELF THE PAYLOAD
  *
  * Because the payload shape is Live!'s, warts included — `teams.hometeam`, a
- * pool's `halftime` meaning a SCORE, an error body that is a string — and
+ * pool's `halftime` meaning the break's LENGTH while `halftimescore` is the
+ * point it falls at, an error body that is a string — and
  * `docs/STANDALONE.md` §7 is emphatic that nothing above `shared/provider.js`
  * should learn a second one. Asking a person to author that directly would be
  * asking them to hand-write forty fields per game, most of which mean nothing
@@ -112,10 +113,25 @@ final class Event
         $spec['pool'] = [
             'name' => $str($poolRaw, 'name', 'Pool A'),
             'winningscore' => $num($poolRaw, 'winningscore', 15),
-            // A pool's "halftime" is the SCORE the break falls at, not a
-            // duration. Live! spells it the same way and it catches people out
-            // every time, so the form says so too.
-            'halftime' => $num($poolRaw, 'halftime', 8),
+            /**
+             * The score half is called at.
+             *
+             * This used to be authored and emitted as `halftime`, on the belief
+             * that a pool spells it that way. A pool does not: upstream,
+             * `halftime` is the LENGTH of the break in minutes (35 in the
+             * recorded payload) and `halftimescore` is the point it falls at.
+             * So every standalone event was sending a score under the name of a
+             * duration, and anything reading the half target would have been
+             * right in one mode and nonsense in the other.
+             *
+             * The old key is still read, because it is in the `conf/event.json`
+             * of every installation authored before this was found.
+             *
+             * Null rather than a default: an unset half target is derived by
+             * `shared/target.js` from the game target, and defaulting here
+             * would record an 8 the author never typed.
+             */
+            'halftimescore' => $num($poolRaw, 'halftimescore', $num($poolRaw, 'halftime', null)),
             'timecap' => $num($poolRaw, 'timecap', null),
             'scorecap' => $num($poolRaw, 'scorecap', null),
             'timeouts' => $num($poolRaw, 'timeouts', 2),
@@ -353,7 +369,10 @@ final class Event
             'visible' => 1,
             'teams' => count($teams),
             'timeoutlen' => $pool['timeoutlen'],
-            'halftime' => $pool['halftime'],
+            // `halftime` is the break's LENGTH in minutes upstream, and nothing
+            // standalone authors one, so it is omitted rather than sent as a
+            // score wearing its name. `halftimescore` is the half target.
+            'halftimescore' => $pool['halftimescore'],
             'winningscore' => $pool['winningscore'],
             'timecap' => $pool['timecap'],
             'scorecap' => $pool['scorecap'],
@@ -411,7 +430,10 @@ final class Event
                 'reservation' => $reservationOf[$g['field']],
                 'time' => $g['time'],
                 'valid' => 1,
-                'halftime' => $pool['halftime'],
+                // Minutes of break, which nothing standalone authors. The half
+                // TARGET is poolinfo.halftimescore; these are not the same
+                // field and used to be sent as though they were.
+                'halftime' => null,
                 'name' => (string) $g['id'],
                 'pool' => self::POOL_ID,
                 'gamename' => $g['name'],
@@ -451,7 +473,8 @@ final class Event
                     'visitorvalid' => 1,
                     'valid' => 1,
                     'reservation' => $reservationOf[$g['field']],
-                    'halftime' => $pool['halftime'],
+                    // Minutes of break, not the half target — see the games list.
+                    'halftime' => null,
                     'isongoing' => $ongoing ? 1 : 0,
                     'hasstarted' => $started,
                     'islive' => $ongoing ? 1 : 0,

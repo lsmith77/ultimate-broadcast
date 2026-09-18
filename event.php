@@ -267,7 +267,7 @@ header('Content-Type: text/html; charset=UTF-8');
         'type' => 'open',
         'organizer' => '',
         'logo' => '',
-        'pool' => ['name' => 'Pool A', 'winningscore' => 15, 'halftime' => 8,
+        'pool' => ['name' => 'Pool A', 'winningscore' => 15, 'halftimescore' => null,
             'timecap' => null, 'timeouts' => 2, 'timeoutsper' => 'half'],
         'teams' => [['id' => 1, 'name' => '', 'short' => ''],
             ['id' => 2, 'name' => '', 'short' => '']],
@@ -397,10 +397,11 @@ header('Content-Type: text/html; charset=UTF-8');
         var g2 = el('div', 'grid');
         g2.append(field('Pool name', event.pool, 'name'));
         g2.append(field('Game to', event.pool, 'winningscore', { type: 'number' }));
-        g2.append(field('Half at (score)', event.pool, 'halftime', {
+        g2.append(field('Half at (score)', event.pool, 'halftimescore', {
             type: 'number',
-            title: 'A SCORE, not a duration — the point the break falls at. '
-                + 'Live! spells it the same way and it catches people out.'
+            title: 'The point the break falls at — a SCORE, not a duration. '
+                + 'Leave it empty and half is taken as half the game total '
+                + 'plus one: game to 15, half at 8.'
         }));
         g2.append(field('Time cap (min)', event.pool, 'timecap', {
             type: 'number',

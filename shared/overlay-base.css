@@ -538,6 +538,30 @@ body {
     opacity: 0.85;
 }
 
+/**
+ * Universe point, and galaxy point at the half.
+ *
+ * Deliberately NOT a third background colour. Amber and red already mean
+ * "halftime cap" and "time cap" here and in Timekeeper, a decider is a
+ * different kind of fact from a cap, and a game can be both at once — a cap
+ * called at 8-8 playing to 9 is a time cap AND universe point, so a decider
+ * that repainted the centre would overwrite the cap state it sits inside.
+ *
+ * Weight and full opacity instead, which compose with either cap tint. The
+ * letter-spacing is tightened from the segment's 0.14em because "UNIVERSE
+ * POINT" is the longest string this line ever carries and the centre column
+ * should not have to grow to fit one point.
+ *
+ * LAST of the three, on purpose: it shares `opacity` and `letter-spacing` with
+ * the cap and status-only rules at the same specificity, and this is the one
+ * that should win when a game is in two of these states at once.
+ */
+.centre.decider .segment {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    opacity: 1;
+}
+
 /* ---------------------------------------------------------------------------
    Logos
 

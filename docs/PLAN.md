@@ -41,7 +41,7 @@ Overlays are reached as UO views, never by direct path:
 
 Direct access to `live/*.php` returns **404** by design in v3 — `api.php` guards on `!defined('LIVE_BULA_ENABLED')`. This includes CORS preflight.
 
-**An overlay for an unpublished event returns 403**, the same as the rest of Live!. A broadcaster testing before the event goes public will hit this. It is correct, and it looks exactly like a bug if undocumented.
+An overlay for an unpublished event returns 403, the same as the rest of Live!. A broadcaster testing before the event goes public will hit this. It is correct, and it looks exactly like a bug if undocumented.
 
 ### The v3 API contract
 
@@ -62,11 +62,11 @@ Field names that have caught people out, all verified against real payloads: `ga
 
 ### What the API does not compute
 
-**Holds and breaks are not computed server-side.** `grep -rn isbreakpoint live/api/*.php` returns nothing, and neither does the same grep across the bundled UO — the derivation lives entirely in the React bundle (`assets/SingleGameWrapper-*.js`). An overlay that wants them **must derive them itself** from the `goals` array.
+Holds and breaks are not computed server-side. `grep -rn isbreakpoint live/api/*.php` returns nothing, and neither does the same grep across the bundled UO — the derivation lives entirely in the React bundle (`assets/SingleGameWrapper-*.js`). An overlay that wants them **must derive them itself** from the `goals` array.
 
 The one trap: initial possession is not knowable from the goal list alone. Any derivation must carry an explicit **unresolved** bucket and must not silently attribute those points — which is exactly what Live! v3.0.5 fixed in its own implementation. `classifyPoints()` in `shared/overlay-client.js` mirrors the three-bucket model.
 
-**Tournament progression, by contrast, is server-side and reusable.** `entity=reference` returns `pool_placements` — one `{pool_id, team_id, placement}` per team/pool membership, resolved by UO's own standings logic (`live/api/ReferenceData.php:167`), with `placement: null` while unresolved. Do not recompute it.
+Tournament progression, by contrast, is server-side and reusable. `entity=reference` returns `pool_placements` — one `{pool_id, team_id, placement}` per team/pool membership, resolved by UO's own standings logic (`live/api/ReferenceData.php:167`), with `placement: null` while unresolved. Do not recompute it.
 
 **Turnovers do not exist anywhere**, which is why break chance is operator-declared rather than derived. `STUDIO.md` §3 is the full account of what the data supports.
 
@@ -76,7 +76,7 @@ The one trap: initial possession is not knowable from the goal list alone. Any d
 
 The client follows `meta.expires_timestamp` rather than a fixed interval, clamped to [`interval`, 60s]. A finished game reports a cache life of a year, so a final score is fetched once.
 
-**Do not lower `CACHE_MINUTES_MODULATOR` to compensate.** Upstream documents it as "DO NOT LOWER BELOW 1.0" (`live/api/ConfigManager.php:642`) and it is global — it scales the public frontend's caching too. An earlier revision of this plan recommended exactly that; the recommendation was wrong. The supported fix is an overlay-side uncached endpoint reading the score directly, which stays inside `live/overlays/` (`STUDIO.md` §6).
+Do not lower `CACHE_MINUTES_MODULATOR` to compensate. Upstream documents it as "DO NOT LOWER BELOW 1.0" (`live/api/ConfigManager.php:642`) and it is global — it scales the public frontend's caching too. An earlier revision of this plan recommended exactly that; the recommendation was wrong. The supported fix is an overlay-side uncached endpoint reading the score directly, which stays inside `live/overlays/` (`STUDIO.md` §6).
 
 This is also the most likely explanation for "the switcher is not refreshing": 30s of server cache plus the client's wait is easily mistaken for a dead browser source. `?view=live/overlays/tests/selftest` and `?demo=1` tell the two apart.
 
@@ -131,7 +131,7 @@ live/overlays/
 
 `tests/selftest.php` is still a routed page — `?view=live/overlays/tests/selftest` — because it has to be loadable by the switcher it diagnoses. `playwright.config.js` lives in `tests/` rather than the working directory Playwright would prefer, so `npm test` passes `--config`. A `tools/` directory will come back when the post-production CLI needs somewhere to live.
 
-**Nothing here needs a `.gitattributes` entry.** `live` is classified `dev` in `docs/ai/release-package-coverage/inventory.txt` and the whole tree is already export-ignored, because Live! is a drop-in addon distributed separately rather than part of UltiOrganizer's release package.
+Nothing here needs a `.gitattributes` entry. `live` is classified `dev` in `docs/ai/release-package-coverage/inventory.txt` and the whole tree is already export-ignored, because Live! is a drop-in addon distributed separately rather than part of UltiOrganizer's release package.
 
 ### Upgrade survival
 

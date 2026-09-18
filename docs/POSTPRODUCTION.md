@@ -56,7 +56,7 @@ aligned on goals 1 and 15   scale 1.0004   offset +187.2s
 
 This is what catches the things that actually happen: a recording split across files, dropped frames, a scorekeeper who fell behind for a point, an anchor placed on the wrong goal.
 
-**Build the contact sheet before the renderer.** One frame rendered at each goal moment, tiled into a single image: ten seconds of looking confirms the alignment before anyone commits to a full render. It is the cheapest useful part of this whole tool.
+Build the contact sheet before the renderer. One frame rendered at each goal moment, tiled into a single image: ten seconds of looking confirms the alignment before anyone commits to a full render. It is the cheapest useful part of this whole tool.
 
 ## Rendering
 

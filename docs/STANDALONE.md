@@ -70,13 +70,13 @@ Ordered by what would bite first.
 | **No schedule beyond one pool** | `make-event.php` writes one pool, one series and no standings. A real tournament has brackets, and a bracket is a schedule rather than a list of games | medium |
 | **One pool, no standings** | Everything sits in one series and one pool, so there is nothing to rank and no table to show | small |
 
-**The editor is largely built, and by a smaller thing than it looked.** It turned out to split in two: what a person types once (`install/make-event.php`) and what arrives through a door that already existed (the commentary desk's roster import). Neither needed an authoring UI, because **match control already keeps the score and the clock** — so nothing had to author the part of a game that changes while it is played.
+The editor is largely built, and by a smaller thing than it looked. It turned out to split in two: what a person types once (`install/make-event.php`) and what arrives through a door that already existed (the commentary desk's roster import). Neither needed an authoring UI, because **match control already keeps the score and the clock** — so nothing had to author the part of a game that changes while it is played.
 
 Five gaps that were on this list are now closed: the config bootstrap, the standalone `.htaccess`, shipping `tests/selftest.php` alone, the tournament logo (authored per event rather than inherited from a recording), and creating an event at all.
 
 ## 5. The next steps
 
-**A tournament can now be run, for a value of tournament.** One pool, a handful of games, squads that arrive through the desk, a score kept on a phone. What it cannot do is a bracket, and it cannot be corrected once the day has started — those are the two entries above and they are what stands between this and a real event.
+A tournament can now be run, for a value of tournament. One pool, a handful of games, squads that arrive through the desk, a score kept on a phone. What it cannot do is a bracket, and it cannot be corrected once the day has started — those are the two entries above and they are what stands between this and a real event.
 
 **What that took, for the record**, because it was less than §5 used to claim:
 
@@ -135,13 +135,13 @@ The offline case deserves care rather than a footnote: if the venue has no uplin
 
 Four, and they are the reason the modes have not diverged.
 
-**One renderer, one payload shape, two providers.** Nothing above `shared/provider.js` knows which it is talking to. The local shape is Live!'s, warts included — where Live! is inconsistent, standalone is inconsistent the same way. A store that got to be tidy would be a second contract every consumer branches on, and `docs/PLAN.md` already lists the field names that have caught people out.
+One renderer, one payload shape, two providers. Nothing above `shared/provider.js` knows which it is talking to. The local shape is Live!'s, warts included — where Live! is inconsistent, standalone is inconsistent the same way. A store that got to be tidy would be a second contract every consumer branches on, and `docs/PLAN.md` already lists the field names that have caught people out.
 
 **Absent is not zero.** Standalone has no tournament totals, no game-by-game history, no blocks, no seeds, no standings, no spirit — there is no history to have. Those fields are *omitted*, never sent as `0`, and every consumer already does the right thing with an omission. A player sheet showing `0 G · 0 A` for somebody who has scored nine over three days is a lie told on air; one showing this game's numbers and no tournament row is true.
 
 **Never write the URL layout into a page.** Ask `Overlays\Mode`. `/live/overlays/` was in every page's asset helper and in five endpoint URLs, and all of it broke the moment this directory was served from a document root.
 
-**`conf/` is closed by default and opened one file at a time.** Three files are public because the stage and the scoreboard poll them as static assets at about one second. Everything else has a PHP front door. That rule exists twice — in `.htaccess` and in `app.php`'s router — because `php -S` reads no `.htaccess`, and both copies are tested by making the request.
+`conf/` is closed by default and opened one file at a time. Three files are public because the stage and the scoreboard poll them as static assets at about one second. Everything else has a PHP front door. That rule exists twice — in `.htaccess` and in `app.php`'s router — because `php -S` reads no `.htaccess`, and both copies are tested by making the request.
 
 ## 8. Recording format
 
@@ -151,7 +151,7 @@ A capture is a flat directory, one file per request, named after the request so 
 
 Each game keeps its own instant: one directory can hold several recorded minutes apart, and replaying both from a single timestamp puts one of the clocks out by the gap without anything saying so.
 
-**A capture is not a fixture to hand-edit.** Adjust one and it stops being evidence of what Live! sends and becomes a fake with extra steps. Variation belongs in a mutation layer over the recording, which is how `shared/demo.js` already works.
+A capture is not a fixture to hand-edit. Adjust one and it stops being evidence of what Live! sends and becomes a fake with extra steps. Variation belongs in a mutation layer over the recording, which is how `shared/demo.js` already works.
 
 ## 9. Open questions
 

@@ -19,7 +19,7 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 
 ## Try it without installing anything
 
-**[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation** on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.
 
 [`docs/DEPLOY.md`](docs/DEPLOY.md) is how to put one of your own on a domain, and most of its sharper notes came from putting that one there rather than from planning it.
 
@@ -166,7 +166,7 @@ Note that Live! by BULA has its own prerequisite: its [Terms of Use](https://git
 
 PHP 8.3 or 8.4 with `json`, `pcre`, `mbstring` and `filter` — all but `mbstring` on by default. A `conf/` the web server can write, on a filesystem where `flock` works. Apache with `mod_rewrite` and `AllowOverride All`, or nginx with the rules translated. TLS in practice, since a browser source loading an overlay over plain HTTP from an HTTPS page is blocked as mixed content.
 
-**No database, no Composer, no build step.** Nothing in this project opens a database in either mode. That is what makes shared hosting, or a laptop running `php -S` at a venue with no uplink, a realistic deployment. [`docs/STANDALONE.md`](docs/STANDALONE.md) §6 is the full account, read off the code rather than assumed.
+No database, no Composer, no build step. Nothing in this project opens a database in either mode. That is what makes shared hosting, or a laptop running `php -S` at a venue with no uplink, a realistic deployment. [`docs/STANDALONE.md`](docs/STANDALONE.md) §6 is the full account, read off the code rather than assumed.
 
 ## Install
 

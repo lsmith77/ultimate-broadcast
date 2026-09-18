@@ -14,7 +14,7 @@
  * timer_start = null, so the live overlay always falls through to a status word;
  * the demo back-dates timer_start and drives a real one.
  *
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 /**
@@ -176,6 +176,35 @@ function runOverlayDemo(base, onFrame, opts) {
         function () {
             return [frame({ ongoing: 0, status: 'completed', elapsed: null }),
                 'FINAL — no clock, no callout, status word only'];
+        },
+        /**
+         * The deciders, last and on a fresh game.
+         *
+         * They cannot be shown in sequence with the rest: the caps above set
+         * new point caps of 8 and then 4, and a game sitting at 7-7 under a cap
+         * of 4 is not a state a scoreboard can be judged against. So the score
+         * is reset and run to each decider directly.
+         *
+         * The fixture pool is game to 15 with no halftimescore, which is the
+         * common case — so the 8 that makes 7-7 galaxy point is derived rather
+         * than recorded, and this is the state that proves the derivation.
+         */
+        function () {
+            reset();
+            for (var n = 0; n < 7; n += 1) {
+                goal(true, 60 + n * 60);
+                goal(false, 90 + n * 60);
+            }
+            return [frame({ elapsed: 540 }),
+                'GALAXY POINT — 7-7, half at 8 derived from game to 15'];
+        },
+        function () {
+            for (var m = 0; m < 7; m += 1) {
+                goal(true, 600 + m * 60);
+                goal(false, 630 + m * 60);
+            }
+            return [frame({ elapsed: 1500 }),
+                'UNIVERSE POINT — 14-14, game to 15'];
         }
     ];
 

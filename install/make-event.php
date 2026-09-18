@@ -134,13 +134,16 @@ if (isset($opts['help']) || count($args) !== 1) {
       "type": "open"            open | women | mixed | masters ...
       "organizer": ""
       "logo": null              a URL for the tournament logo on the stage
-      "pool": { "name": "Pool A", "winningscore": 15, "halftime": 8,
+      "pool": { "name": "Pool A", "winningscore": 15, "halftimescore": null,
                 "timecap": null, "timeouts": 2, "timeoutsper": "half",
                 "timeoutlen": 70 }
       per game: "status": "scheduled" | "ongoing" | "completed"
 
-    Note halftime is a SCORE here (the point the break falls at), which is what
-    a pool means by it.
+    halftimescore is the point the break falls at. Leave it out and half is
+    taken as half the game total plus one — game to 15, half at 8 — which is
+    what the scoreboard needs to call galaxy point. Do not use "halftime" for
+    it: upstream that field is the LENGTH of the break in minutes. Events
+    written with the old spelling are still read.
 
     Afterwards, per team: open the commentary desk, export that team's sheet,
     have them fill in Number and Name, and import it back. That is what puts

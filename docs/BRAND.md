@@ -19,7 +19,7 @@ An operator has several of these open at once — the Studio, a stage, a scorebo
 | Commentary desk | microphone | `#009E73` | bluish green |
 | Match control | plus | `#3F4A56` | dark slate |
 
-**Each surface differs in shape as well as colour**, and that is `AGENTS.md`'s rule about colour never being the only carrier of a distinction, applied where it is easiest to forget. A tab icon is sixteen pixels; at that size colour is most of what a person perceives, which is exactly why leaning on it alone fails hardest here. The glyphs are distinguishable with no colour information at all.
+Each surface differs in shape as well as colour, and that is `AGENTS.md`'s rule about colour never being the only carrier of a distinction, applied where it is easiest to forget. A tab icon is sixteen pixels; at that size colour is most of what a person perceives, which is exactly why leaning on it alone fails hardest here. The glyphs are distinguishable with no colour information at all.
 
 ## 3. The colours were simulated, not chosen
 
@@ -84,7 +84,7 @@ The Studio does most of the teaching, because it is where somebody meets every o
 | `README.md` | the lockup | the project's front door on GitHub |
 | **Scoreboard and stage** | **none** | **see below** |
 
-**Nothing visible on the scoreboard or the stage.** Those are rendered to video. A mark there is this project's branding burned into somebody else's broadcast, sitting beside the tournament's own logo — which is the one that belongs on air, has a corner chosen for it in the Studio, and is kept clear of whatever else is in that corner. Their *tab* icons are set, because a tab is not on air, and that is the whole of it.
+Nothing visible on the scoreboard or the stage. Those are rendered to video. A mark there is this project's branding burned into somebody else's broadcast, sitting beside the tournament's own logo — which is the one that belongs on air, has a corner chosen for it in the Studio, and is kept clear of whatever else is in that corner. Their *tab* icons are set, because a tab is not on air, and that is the whole of it.
 
 The wordmark in the introduction is real text rather than part of an image, so it can be selected, translated and read aloud.
 

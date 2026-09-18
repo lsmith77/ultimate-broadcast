@@ -75,7 +75,7 @@ lower-left    lower-center    lower-right
                                           + fullscreen (takeover)
 ```
 
-**Placement is non-exclusive; visibility is exclusive.** Several cards may be *placed* in one slot — that is how an operator sets up alternatives in advance, each armed and preloaded — but at most one of them may be *on air* at a time, because two cards in one position would draw over each other. Putting one on air therefore takes any other in that slot off; §2.7 covers how that is surfaced. `fullscreen` hides everything else while it is up. All three rules live in the store, not only in the control UI, so no client can write an illegal combination.
+Placement is non-exclusive; visibility is exclusive. Several cards may be *placed* in one slot — that is how an operator sets up alternatives in advance, each armed and preloaded — but at most one of them may be *on air* at a time, because two cards in one position would draw over each other. Putting one on air therefore takes any other in that slot off; §2.7 covers how that is surfaced. `fullscreen` hides everything else while it is up. All three rules live in the store, not only in the control UI, so no client can write an illegal combination.
 
 ### 2.4 Show state
 
@@ -100,7 +100,7 @@ Stored exactly like `conf/team-colors.json` — `live/overlays/conf/show.json`, 
 
 Admin-gated by `Overlays\Auth::isAdmin()` — Live!'s admin session hosted, a local one standalone — so anyone who can view an overlay cannot change what is on air. A grid of toggles: card on/off, slot chooser, and card-specific pickers (which player, which team). No preview needed in v1 — the operator is looking at the program monitor anyway.
 
-**Control owns all overlay-local state, not just show state.** There is a category of data here that does not come from UltiOrganizer or Live! at all, is authored by the broadcast operator, lives in `live/overlays/conf/`, and is gated by the same admin session:
+Control owns all overlay-local state, not just show state. There is a category of data here that does not come from UltiOrganizer or Live! at all, is authored by the broadcast operator, lives in `live/overlays/conf/`, and is gated by the same admin session:
 
 | state | file | today |
 |---|---|---|
@@ -110,7 +110,7 @@ Admin-gated by `Overlays\Auth::isAdmin()` — Live!'s admin session hosted, a lo
 
 Kit colour is the clearest case. UO has no team colour at all — `uo_pool.color` and `uo_series.color` exist but `uo_team` has none — so the palette and the coin-toss pick are purely overlay state. They are edited on the picker page only because the picker existed first, which splits one operator's controls across two surfaces with the same auth gate.
 
-**Consolidate them into one page at `/s/`, public but read-only.** Not a separate admin-gated surface: the game list, the fields and the URLs are not secret, and someone setting up a camera should not need an admin password to find a URL — least of all in auto mode, where there is no operator to hold one. So the page renders read-only for anyone, and logging in turns the controls on in place. It carries a login button so an unauthenticated visitor can see *why* things are inert and where to go.
+Consolidate them into one page at `/s/`, public but read-only. Not a separate admin-gated surface: the game list, the fields and the URLs are not secret, and someone setting up a camera should not need an admin password to find a URL — least of all in auto mode, where there is no operator to hold one. So the page renders read-only for anyone, and logging in turns the controls on in place. It carries a login button so an unauthenticated visitor can see *why* things are inert and where to go.
 
 The line that must stay open is the overlay itself: `/s/702` and the stage are fetched by a browser source that cannot log in, so they can never be gated by anything beyond Live!'s event-publication boundary.
 
@@ -120,7 +120,7 @@ A consequence worth noting for whoever moves it: the colour editor already rende
 
 There is a general principle here, and it is arguably the most useful thing the Studio offers beyond the graphics themselves.
 
-**Operator-maintained state is a way to add features that would otherwise need core changes.** Kit colour already demonstrates it: UltiOrganizer has no team colour, and rather than proposing a `uo_team.color` migration, the overlay stores palettes itself and the feature simply exists. Break-chance declaration (§3.5) is the same move applied to possession.
+Operator-maintained state is a way to add features that would otherwise need core changes. Kit colour already demonstrates it: UltiOrganizer has no team colour, and rather than proposing a `uo_team.color` migration, the overlay stores palettes itself and the feature simply exists. Break-chance declaration (§3.5) is the same move applied to possession.
 
 What makes this attractive as a first step:
 
@@ -181,7 +181,7 @@ Verified against live payloads and the UO schema, not assumed. This is the diffe
 
 So "top 3 by combined goals and assists" is a sort on `total` — no derivation needed. `totalavg` gives the fairer pre-match version when teams have played unequal numbers of games, which at a tournament they usually have.
 
-**Blocks are reachable — behind a switch that ships off.** A player card naturally wants GOALS / ASSISTS / BLOCKS. Goals and assists are above; blocks arrive too, but only once an administrator turns them on.
+Blocks are reachable — behind a switch that ships off. A player card naturally wants GOALS / ASSISTS / BLOCKS. Goals and assists are above; blocks arrive too, but only once an administrator turns them on.
 
 `live/api/TeamManager.php:151` picks the roster query by `ShowDefenseStats()`, a system setting that ships **false** (`sql/ultiorganizer.sql:975`). With it on, `TeamScoreBoardWithDefenses()` is used instead and every roster row on `entity=teams` carries an extra field:
 
@@ -210,7 +210,7 @@ One trap worth naming: `TeamScoreBoardWithDefenses()` does **not** return `total
 | **Clean holds** | only with §3.5 | derivable once break chances are declared, behind a config option because its failure mode over-claims |
 | **Turnovers** | **no** | no turnover table exists at all. A throwaway or a drop changes possession and leaves no trace anywhere in the schema |
 
-**Holds and breaks are the same fact twice.** Every point is one or the other, so holds + breaks = total points and the pair carries no more information than breaks alone. A stats card should lead with breaks — the number that decides ultimate games — rather than spending a row on its complement. `classifyPoints()` also returns an `unresolved` count, and that must be shown whenever it is non-zero rather than folded into either column.
+Holds and breaks are the same fact twice. Every point is one or the other, so holds + breaks = total points and the pair carries no more information than breaks alone. A stats card should lead with breaks — the number that decides ultimate games — rather than spending a row on its complement. `classifyPoints()` also returns an `unresolved` count, and that must be shown whenever it is non-zero rather than folded into either column.
 
 **Blocks are the genuinely additive one** — a block count cannot be inferred from the score at all, so it is the row that earns its place next to breaks, and it is the same data the player card wants. But its completeness is not guaranteed, which constrains how it may be used (§4).
 
@@ -227,9 +227,9 @@ The same rule applies to every card: read what the payload offers and render tha
 
 ### 3.4 Break chance: not derivable, but declarable
 
-**Decision: break chance is all-or-nothing.** It is only worth showing if it can appear in every case it should. A version that lights on recorded blocks but stays dark on a throwaway or a drop is worse than none: viewers cannot tell "no break chance" from "we did not notice", so the indicator teaches them to distrust it. An overlay that is silent is honest; one that is *intermittently* silent is misleading.
+Decision: break chance is all-or-nothing. It is only worth showing if it can appear in every case it should. A version that lights on recorded blocks but stays dark on a throwaway or a drop is worse than none: viewers cannot tell "no break chance" from "we did not notice", so the indicator teaches them to distrust it. An overlay that is silent is honest; one that is *intermittently* silent is misleading.
 
-**That rules out deriving it. It does not rule out an operator declaring it** — see §3.5, which is the route worth taking. The distinction is the kind of incompleteness:
+That rules out deriving it. It does not rule out an operator declaring it — see §3.5, which is the route worth taking. The distinction is the kind of incompleteness:
 
 | mechanism | failure mode | acceptable? |
 |---|---|---|
@@ -249,9 +249,9 @@ Traced end to end, because "we have blocks somewhere" is misleading:
 
 So the data is in the database and stops before every layer an overlay can reach.
 
-**Reaching it would not change the decision.** A new query against `uo_defense` returning raw rows with times, served from an overlay-side routed endpoint, is compatible with the Live!-upgrade rule — nothing is added to the Live! zip. But it yields only blocks, which is precisely the partial signal ruled out above.
+Reaching it would not change the decision. A new query against `uo_defense` returning raw rows with times, served from an overlay-side routed endpoint, is compatible with the Live!-upgrade rule — nothing is added to the Live! zip. But it yields only blocks, which is precisely the partial signal ruled out above.
 
-**It is still worth doing for the stats cards**, where a block count is a normal sports statistic carrying no such implication. The same endpoint serves the BLOCKS column through `GameTeamDefenseBoard()` with no new query at all. So "may an overlay read the database directly?" remains worth deciding once, deliberately — for statistics, not for possession.
+It is still worth doing for the stats cards, where a block count is a normal sports statistic carrying no such implication. The same endpoint serves the BLOCKS column through `GameTeamDefenseBoard()` with no new query at all. So "may an overlay read the database directly?" remains worth deciding once, deliberately — for statistics, not for possession.
 
 ### 3.5 Operator-declared break chance — the bridge, not the destination
 
@@ -284,7 +284,7 @@ So build this because it works today, and prefer the possession log the moment i
 
 Auto-clear on score is the important one: without it the single most likely failure is a red tab left up through the next point, which is exactly the "asserting something untrue" problem the whole section is trying to avoid. Note the overlay can do this itself — it already sees the score change and already flashes HOLD/BREAK on it.
 
-**Latency makes this fit the architecture.** A break chance is worthless ten seconds late, so it cannot ride the 10–30s game-data poll. It belongs on the ~1s show-state channel (§6), which is precisely what that channel exists for. This is the clearest justification yet for the two independent polls.
+Latency makes this fit the architecture. A break chance is worthless ten seconds late, so it cannot ride the 10–30s game-data poll. It belongs on the ~1s show-state channel (§6), which is precisely what that channel exists for. This is the clearest justification yet for the two independent polls.
 
 **Graceful degradation, per §3.3.** The scoreboard renders whichever it has:
 
@@ -336,7 +336,7 @@ That makes a cross-team leaderboard actively misleading. "Top blockers" would ra
 
 Any optional statistic — blocks today, possession changes if they are ever added — needs a **declared capture policy**, not merely a display toggle. The organizer states what this event undertakes to record; consumers then distinguish *zero* from *not tracked*, which is the distinction every adaptive card in §3.3 depends on.
 
-**It should cascade, and per-game override is the important part.** Staffing is not uniform across a tournament: a Sunday final often has extra people available who can record blocks or possession, while Friday pool play on six fields simultaneously does not. A policy fixed for the whole event would have to be set to the *weakest* game, discarding good data from the showcase games that most want a broadcast overlay.
+It should cascade, and per-game override is the important part. Staffing is not uniform across a tournament: a Sunday final often has extra people available who can record blocks or possession, while Friday pool play on six fields simultaneously does not. A policy fixed for the whole event would have to be set to the *weakest* game, discarding good data from the showcase games that most want a broadcast overlay.
 
 ```
 event / series format   declares the baseline  ("we record blocks")
@@ -346,9 +346,9 @@ pool                    may narrow or widen it
 game                    may override           ("this final also records possession")
 ```
 
-**This is an existing UltiOrganizer pattern, not a new one.** Game rules already cascade exactly this way: `uo_pooltemplate` holds a reusable format, `uo_pool` carries the live values — `timeoutlen`, `halftime`, `winningscore`, `timecap`, `scorecap`, `timeouts`, `timeoutsper` — and `uo_game.halftime` already demonstrates a per-game override of a pool setting. The ask is to extend a shape the schema and the admin UI both already have, which makes it a much smaller request than inventing a capture-policy concept.
+This is an existing UltiOrganizer pattern, not a new one. Game rules already cascade exactly this way: `uo_pooltemplate` holds a reusable format, `uo_pool` carries the live values — `timeoutlen`, `halftime`, `winningscore`, `timecap`, `scorecap`, `timeouts`, `timeoutsper` — and `uo_game.halftime` already demonstrates a per-game override of a pool setting. The ask is to extend a shape the schema and the admin UI both already have, which makes it a much smaller request than inventing a capture-policy concept.
 
-**The same declaration should drive the Scorekeeper's input surface.** Everything above frames the policy for consumers — telling a card what a zero means — but it answers the scorekeeper's question too: which inputs this game's sheet shows. A pool-play game under a goals-only policy gets a leaner sheet with no block button to ignore; a final declared to record possession gets the extra controls, and the staffing to use them. That closes the loop that makes the declaration trustworthy in the first place: the sheet offers exactly what the event promised to capture, so the data does not quietly fall short of the policy because an input was buried among ones nobody was using.
+The same declaration should drive the Scorekeeper's input surface. Everything above frames the policy for consumers — telling a card what a zero means — but it answers the scorekeeper's question too: which inputs this game's sheet shows. A pool-play game under a goals-only policy gets a leaner sheet with no block button to ignore; a final declared to record possession gets the extra controls, and the staffing to use them. That closes the loop that makes the declaration trustworthy in the first place: the sheet offers exactly what the event promised to capture, so the data does not quietly fall short of the policy because an input was buried among ones nobody was using.
 
 Two properties worth specifying in the ask:
 
@@ -372,7 +372,7 @@ Every card carrying imagery must respect the arm/show lifecycle in §2.6.
 | show state | `conf/show.json`, static | ~1s (`?showpoll=` down to 250ms) | operator click to screen ≈ 0.9s |
 | game data | `?view=live/api&entity=games&id=` | follows `meta.expires_timestamp` | score to screen ≈ 3–45s, mean ~20s |
 
-**Serve show state as a static file, not through PHP.** The reason is not CPU. A routed request measures ~7ms against ~3ms for the static file, so 86,400 of them is about seven minutes of CPU a day — real but unremarkable. The actual problem is that `index.php:75` calls `LogPageLoad()`, which runs `UPDATE uo_pageload_counter SET loads = loads + 1` on every routed view (`lib/logging.functions.php:317`). A one-second routed poll would add 86,400 increments a day per stage and quietly destroy the admin page-load statistics. The show document is a plain JSON file written atomically by rename, so Apache serves it directly with no PHP, no session and no counter in the path. It is not secret; it says which graphic is on screen.
+Serve show state as a static file, not through PHP. The reason is not CPU. A routed request measures ~7ms against ~3ms for the static file, so 86,400 of them is about seven minutes of CPU a day — real but unremarkable. The actual problem is that `index.php:75` calls `LogPageLoad()`, which runs `UPDATE uo_pageload_counter SET loads = loads + 1` on every routed view (`lib/logging.functions.php:317`). A one-second routed poll would add 86,400 increments a day per stage and quietly destroy the admin page-load statistics. The show document is a plain JSON file written atomically by rename, so Apache serves it directly with no PHP, no session and no counter in the path. It is not secret; it says which graphic is on screen.
 
 ### Why not WebSockets
 
@@ -384,15 +384,15 @@ A WebSocket changes none of that. The data source is a lazily regenerated file c
 
 **What actually fixes score latency** is an overlay-side uncached endpoint that reads the score directly and is polled every second or two — roughly 150 lines, inside `live/overlays/`, adding nothing to the Live! zip. It does relax `PLAN.md` §6's no-direct-database rule, which is already flagged there as under review, and it is the same decision §3.4 raises for block statistics. Mean score-to-screen would go from ~15s of cache wait to about 1s.
 
-**Do not lower `CACHE_MINUTES_MODULATOR` instead.** Upstream documents it as "DO NOT LOWER BELOW 1.0" (`live/api/ConfigManager.php:642`) and it is global, scaling the public frontend's caching as well. Earlier revisions of this document and of `PLAN.md` recommended it; that was wrong. `ENABLE_CACHE_WARMER` does not help either — it regenerates payloads off the request path but does not shorten the advertised expiry the client obeys, and can increase observed staleness.
+Do not lower `CACHE_MINUTES_MODULATOR` instead. Upstream documents it as "DO NOT LOWER BELOW 1.0" (`live/api/ConfigManager.php:642`) and it is global, scaling the public frontend's caching as well. Earlier revisions of this document and of `PLAN.md` recommended it; that was wrong. `ENABLE_CACHE_WARMER` does not help either — it regenerates payloads off the request path but does not shorten the advertised expiry the client obeys, and can increase observed staleness.
 
 Extraction to Node would also break three things that currently come free: the admin session (`SeasonAccess::isLiveAdminAuthenticated()` reads a `$_SESSION` flag set by UO's `startSecureSession()`), same-origin framing (the stage mounts the scoreboard as an iframe of a `?view=` URL and fetches with `credentials: 'same-origin'`), and the unpublished-event 403 that `EnforcePrivateEventAccessForView()` applies before an overlay renders. Plus a second runtime to supervise on a venue laptop, operated by whoever is also running the camera.
 
 **When extraction would become right**, concretely: more than roughly 25 simultaneous stage clients on one machine; or a sub-100ms click-to-screen requirement, which the arm/show design in §2.6 deliberately removes; or the appearance of a genuine push source such as a possession log (§10.4), at which point polling is the wrong shape regardless of runtime. None hold for a club tournament, and stage count alone never triggers it.
 
-**A known inefficiency, unrelated to transport.** The stage runs its own game-data client *and* the framed scoreboard runs a second one against the same game, while `topplayers` issues two `entity=teams` fetches per payload. That is roughly four times the request rate this table implies. Still trivial at this scale, but it is the thing to fix before reaching for a new protocol.
+A known inefficiency, unrelated to transport. The stage runs its own game-data client *and* the framed scoreboard runs a second one against the same game, while `topplayers` issues two `entity=teams` fetches per payload. That is roughly four times the request rate this table implies. Still trivial at this scale, but it is the thing to fix before reaching for a new protocol.
 
-**The device question is separate and must be measured, not assumed.** Before building any of this, run `?view=live/overlays/tests/selftest` on the switcher and look at the program output, not at a laptop. It moves four things independently — a JS timer, an animation-frame counter, a pure-CSS animation and a network poll — so whichever are frozen identify which layer the device is not running, and those have completely different fixes. It is the first row of §11.
+The device question is separate and must be measured, not assumed. Before building any of this, run `?view=live/overlays/tests/selftest` on the switcher and look at the program output, not at a laptop. It moves four things independently — a JS timer, an animation-frame counter, a pure-CSS animation and a network poll — so whichever are frozen identify which layer the device is not running, and those have completely different fixes. It is the first row of §11.
 
 `?demo=1` on the scoreboard is the companion check: it walks every display state from a single fetch, with no polling and no server cache in the path, so a frozen demo indicts the device and a moving one clears it.
 
@@ -402,7 +402,7 @@ The elaborate cards — bracket, standings, spirit, team results — are exactly
 
 The cheap path is an `embed` card: an iframe pointed at an existing Live! view, scaled and cropped into a slot. That could get bracket, standings and spirit onto the stage for roughly the cost of the iframe plus some CSS.
 
-**Both of its preconditions are unverified**, which is why it is no longer an MVP card (§9):
+Both of its preconditions are unverified, which is why it is no longer an MVP card (§9):
 
 - Live! pages are built for a white page, not for compositing over video. They need a dark or transparent skin — which may mean a query parameter Live! does not have, and **`PLAN.md`'s constraint is that no file shipping in the Live! zip may be edited.** So the skin has to be applied from the overlay side (an injected stylesheet on a same-origin iframe) or not at all.
 - `SecurityHeaders.php` sends framing headers from `live/api.php`. `PLAN.md` records that those do not reach arbitrary views, which is what makes same-origin framing viable — but that was established for overlays, not for framing Live!'s own pages, so it needs re-checking for this specific use.
@@ -436,7 +436,7 @@ Smallest thing that proves the architecture rather than a piece of it. All six s
 | 6 | Auto mode — scoreboard only, no file needed | `Show::defaults()` | ✅ |
 | — | Write endpoint for the control UI | `show.php` | ✅ 403 unauthenticated, 409 on stale `rev` |
 
-**Two mount kinds, which was not in the original sketch.** The scoreboard is already a complete self-contained overlay, so the stage mounts it as an **iframe** rather than re-implementing it — that would have duplicated several hundred lines and given the two copies room to drift. `topplayers` is rendered **inline** by the stage from the payload it already polls. The card table in §2.2 says which kind each card is; `embed` (§7) will reuse the framed path.
+Two mount kinds, which was not in the original sketch. The scoreboard is already a complete self-contained overlay, so the stage mounts it as an **iframe** rather than re-implementing it — that would have duplicated several hundred lines and given the two copies room to drift. `topplayers` is rendered **inline** by the stage from the payload it already polls. The card table in §2.2 says which kind each card is; `embed` (§7) will reuse the framed path.
 
 **One ordering trap worth recording.** The show-state poll always wins the race against the first game payload, so an inline card cannot mount on the first pass. Re-render must therefore re-apply the *whole* show state when a payload arrives, not just refresh already-mounted slots — iterating the mounted set silently skips exactly the cards still waiting to appear. Framed cards tolerate the repeat because mounting short-circuits when the frame it would build is already there.
 
@@ -454,7 +454,7 @@ At a tournament one camera covers one field while the games on it turn over ever
 
 The join is not direct — `entity=games` carries a `reservation` and `entity=reference` carries `reservations[].fieldname` — but both are payloads the overlays already fetch, so it costs no new server work.
 
-**What it does when nothing is live matters more than the live case**, because that is where an overlay can quietly lie:
+What it does when nothing is live matters more than the live case, because that is where an overlay can quietly lie:
 
 | state of the field | what shows | why |
 |---|---|---|
@@ -484,7 +484,7 @@ Each card is offered only the moments that suit it. A last-goal card is about a 
 
 Fifteen seconds for a goal is long enough to read two names off a screen while still watching the game, short enough to be gone before the next pull.
 
-**Auto is a mode of being on air, not an alternative to it.** The card is still switched ON AIR, which is what reserves the slot and keeps the store's one-visible-per-slot rule meaningful; auto only decides whether an on-air card is currently painting. "On air" keeps meaning *this card owns this position*, and auto adds *and it speaks only when there is something to say*. Anything else would need the exclusivity rules rewritten so that a card flickering into view could displace a neighbour without an operator touching anything.
+Auto is a mode of being on air, not an alternative to it. The card is still switched ON AIR, which is what reserves the slot and keeps the store's one-visible-per-slot rule meaningful; auto only decides whether an on-air card is currently painting. "On air" keeps meaning *this card owns this position*, and auto adds *and it speaks only when there is something to say*. Anything else would need the exclusivity rules rewritten so that a card flickering into view could displace a neighbour without an operator touching anything.
 
 Three details that are not obvious:
 
@@ -500,7 +500,7 @@ Three details that are not obvious:
 
 They were always one card with a different heading and a slightly different stat line. Keeping them apart cost the operator three rows in the control page, three positions to set and three auto triggers to configure — for a graphic that can see the answer for itself. `hasstarted`, `isongoing` and the `half_cap` event already distinguish all four states.
 
-**"At the half" means the half has been called and nobody has scored since.** The half is a moment, not a phase: a card still headed "Half time" three points into the second half is simply wrong, so once a goal lands after the `half_cap` the same card becomes the running summary. That check is against the event's *time* against the goals' times — an earlier version compared goal counts and was always true whenever a half had been called at all.
+"At the half" means the half has been called and nobody has scored since. The half is a moment, not a phase: a card still headed "Half time" three points into the second half is simply wrong, so once a goal lands after the `half_cap` the same card becomes the running summary. That check is against the event's *time* against the goals' times — an earlier version compared goal counts and was always true whenever a half had been called at all.
 
 `params.when` overrides the inference. The case that needs it is showing full-time numbers during a break, which no rule can infer from a game still in play.
 
@@ -510,9 +510,9 @@ The old `pregame`, `halftime` and `postgame` ids remain as the same card pinned 
 
 The logo does not move. The stage refuses to place a card in the corner it occupies, and that is the whole rule — visible in the position picker as a blocked cell, and enforced in the store so a stale tab or a direct write cannot get a card underneath it.
 
-**It used to step out of the way instead, and that was worse in two ways.** A branding mark that repositions itself is not doing its job, and the avoidance was quietly broken for most of its life: it compared the logo's *viewport* rectangle against the scoreboard's *canvas* rectangle. `.stage-canvas` is CSS-transformed to fit the window, so an element inside it reports scaled pixels, while an element inside a card's iframe reports its own untransformed document's pixels. The two agree only in a window exactly 1920 CSS pixels wide. Everywhere else the collision went undetected and the logo sat on top of the bug — which is exactly what was reported from the field.
+It used to step out of the way instead, and that was worse in two ways. A branding mark that repositions itself is not doing its job, and the avoidance was quietly broken for most of its life: it compared the logo's *viewport* rectangle against the scoreboard's *canvas* rectangle. `.stage-canvas` is CSS-transformed to fit the window, so an element inside it reports scaled pixels, while an element inside a card's iframe reports its own untransformed document's pixels. The two agree only in a window exactly 1920 CSS pixels wide. Everywhere else the collision went undetected and the logo sat on top of the bug — which is exactly what was reported from the field.
 
-**Only the matching corner is blocked, not the whole edge**, and that took a deliberate trade. The scoreboard bug is `width: max-content` capped at 1520px, so at a *centre* position it leaves 200px each side in the worst case and 146px once the 54px title-safe inset is taken — narrower than the logo was. Blocking the centre too would have cost the two most useful scoreboard positions on whichever edge the logo sits. Instead the logo is capped to 146px wide so it can sit flush beside the widest bug there will ever be. It costs the logo about a quarter of its width and keeps every centre position available.
+Only the matching corner is blocked, not the whole edge, and that took a deliberate trade. The scoreboard bug is `width: max-content` capped at 1520px, so at a *centre* position it leaves 200px each side in the worst case and 146px once the 54px title-safe inset is taken — narrower than the logo was. Blocking the centre too would have cost the two most useful scoreboard positions on whichever edge the logo sits. Instead the logo is capped to 146px wide so it can sit flush beside the widest bug there will ever be. It costs the logo about a quarter of its width and keeps every centre position available.
 
 Sized for the worst case rather than the measured one, deliberately: the bug's width follows the team names, so a logo fitted to the game in front of it would be a different size every round.
 
@@ -559,13 +559,13 @@ All three are the same kind of thing: **facts about the game that UltiOrganizer 
 
 **The roster refreshes on its own**, which needed care: who is connected is not part of `rev`. A commentator merely polling does not write to the show's possession state, so the roster changes underneath an unchanged rev. Comparing rev alone meant the operator typed a code, saw "nobody connected", and went on seeing it after the desk had joined — the one question this panel exists to answer.
 
-**The roster names the desks rather than counting them.** "2 commentators connected" answers the wrong question — the operator needs to know whether the *right* desk is on the code. Each commentator page carries a name they type themselves; it is kept in their browser, sent with their poll, shown only to the operator, and gone as soon as they stop polling. It is not returned to other commentators: enumerating who else is on a code is nobody's business but the operator's.
+The roster names the desks rather than counting them. "2 commentators connected" answers the wrong question — the operator needs to know whether the *right* desk is on the code. Each commentator page carries a name they type themselves; it is kept in their browser, sent with their poll, shown only to the operator, and gone as soon as they stop polling. It is not returned to other commentators: enumerating who else is on a code is nobody's business but the operator's.
 
 ### 9.025 Injury stoppage
 
 Play stops for things the clock knows nothing about. A timeout is in `gameevents` and needs no help; an injury is recorded nowhere, so it is declared — the same shape of gap as possession, and handled the same way.
 
-**Keyed by score, so it ends itself at the next goal.** Nobody has to remember to clear it, and the failure that matters — a stoppage tab still on air two points later — cannot happen. It outranks a timeout when both are somehow live, because it is the more important thing to explain.
+Keyed by score, so it ends itself at the next goal. Nobody has to remember to clear it, and the failure that matters — a stoppage tab still on air two points later — cannot happen. It outranks a timeout when both are somehow live, because it is the more important thing to explain.
 
 It is shown **centred**, not over one team. A stoppage belongs to neither side, and every other callout on the bug is an attribution.
 
@@ -575,11 +575,11 @@ More than one person may press O and D at once, and that is safe by construction
 
 (A **Keys** button in the Studio's header opens the reference for these keys, mirrored on the commentator page — each key was obvious to whoever added it, and the person meeting all of them at once is an operator five minutes before a pull. The live keys are inert while the reference is open, so reading about O cannot press it.)
 
-**The log records the state of possession, not transitions**, and every reader counts *changes* rather than entries. So two commentators watching the same play and both pressing D produce D then D, which is not a change. Measured: one press, two presses and three presses all yield one turnover. The store drops the repeat on the way in as well, so the log stays the length of the game rather than the length of the audience.
+The log records the state of possession, not transitions, and every reader counts *changes* rather than entries. So two commentators watching the same play and both pressing D produce D then D, which is not a change. Measured: one press, two presses and three presses all yield one turnover. The store drops the repeat on the way in as well, so the log stays the length of the game rather than the length of the audience.
 
 That property is why the obvious worry does not apply. It would be easy to assume two trackers double-count every turnover and to design a handover — one desk locks the others out. That was built and then removed: it solved a problem that does not exist and cost the operator the ability to help.
 
-**What it does not survive is two people who disagree** — one pressing O while the other presses D. That flaps, and nothing technical fixes it, because both writes are real and both are asserting something. So the Studio shows how many commentators are on the code and says to agree who is calling it, rather than preventing it.
+What it does not survive is two people who disagree — one pressing O while the other presses D. That flaps, and nothing technical fixes it, because both writes are real and both are asserting something. So the Studio shows how many commentators are on the code and says to agree who is calling it, rather than preventing it.
 
 **Writes are serialised** with an exclusive lock held across the read-modify-write. Without it, twelve concurrent writes landed five events and lost seven — the temp-file-and-rename the stores use gives *readers* atomicity, and nothing else: each writer holds `LOCK_EX` on its own private temp file, which no other process ever opens. That is true of all four stores; possession is the one with two intended writers, so it is the one that has been fixed.
 
@@ -595,15 +595,15 @@ The grid is as wide as the winning score and as tall as the losing one, so it ch
 
 That input is needed because **nothing records the first point's ratio** — it is circled by hand on the paper scoresheet and never sent back. The A-B-B-A pattern itself is derivable from the point number (`COMMENTATOR.md` §6b); which actual ratio "A" is, is not. So the card omits the dimension entirely until somebody says, rather than tinting with invented labels.
 
-**It is stored with the game, not with the card.** It began as a card parameter, which was wrong: it is a fact about the game, so the commentator panel and this graphic each had their own copy and could disagree on air. It now lives in the possession store beside the other collected fact of the same kind, and either the operator or a commentator holding the room code can set it — the commentary desk is the one with the scoresheet in front of them. The control sits in the possession bar of the Studio and appears only for a mixed division.
+It is stored with the game, not with the card. It began as a card parameter, which was wrong: it is a fact about the game, so the commentator panel and this graphic each had their own copy and could disagree on air. It now lives in the possession store beside the other collected fact of the same kind, and either the operator or a commentator holding the room code can set it — the commentary desk is the one with the scoresheet in front of them. The control sits in the possession bar of the Studio and appears only for a mixed division.
 
-**The ratio is carried by dash pattern, and only reinforced by colour.** The first attempt used a light blue against a dark navy on the theory that separating by lightness was enough. Measured, that was wrong twice over: the navy came out at **1.86:1** against the card background — an invisible line, for everyone — and fell to 1.47:1 under a deuteranope simulation. Every light-on-dark pair tried had the same shape of problem, because making both visible against a dark card makes them equally luminous, leaving hue as the only difference and hue is exactly what cannot be relied on. So one ratio is solid and the other dashed, which survives colour blindness, greyscale and print, and both strokes are then free to be bright: 11.53:1 and 11.51:1 against the card, holding above 6.5:1 under every simulation. The legend swatch repeats the dash too — the legend is where a reader goes *because* they could not tell the lines apart, so it is the last place the non-colour channel should be missing.
+The ratio is carried by dash pattern, and only reinforced by colour. The first attempt used a light blue against a dark navy on the theory that separating by lightness was enough. Measured, that was wrong twice over: the navy came out at **1.86:1** against the card background — an invisible line, for everyone — and fell to 1.47:1 under a deuteranope simulation. Every light-on-dark pair tried had the same shape of problem, because making both visible against a dark card makes them equally luminous, leaving hue as the only difference and hue is exactly what cannot be relied on. So one ratio is solid and the other dashed, which survives colour blindness, greyscale and print, and both strokes are then free to be bright: 11.53:1 and 11.51:1 against the card, holding above 6.5:1 under every simulation. The legend swatch repeats the dash too — the legend is where a reader goes *because* they could not tell the lines apart, so it is the last place the non-colour channel should be missing.
 
 ### 9.15 Break-chance conversion on the summary cards
 
 The half-time and full-time cards show `2 of 3 brk` rather than a bare break count, wherever the possession log has anything to say. "Two breaks" reports what happened; "two from three chances" says how the game is going, and it is the number a commentator reaches for.
 
-**The denominator travels with it, always.** The card's footer carries `possession tracked for 5 of 15 points` whenever the log covers less than the whole game. A conversion rate over five tracked points reads identically to one over a full game without that line, and the two are completely different claims. A card that omits it is asserting the stronger one.
+The denominator travels with it, always. The card's footer carries `possession tracked for 5 of 15 points` whenever the log covers less than the whole game. A conversion rate over five tracked points reads identically to one over a full game without that line, and the two are completely different claims. A card that omits it is asserting the stronger one.
 
 With nothing tracked the card shows breaks and stops. It does not print `0 of 0`, which reads as "no chances taken" rather than "nobody was watching" — the same absent-is-not-zero rule §4 states for blocks.
 
@@ -624,9 +624,9 @@ Both live in the bar under the card list, and both exist because the per-card sw
 
 Each shows both sides with crest, seed and record, the score once there is one, and breaks per team. Breaks rather than holds, for the reason in §3.2 — every point is one or the other, so they sum to the score and holds carry no information breaks do not. They come from `classifyPoints()`, the same function the scoreboard uses, so the two can never disagree about what a break was, and `unresolved` is shown whenever it is non-zero rather than quietly counted as a hold.
 
-**Card order on the control page is the store's `CARDS` order, and that is load-bearing.** The scoreboard and the strips that ride with it share the frame and need positioning relative to each other, so they are grouped at the top where an operator coordinating positions is looking. Everything that takes the middle of the frame or the whole of it sits below, because it has nothing to coordinate with. Reshuffling that list for tidiness would undo the grouping.
+Card order on the control page is the store's `CARDS` order, and that is load-bearing. The scoreboard and the strips that ride with it share the frame and need positioning relative to each other, so they are grouped at the top where an operator coordinating positions is looking. Everything that takes the middle of the frame or the whole of it sits below, because it has nothing to coordinate with. Reshuffling that list for tidiness would undo the grouping.
 
-**What the deleted pre-game stub wanted, and this does not do yet.** `statistics/pregame.php` sat in the tree for months as a 501 returning stub with four hundred lines of markup below the `return`, kept as "the starting point for the Phase 2 port". The port happened by a different route — these cards — so the stub is gone, but it asked for four things the summary cards do not show, and they are worth keeping on the list:
+What the deleted pre-game stub wanted, and this does not do yet. `statistics/pregame.php` sat in the tree for months as a 501 returning stub with four hundred lines of markup below the `return`, kept as "the starting point for the Phase 2 port". The port happened by a different route — these cards — so the stub is gone, but it asked for four things the summary cards do not show, and they are worth keeping on the list:
 
 | wanted | reachable today? |
 |---|---|
@@ -635,7 +635,7 @@ Each shows both sides with crest, seed and record, the score once there is one, 
 | Breaks converted, as *n* of *m* | no — the denominator is break chances, which needs possession (§3.4) |
 | Spirit scores, per category, both teams | yes, `entity=spirit`, subject to the visibility rules |
 
-**And whenever any of them lands, the denominator has to travel with the number.** A possession-derived figure is only as good as the points somebody was actually tracking: "two breaks from three chances" built on four tracked points out of fourteen is not a statistic, it is a guess with a denominator attached. A card showing such a number has to be able to say how much of the game it covers, or it should not show it — which is the same rule §4 states for blocks, arrived at from the other direction.
+And whenever any of them lands, the denominator has to travel with the number. A possession-derived figure is only as good as the points somebody was actually tracking: "two breaks from three chances" built on four tracked points out of fourteen is not a statistic, it is a guess with a denominator attached. A card showing such a number has to be able to say how much of the game it covers, or it should not show it — which is the same rule §4 states for blocks, arrived at from the other direction.
 
 The first two are small additions to the existing card. The third is blocked on the same missing data as everything else about possession. The fourth is a card of its own, and putting spirit numbers on air deserves its own decision rather than arriving as a row in a stats block.
 
@@ -645,7 +645,7 @@ The first two are small additions to the existing card. The third is blocked on 
 
 The scoreboard fetches its payload once, renders a single frame of the state it was handed, and stops — no polling, no timers, nothing that makes two runs differ. This is what lets a game recorded without a switcher get the same overlay added afterwards, frame by frame.
 
-**It is deliberately dumb, and that is the design.** It does not work out which goals have happened by the time given. In post-production that question is not the overlay's to answer: a recording is aligned to the game by anchors an operator supplies, and plenty of tournaments record no goal times at all (`hide_time_on_scoresheet`, §3.1). Keeping the alignment entirely outside means the overlay renders identically whether the answer came from UltiOrganizer's timestamps or from somebody scrubbing a video — and there is exactly one renderer, so a post-produced overlay cannot drift from the live one.
+It is deliberately dumb, and that is the design. It does not work out which goals have happened by the time given. In post-production that question is not the overlay's to answer: a recording is aligned to the game by anchors an operator supplies, and plenty of tournaments record no goal times at all (`hide_time_on_scoresheet`, §3.1). Keeping the alignment entirely outside means the overlay renders identically whether the answer came from UltiOrganizer's timestamps or from somebody scrubbing a video — and there is exactly one renderer, so a post-produced overlay cannot drift from the live one.
 
 The whole mode is "hand `render()` a truncated payload". One trap found by measuring rather than reading: `render()` recomputes a server skew from `meta.generated_timestamp`, so a three-second-stale cache made `at=600` draw 9:57. Offline there is no "now" to be skewed against, so that field is stripped.
 
@@ -716,7 +716,7 @@ But it does not have to be the scorekeeper. **The broadcast operator is already 
 - It burdens nobody new — the operator is engaged with the game continuously.
 - It is *overlay-local* data, not an official record, so a missed press degrades a graphic rather than corrupting a result. The accuracy bar is far lower than the scoresheet's.
 
-**Collected-but-discarded is the failure mode to avoid.** A spotter tracking the disc for a whole game produces something genuinely valuable — every turnover, every possession, arguably touches per player. If that lives only in a `conf/` file that the next tournament overwrites, the effort is spent once and thrown away, and every event re-collects from scratch. That is a poor trade for a person's full attention across a game.
+Collected-but-discarded is the failure mode to avoid. A spotter tracking the disc for a whole game produces something genuinely valuable — every turnover, every possession, arguably touches per player. If that lives only in a `conf/` file that the next tournament overwrites, the effort is spent once and thrown away, and every event re-collects from scratch. That is a poor trade for a person's full attention across a game.
 
 So persistence is part of the ask, at three levels:
 
@@ -730,7 +730,7 @@ The third is the point. Overlay-local capture proves the workflow is feasible an
 
 One caveat that comes with persistence: a stored per-player possession stream is data about identifiable players, so once it is kept rather than discarded it falls under the same privacy handling as the rest of the player record (`COMMENTATOR.md` §5) — export, anonymisation, deletion — and should carry the capture-policy declaration from §4.
 
-**But the operator route is a bridge, not the answer.** Their attention is not spare capacity — directing a multi-card broadcast is the job, and possession capture competes with it hardest during exactly the games that most deserve good graphics. Keeping stats collection with the scorekeeper and leaving the operator free to decide what to show is the better division of labour, and it is why this remains a genuine upstream request rather than something the Studio quietly absorbs.
+But the operator route is a bridge, not the answer. Their attention is not spare capacity — directing a multi-card broadcast is the job, and possession capture competes with it hardest during exactly the games that most deserve good graphics. Keeping stats collection with the scorekeeper and leaving the operator free to decide what to show is the better division of labour, and it is why this remains a genuine upstream request rather than something the Studio quietly absorbs.
 
 Scorekeeper-captured possession is also better on every axis except build cost: it exists for every game rather than only broadcast ones, it persists into `uo_player_stats` and season stats, it is authoritative, and it serves consumers that have nothing to do with overlays.
 
@@ -741,7 +741,7 @@ Two further considerations:
 - A turnover count is a *negative* stat about a named, identifiable amateur athlete on a public graphic. That deserves a deliberate decision rather than shipping because the field exists.
 - **Whichever level is built needs a capture policy (§4) from the start.** Blocks are the cautionary example: the data has existed for years, but because nothing declares whether a given event records it, a zero cannot be distinguished from an absence and the stat cannot safely be aggregated. Repeating that with possession would waste the whole feature.
 
-**Not built, and deliberately so: an export of the possession log.** The log the Studio keeps is a genuinely interesting dataset — it is the only record anywhere of when the disc changed hands — and there are real uses for it beyond a live tab: adding accurate break-chance graphics to a recording in post-production, and analysis that has nothing to do with broadcast at all. A JSON export would take an afternoon.
+Not built, and deliberately so: an export of the possession log. The log the Studio keeps is a genuinely interesting dataset — it is the only record anywhere of when the disc changed hands — and there are real uses for it beyond a live tab: adding accurate break-chance graphics to a recording in post-production, and analysis that has nothing to do with broadcast at all. A JSON export would take an afternoon.
 
 The reason to resist it is that an export would make the wrong home permanent. Once people build against a file the overlays emit, that file becomes the interface, and the case for putting possession where it belongs — in UltiOrganizer, captured by the scorekeeper, persisted alongside every other game fact — gets quietly weaker every time someone works around its absence. The log here is scoped to a broadcast, ephemeral by design, and authoritative for nothing; an export would invite it to be treated as none of those things.
 
@@ -778,7 +778,7 @@ Deriving matching from it would be both a category error and unreliable.
 
 **A desk-local bridge is built**, in the commentator page's notes store: a `matching` field supplied through the bio round trip or typed at the desk, validated to exactly `FMP`/`MMP`, shown on the roster and the line picker in mixed divisions only (`COMMENTATOR.md` §5a). It is desk-side and per-tournament — the on-air cards still read `player.matching` from the payload and still wait on this ask, and the bridge does not change that: team-supplied designations on a commentator's private screen are one thing, a broadcast graphic asserting them is the upstream feature's job.
 
-**And apply the pronouns caution (`COMMENTATOR.md` §5) to publication.** A roster matching is a competition fact rather than a statement about identity, which is why collecting it is legitimate where inferring pronouns is not — but it is adjacent enough that it should be published deliberately rather than by default.
+And apply the pronouns caution (`COMMENTATOR.md` §5) to publication. A roster matching is a competition fact rather than a statement about identity, which is why collecting it is legitimate where inferring pronouns is not — but it is adjacent enough that it should be published deliberately rather than by default.
 
 ### 10.6 Feature request: a per-tournament logo
 
@@ -786,7 +786,7 @@ Deriving matching from it would be both a category error and unreliable.
 
 **What exists.** Live! has three logo paths, all in `local-config.json` and all **installation-wide**: `HOME_LOGO_PATH` (a home-page mark), `SOCIAL_SHARE_LOGO_PATH` (a 1200×630 share card), and `TV_SCREEN_LOGO_PATH` — described upstream as the logo for a TV screen header, already a wide banner at 336×102, and already served through `entity=config`. That last one is what the stage uses today, and it is a good fit for the shape. **UltiOrganizer core has no logo at all**: `uo_season` carries no logo, image or banner column.
 
-**Why installation-wide is not quite right.** One UO installation can host several tournaments, and they do not share branding. It works today only because a Live! deployment is pointed at a single event by `LIVE_SEASON_ID`, so "the installation's logo" and "this tournament's logo" happen to coincide. An installation serving more than one event has no way to differ.
+Why installation-wide is not quite right. One UO installation can host several tournaments, and they do not share branding. It works today only because a Live! deployment is pointed at a single event by `LIVE_SEASON_ID`, so "the installation's logo" and "this tournament's logo" happen to coincide. An installation serving more than one event has no way to differ.
 
 **Decision: one logo, not two.** A tournament mark and its governing federation's mark are both wanted, and showing both eats width that a 1920-wide frame does not have spare — the corner is already shared with a scoreboard or a stat card. So the overlay displays exactly one image, and an event that needs a combination supplies a **combined image made to fit the normal space**, prepared once for that tournament. That keeps the layout predictable and puts the design decision with whoever owns the branding, rather than having the overlay attempt a lockup at runtime and get the proportions wrong.
 

@@ -1334,6 +1334,72 @@ test.describe('the scorekeeper on a phone', () => {
   });
 });
 
+test.describe('the point that decides it', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('universe point, and galaxy point at the half', async ({ page, browser }) => {
+    // Driven through the score store because that is the only way to reach
+    // 14-14: the captured payloads are the games that were played, and no
+    // fixture sits on a decider. The derivation itself is proved in
+    // `target.spec.js`; what this adds is that the board actually paints it,
+    // over the cap and status text that share that line.
+    test.setTimeout(90000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    const post = (d) => page.request.post('/app.php?view=score', { data: d });
+
+    // Game 703's pool is game to 15 with NO halftimescore, which is the common
+    // state of a real installation — so the 8 that makes 7-7 a decider is
+    // derived, and this is the case that proves the derivation reaches air.
+    await post({ game: 703, code: 'ABCDE' });
+    await post({ game: 703, enabled: true });
+
+    const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const s = await board.newPage();
+    try {
+      await s.goto(`${base}/app.php?view=scoreboard&game=703`);
+      await expect(s.locator('#homeScore')).toHaveText('0', { timeout: 5000 });
+      // A running clock, so this is the branch a broadcast is actually in.
+      await post({ game: 703, code: 'ABCDE', clock: 'start' });
+
+      /** Level at n-n, by the point number each goal completes. */
+      const levelAt = async (n) => {
+        for (let num = 1; num <= n * 2; num += 1) {
+          await post({ game: 703, code: 'ABCDE', goal: { home: num % 2 === 1, num } });
+        }
+        await expect(s.locator('#homeScore')).toHaveText(String(n), { timeout: 5000 });
+      };
+
+      await levelAt(6);
+      await expect(s.locator('#segment'), 'not a decider yet').toHaveText('Live');
+
+      await levelAt(7);
+      await expect(s.locator('#segment')).toHaveText('Galaxy point');
+      await s.locator('#scoreboard').screenshot({ path: '/tmp/claude-501/-Users-lsmith-htdocs-ultiorganizer/d9f16d17-9dcb-4c7a-9720-61de04defe4e/scratchpad/galaxy.png' });
+      await expect(s.locator('#centre')).toHaveClass(/decider/);
+
+      await levelAt(14);
+      await expect(s.locator('#segment')).toHaveText('Universe point');
+      await s.locator('#scoreboard').screenshot({ path: '/tmp/claude-501/-Users-lsmith-htdocs-ultiorganizer/d9f16d17-9dcb-4c7a-9720-61de04defe4e/scratchpad/universe.png' });
+
+      // Measured, not eyeballed: it is the longest string this line ever
+      // carries, and a clipped one reads as "UNIVERSE POIN".
+      const fit = await s.locator('#segment').evaluate((n) => ({
+        scroll: n.scrollWidth, client: n.clientWidth
+      }));
+      expect(fit.scroll, 'the badge is not clipped').toBeLessThanOrEqual(fit.client + 1);
+    } finally {
+      // Restore in a finally, not after the assertions: a failure here would
+      // otherwise leave a made-up score on air for every test that follows.
+      await post({ game: 703, enabled: false });
+      await board.close();
+    }
+  });
+});
+
 test.describe('admin gating without Live!', () => {
   test('this really is a hostless tree', async ({ request }) => {
     // The assertion that gives the rest of this block its meaning. If an

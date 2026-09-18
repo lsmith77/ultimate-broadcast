@@ -156,7 +156,7 @@ The constraint above says per field, but the unit is really a rig, and a rig oft
 
 **One organisation, several rigs.** The DFV has one rig, shipped between events, so it covers one tournament at a time however many fields each has. A cheaper, easier-to-maintain rig is not a saving on that rig; it is permission to have three. Three rigs cover three weekends' events at once, which reaches [§1a](#1a-the-goal-and-the-two-constraints)'s goal along an axis unrelated to field count.
 
-**DIY, attached to no association at all.** Somebody filming their own club's games, or a supporter with a camera at a tournament nobody is covering. This shape behaves unlike the other three and is worth stating separately.
+**DIY, attached to no association at all.** Somebody filming their own club's games, or a supporter with a camera at a tournament nobody is covering. This shape behaves unlike the other three.
 
 Its value depends on whether the event runs UltiOrganizer, not on whether the filmer belongs to anything. Where the event does, a DIY filmer reads the public API and gets an accurate scoreboard with no permission and no coordination. Where it does not, [`MATCHCONTROL.md`](MATCHCONTROL.md) keeps the score in this project's own store, on a phone at `/k/<game>` with an offline outbox, and the overlays read that. Either way the score is entered once and drives the graphics. [`STANDALONE.md`](STANDALONE.md) and [`DEPLOY.md`](DEPLOY.md) are what make the second case work.
 
@@ -201,11 +201,11 @@ Two things follow from reading it this way.
 
 The bottom two rungs are nearly free, because they are what this project already is. A skilled OBS operator needs the overlay pages and a local hub; the pages exist and the hub is §12's phase 1. So this is not three products to build — it is one to build and two to document, and the documentation is worth writing regardless of whether the appliance ever ships.
 
-And the uncomfortable one: the hardest engineering here serves the crews least able to debug it. The appliance carries every risk in this document and is aimed at exactly the people who cannot work around it when it misbehaves at a field. That is the point of it — and it is also why its reliability bar is higher than a system for experts, not lower, and why §12 is ordered to deliver the easy rungs first.
+The hardest engineering here serves the crews least able to debug it. The appliance carries every risk in this document and is aimed at the people who cannot work around it when it misbehaves at a field. That raises its reliability bar above a system built for experts rather than lowering it, and it is why §12 delivers the easy rungs first.
 
 ### 1b. Two working rigs
 
-Everything above is reasoning. These are rigs that actually run, and they are worth more than another argument because they show which of these problems people solve and which they route around. **They sit at opposite ends of §1a's two constraints**, which is what makes the pair more useful than either alone.
+Everything above is reasoning. These two rigs actually run, and they show which of these problems people solve and which they route around. They sit at opposite ends of §1a's two constraints, which is why the pair is more useful than either alone.
 
 | role | **A — the DFV reference build** | **B — a one-person rig** |
 |---|---|---|
@@ -341,7 +341,7 @@ The useful way to spend, given money is counted per field, is **not a shopping l
 
 #### Where the dials are not independent
 
-Three couplings, worth knowing because they are where a tournament gets surprised:
+Three couplings, which are where a tournament gets surprised:
 
 - **More than one camera means a switcher**, which makes the box a graphics source ([§3b](#3b-the-graphics-source-the-box-out-of-the-video-path)) rather than the all-in-one. That is the largest coupling in the grid.
 - **Replay needs the video**, so it lives wherever the video is — the box, or a laptop running OBS.
@@ -381,7 +381,7 @@ There is a fifth, smaller one. The known open risk in `AGENTS.md` — diagnostic
 
 ## 3. Compared with a Director Mini
 
-A Director Mini is a switcher, an audio mixer, a battery and a touchscreen, with a browser source attached. This proposal replaces the browser source — so the question is what happens to everything else it bundles. Written as a status rather than a list of losses, because most of it turned out to be recoverable and the totals are the useful part.
+A Director Mini is a switcher, an audio mixer, a battery and a touchscreen, with a browser source attached. This proposal replaces the browser source, so the question is what happens to everything else it bundles. Most of it is recoverable, so the table below gives a status per capability rather than a list of losses.
 
 | capability | status here | where |
 |---|---|---|
@@ -405,7 +405,7 @@ Which is the third time the same shape has appeared, and it is [§1a](#1a-the-go
 
 So the honest framing is not *a cheaper Director Mini*. It is: **for a one-camera field this removes the need for one entirely, and for a multi-camera field it makes the switcher cheaper to live with.** What it does not do is pretend to be a switcher — and that is a choice about where the money and the people go, restated in [§1d](#1d-a-grid-of-independent-dials-not-a-ladder) as a dial a tournament turns rather than a wall it hits.
 
-Audio is the one worth reading further on, because it looks like the biggest gap and is not. [`COMMENTATOR.md`](COMMENTATOR.md) is an entire document about the people talking over this footage, so a box that composites beautifully and drops the commentary mics has replaced nothing — but §3a gets there for about €70 and a purchase rather than a pipeline.
+Audio looks like the biggest gap and is not. [`COMMENTATOR.md`](COMMENTATOR.md) is an entire document about the people talking over this footage, so a box that composites well but drops the commentary mics has replaced nothing. §3a solves it for about €70, with a purchase rather than a pipeline.
 
 ### 3a. Audio
 
@@ -431,7 +431,7 @@ That is the cheapest correct answer in the whole section, and it costs a purchas
 
 ### 3b. The graphics source: the box out of the video path
 
-§3 concedes replay, multi-camera cutting and audio to the switcher. There is a version of this idea that stops competing with the switcher and feeds it instead, and it is worth stating as a peer of the all-in-one rather than as a footnote — because it is cheaper, far more reliable, and shares nearly all of the same software. It is the **middle rung of §1a's ladder**: for a crew that has a switcher and somebody who can run it.
+§3 concedes replay, multi-camera cutting and audio to the switcher. There is a version of this idea that feeds the switcher instead of competing with it. It is cheaper, more reliable, and shares nearly all the same software, which is why it is a peer of the all-in-one rather than a footnote. It is the middle rung of §1a's ladder: for a crew that has a switcher and somebody who can run it.
 
 And it is not speculative. §1b's rig A already runs this topology — a laptop's HDMI output feeding an ATEM as a keyed graphics layer, with the switcher cutting two cameras and streaming. What follows is therefore a cost reduction of something proven, not a design being proposed for the first time, which is the best position any section of this document is in.
 
@@ -510,7 +510,7 @@ The operational point matters more than the bandwidth arithmetic: **a €30 dong
 
 §4b calls network input the easier half to *build*. That undersells it: **it is also the better thing to deploy**, and the reason has nothing to do with software.
 
-HDMI does not travel far on passive cable — about 5m — but optical HDMI does, and §1b's rig A uses exactly that from camera monitors back to base. So this is a real choice rather than a dead end, and the trade is worth stating properly: optical HDMI keeps the picture uncompressed with no encode-decode hop and no generation loss, which is the one thing network transport cannot offer. It costs more per run, the cable is directional and fragile, and it carries no power.
+HDMI does not travel far on passive cable — about 5m — but optical HDMI does, and §1b's rig A uses exactly that from camera monitors back to base. So this is a real choice rather than a dead end. Optical HDMI keeps the picture uncompressed, with no encode-decode hop and no generation loss, which is the one thing network transport cannot offer. It costs more per run, the cable is directional and fragile, and it carries no power.
 
 Ethernet goes 100m on €15 of Cat6 that venues already run and people already expect on the ground, and a 20m HDMI run of any kind is heavier and more of a trip hazard across the route everybody walks.
 
@@ -542,7 +542,7 @@ Three consequences:
 
 The cameras available change the design more than the board does, and two facts about the ones already owned matter.
 
-Automated camera operation is a solved commodity, not something to build. XbotGo-class devices do AI framing cheaply; a Pix4Team-class robot physically pans a real camcorder and follows the action. This retires §5e's auto-framing idea completely — the one AI use case in this document that looked genuinely transformative turns out to be purchasable for less than the accelerator that would have been needed to attempt it, and better.
+Automated camera operation is a solved commodity, not something to build. XbotGo-class devices do AI framing cheaply; a Pix4Team-class robot physically pans a real camcorder and follows the action. This retires §5e's auto-framing idea. The one AI use case here that looked transformative can be bought for less than the accelerator needed to attempt it, and works better.
 
 More importantly, these devices serve §1a's thesis directly rather than merely being convenient. [`MATCHCONTROL.md`](MATCHCONTROL.md)'s finding is that no crew size has anybody spare; an automated camera removes the camera operator from the crew. That is the same win the appliance is chasing, bought rather than built. A softer picture that frames itself beats a sharp static wide shot nobody is watching, and that trade should be made deliberately rather than apologised for.
 
@@ -581,7 +581,7 @@ Commentators watching the field would describe play several seconds before viewe
 
 Automatic replay is the part that gets easier. [§6c](#6c-replay-and-the-data-advantage) locates a goal by timestamp rather than by reflex, and a delay is just an offset the box can subtract — provided footage is stamped with event time rather than arrival time, which is a thing to get right once. **On a delayed source the machine is better placed than the operator**, which is the reverse of everywhere else in this document.
 
-Two costs to weigh against never missing the action. There is no zoom, so the crop is only as good as the sensor behind it — a stitched pair leaves room, a cheap single camera less. And **20 fps on the budget Reolink option fits neither regional family** in [§6e](#6e-ntsc-regions): converting it to 25 or 30 judders, and [§6d](#6d-replay-needs-the-frame-rate-at-capture-not-on-the-wire)'s slow motion is not worth having from a 20 fps source. **The GoPro pair is the version of this tier that survives contact with the rest of the document.**
+Two costs to weigh against never missing the action. There is no zoom, so the crop is only as good as the sensor behind it — a stitched pair leaves room, a cheap single camera less. And **20 fps on the budget Reolink option fits neither regional family** in [§6e](#6e-ntsc-regions): converting it to 25 or 30 judders, and [§6d](#6d-replay-needs-the-frame-rate-at-capture-not-on-the-wire)'s slow motion is not worth having from a 20 fps source. The GoPro pair is the only version of this tier compatible with the rest of this document.
 
 And the processing is local, which changes what this tier costs. Published requirements: **Windows, macOS or Linux, with an NVIDIA RTX-series GPU recommended** — or **Apple Silicon, where the Neural Engine is claimed to be up to ten times faster** than what it replaced. Source resolution guidance is 2K minimum, 4K for performance, 8K for quality, which follows from cropping a wide shot: **the crop is only ever as good as the sensor behind it.** Minimum CPU and RAM are not published.
 
@@ -724,7 +724,7 @@ Where the cheap automated cameras are the source, the appliance is not merely th
 
 ## 5. Choosing the board
 
-This is the one place where the intuition inverts, so it is worth stating as a finding rather than a preference.
+This is the one place where the obvious answer is wrong.
 
 The Raspberry Pi 5 removed the H.264 hardware encoder, and the H.264 hardware decoder with it — not an aberration but part of a pattern [§5c](#5c-the-sbc-market-is-moving-away-from-this) sets out. It keeps HEVC decode; H.264 in both directions is software on the A76 cores. The Pi 4 has both in hardware.
 
@@ -758,7 +758,7 @@ The Pi 4's hardware encoder has none of these properties. It is a corner of the 
 
 **It is not a different Pi.** If the frame rate in §6 is ever mandatory, the answer is a board with a real encoder — RK3588 (Orange Pi 5, Radxa Rock 5, around €100) does H.264 and H.265 in hardware far beyond 1080p60, with better I/O as well.
 
-The reason this is worth knowing now is that **it costs nothing to keep the option open.** Nothing in the software plan is Pi-specific: GStreamer, V4L2 M2M encoding, WPE, PHP and a systemd unit all move to another ARM board largely unchanged. Choosing the Pi 4 today is therefore not a decision that has to be right — which is the best thing that can be said about any hardware choice made this early.
+Keeping this option open costs nothing. No part of the software plan is Pi-specific: GStreamer, V4L2 M2M encoding, WPE, PHP and a systemd unit all move to another ARM board largely unchanged. So choosing the Pi 4 now is a reversible decision.
 
 But the exit costs much more than €100, and the reason is §9 rather than the port. The maintenance plan in §9 works because Raspberry Pi OS exists: a real Debian derivative with a security team, one hardware target, and a decade of availability, which is what allows this project to own a package instead of an operating system.
 
@@ -770,7 +770,7 @@ A vendor BSP kernel is exactly the obligation §9 exists to refuse. So the hones
 
 Worth stating because it explains why the board question keeps coming out badly. **Single-board computing's energy is going into NPUs, and hardware video encoding has quietly regressed.** The Pi 5 dropped H.264 encode and decode (§5). NVIDIA's Jetson Orin Nano dropped the NVENC block its predecessor had. RK3588 has a good encoder that mainline Linux still cannot drive (§5b). Meanwhile TOPS figures climb on every product page.
 
-So the intuition that "newer board, more capable" fails here specifically, and §5e explains why the accelerators filling that space do not help either. **The capability this project needs peaked a generation ago on ARM SBCs** — which is the whole reason a five-year-old Pi 4 beats its successor at this one job.
+So "newer board, more capable" fails here, and §5e explains why the accelerators filling that space do not help either. The capability this project needs peaked a generation ago on ARM SBCs, which is why a five-year-old Pi 4 beats its successor at this job.
 
 It has not regressed everywhere, though. It has been sitting on x86 the entire time, cheaply, and nobody advertises it.
 
@@ -830,7 +830,7 @@ Rung 1 is where x86 earns its place, and less decisively than §5d implies. The 
 
 And every case where the Pi loses is one this document has already declined on other grounds. 50p — wanted for slow motion, which §6b shows comes from a laptop's replay buffer rather than from this box's frame rate. Replay *on the box* — blocked by operators and control surfaces, not silicon (§6a). OBS resident on the appliance — set aside by the thesis (§1a). The Pi's weakness is real and it sits entirely inside territory already ruled out.
 
-The honest reason to keep x86 in view is a different one, and it is §13's first line. If phase 2 or 3 finds `wpevideosrc` marginal on VideoCore, Intel's `i915` and Mesa are a far better-supported target for WPE. So x86 is the **recovery path** at least as much as the upgrade — worth knowing about before the day it is needed, which is the only reason §5d is written at the length it is.
+The honest reason to keep x86 in view is a different one, and it is §13's first line. If phase 2 or 3 finds `wpevideosrc` marginal on VideoCore, Intel's `i915` and Mesa are a far better-supported target for WPE. So x86 is the recovery path as much as the upgrade, which is why §5d covers it at length before it is needed.
 
 Nothing already on the desk is wasted under any of these outcomes. Phases 1 and 2 are entirely Pi work, and they are the phases most likely to reach a tournament.
 
@@ -910,7 +910,7 @@ One asymmetry worth carrying into §7 whatever the answer: **the video wants the
 
 Not impossible. `splitmuxsink` keeping a rolling buffer of the last minute on the SSD, and a "replay the last point" control in the Studio, is a recognisable design.
 
-Four reasons it stays out of scope on a Pi 4 — and **§5d's hardware removes the first two entirely**, which is worth knowing precisely because it means the remaining reasons are the real ones.
+Four reasons it stays out of scope on a Pi 4. §5d's hardware removes the first two, which leaves the last two as the real obstacles.
 
 **On a Pi 4:** it cannot encode two things at once, so a replay would have to **cut the program** rather than sit in a corner — §8's destructive-change hazard aimed at the most exciting thirty seconds of the game. And re-entering a live stream after a source switch means a discontinuity platforms handle unevenly.
 
@@ -937,7 +937,7 @@ What it costs varies by nearly two orders of magnitude:
 | switcher-native replay | the switcher | depends on the tap point (§3c) |
 | a free iPad app on its own camera | €50 | **ruled out** — see below |
 
-The free tier does not survive contact with this sport, and the reason is optics rather than software. Those apps buffer the tablet's *own* camera, and an iPad has a fixed wide lens with no optical zoom. An Ultimate field is 100m end to end and 37m wide; framing all of it puts the players at a scale where the disc is a few pixels and a slow-motion replay shows nothing worth watching. No amount of frame rate fixes a focal length. Add rolling shutter on fast pans, no exposure or ND control outdoors, and nobody spare to operate it, and the row is not a compromise — it is unusable. Struck rather than caveated.
+The free tier does not work for this sport, for optical rather than software reasons. Those apps buffer the tablet's *own* camera, and an iPad has a fixed wide lens with no optical zoom. An Ultimate field is 100m end to end and 37m wide; framing all of it puts the players at a scale where the disc is a few pixels and a slow-motion replay shows nothing worth watching. No amount of frame rate fixes a focal length. Add rolling shutter on fast pans, no exposure or ND control outdoors, and nobody spare to operate it, and the option is unusable rather than merely compromised.
 
 *(The one door it leaves open: iPadOS supports UVC input over USB-C, so a tablet **fed** a real camera signal is not absurd. Whether any of these apps accept an external source rather than the built-in camera is unknown and probably no, since they are camera apps. Not worth pursuing before the OBS row is tried.)*
 

@@ -90,11 +90,16 @@ header('Content-Type: text/html; charset=UTF-8');
     a { color: #93c5fd; }
     footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #1e293b;
              font-size: .88rem; }
+    /* The mark beside the page's own heading. These three pages are chrome
+       rather than surfaces, so they carry the project mark — the Studio's —
+       rather than one of their own. */
+    h1 { display: flex; align-items: center; gap: .55rem; }
+    h1 .mark { flex: none; }
 </style>
 </head>
 <body>
 <main>
-    <h1>Imprint</h1>
+    <h1><?= \Overlays\Brand::img('studio', '', 24) ?>Imprint</h1>
 
     <?php if ($imprint === []) : ?>
         <p class="missing">

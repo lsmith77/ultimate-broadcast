@@ -94,11 +94,16 @@ header('Cache-Control: no-store, must-revalidate');
         .good { background: #16341f; color: #c7ebd3; }
     }
     a { color: #2f6fdb; font-size: .82rem; }
+    /* The mark beside the page's own heading. These three pages are chrome
+       rather than surfaces, so they carry the project mark — the Studio's —
+       rather than one of their own. */
+    h1 { display: flex; align-items: center; gap: .55rem; }
+    h1 .mark { flex: none; }
 </style>
 </head>
 <body>
 <main class="card">
-    <h1>Overlays</h1>
+    <h1><?= \Overlays\Brand::img('studio', '', 24) ?>Ultimate Broadcast</h1>
     <p class="sub">Signing in lets this browser change what is on air.</p>
 
     <?php if ($error !== null) : ?>

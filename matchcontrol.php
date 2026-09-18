@@ -85,6 +85,16 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                  env(safe-area-inset-bottom) env(safe-area-inset-left);
         overscroll-behavior: none;
     }
+    /* Sixteen pixels, in a header that is already the quietest thing on the
+       page. This surface is two large buttons and everything else competes
+       with them — the mark is here to be recognised later, not looked at now.
+       The ring is not decoration: match control's tile is a dark slate, chosen
+       because it survives every colour-blindness simulation against a LIGHT tab
+       strip, and on this page's near-black header its edge disappears entirely.
+       One asset cannot be optimal on both grounds, so the dark surface states
+       the edge instead. */
+    .mark { flex: none; border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }
     header { display: flex; align-items: center; gap: .5rem; padding: .5rem .7rem;
         font-size: .8rem; color: var(--ink-mute); }
     header .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
@@ -164,6 +174,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <body>
 
 <header>
+    <?= \Overlays\Brand::img('score', $base, 16) ?>
     <span class="grow" id="fixture">Match control</span>
     <span class="state" id="state">…</span>
 </header>

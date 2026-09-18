@@ -65,6 +65,31 @@ Chrome is already a dependency of the test suite, so this needs nothing new.
 
 [`../robots.txt`](../robots.txt) is adjacent and covered by [`ANALYTICS.md`](ANALYTICS.md) §5. It matters most for keeping the commentary desk — which can display prepared notes about named players — out of a search index, and secondarily for keeping crawlers out of the visitor counts.
 
-## 7. Where the files go
+## 7. Where the mark appears in the UI, and where it must not
+
+The icons are in the pages as well as in the tabs, and that is the point rather than decoration: **a tab icon only means something to somebody who has been taught it.** The same microphone in the commentary desk's own toolbar and in its tab is what makes that tab legible a week later without reading the title. A different graphic in each place would teach nothing.
+
+The Studio does most of the teaching, because it is where somebody meets every other surface for the first time — it hands out the stage URL, the match control link and the commentary desk. Each of those links carries the icon of the surface it opens, so the association is made at the moment of clicking through.
+
+| Where | Mark | Why |
+|---|---|---|
+| Studio header | camera | the page's own identity |
+| Studio introduction | camera + **Ultimate Broadcast** | the project had no visible name anywhere: the tab said "Video overlays" and the heading said "Studio", so a visitor arriving from a posted link could read the whole introduction and still not know what to call it |
+| Each game's URL, and the stage URL | target | the link opens a scoreboard or a stage |
+| The Match control link | plus | the link opens match control |
+| The commentary desk link | microphone | the link opens the desk |
+| Commentary desk toolbar | microphone | in the toolbar, not the header — the header is a three-column layout naming each team over its own column, and anything added there breaks the proximity that does the naming |
+| Match control header | plus | sixteen pixels, in the quietest part of a page that is otherwise two large buttons |
+| Login, imprint, event editor | camera | chrome rather than surfaces, so they carry the project mark |
+| `README.md` | the lockup | the project's front door on GitHub |
+| **Scoreboard and stage** | **none** | **see below** |
+
+**Nothing visible on the scoreboard or the stage.** Those are rendered to video. A mark there is this project's branding burned into somebody else's broadcast, sitting beside the tournament's own logo — which is the one that belongs on air, has a corner chosen for it in the Studio, and is kept clear of whatever else is in that corner. Their *tab* icons are set, because a tab is not on air, and that is the whole of it.
+
+The wordmark in the introduction is real text rather than part of an image, so it can be selected, translated and read aloud.
+
+Marks in the UI are decorative and carry `alt=""` with `aria-hidden="true"`: the text beside every one of them already names the surface, and a screen reader announcing "Studio" twice is worse than not announcing it at all. [`../shared/brand.php`](../shared/brand.php) is the one place that decides this, for the same reason the head tags are.
+
+## 8. Where the files go
 
 `brand/` is deployed: the icons and the card are requested by browsers and by link scrapers. It is copied into the standalone test tree by `tests/standalone-setup.js` — a new runtime directory has to be added there or every page in that suite requests an icon that is not present.

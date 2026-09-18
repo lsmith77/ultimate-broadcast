@@ -250,6 +250,10 @@ try {
     .scoreline { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums;
                  line-height: 1.1; }
     .ctx { font-size: .8rem; color: var(--ink-mute); }
+    /* The mark sits with the toolbar's own controls rather than in the header
+       above, which is a three-column layout naming each team over its column —
+       anything added there breaks the proximity that does the naming. */
+    .mark { flex: none; }
     .toolbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
                padding: .55rem 0 0; }
     .toolbar .tabs { margin-left: auto; }
@@ -712,6 +716,7 @@ try {
     <h2 class="teamhead away" id="headAway"></h2>
 </header>
 <div class="toolbar">
+    <?= \Overlays\Brand::img('desk', $base, 18) ?>
     <button id="themeBtn" class="chip" type="button" aria-pressed="false"></button>
     <div class="sync" id="sync"></div>
     <div class="tracking" id="tracking" role="group" aria-label="Live tracking"></div>

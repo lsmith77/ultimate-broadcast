@@ -46,6 +46,39 @@ final class Brand
     ];
 
     /**
+     * The mark, as an `<img>`, for putting in a page's own chrome.
+     *
+     * WHY THE VISIBLE MARK AND THE TAB ICON ARE THE SAME FILE
+     *
+     * Because the point is that somebody learns which is which. A microphone in
+     * the commentary desk's own header and a different microphone in its tab
+     * would teach nothing; the same one in both places is what makes the tab
+     * legible a week later without reading it.
+     *
+     * NOT ON THE SCOREBOARD OR THE STAGE. Those are rendered to video. A mark
+     * there is this project's branding burned into somebody else's broadcast,
+     * next to the tournament's own logo, which is the one that belongs on air.
+     * Their tab icon is set — a tab is not on air — and their chrome carries
+     * nothing. `docs/BRAND.md` §8.
+     *
+     * Decorative by default: with no `$alt` the image is hidden from assistive
+     * technology, because beside a heading that already says "Studio" it is a
+     * second announcement of the same word.
+     */
+    public static function img(string $icon, string $base = '', int $px = 20, string $alt = ''): string
+    {
+        $icon = isset(self::ICONS[$icon]) ? $icon : 'studio';
+        $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+        $src = $e(Mode::assetBase($base) . "/brand/icon-{$icon}.svg");
+
+        return '<img class="mark" src="' . $src . '" width="' . $px . '" height="' . $px . '"'
+            . ($alt === ''
+                ? ' alt="" aria-hidden="true"'
+                : ' alt="' . $e($alt) . '"')
+            . '>';
+    }
+
+    /**
      * The `<head>` tags for one surface.
      *
      * `$social` is passed only by pages somebody might share a link to. The

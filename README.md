@@ -1,3 +1,5 @@
+<img src="brand/lockup.svg" alt="Ultimate Broadcast" width="380">
+
 # Broadcast overlays for Ultimate
 
 A broadcast graphics layer for Ultimate tournaments. It turns the data an event is keeping — score, clock, rosters, goals and assists — into graphics a video switcher can put on air, and gives the people running the broadcast somewhere to control them from.

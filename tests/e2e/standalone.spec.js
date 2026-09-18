@@ -1356,3 +1356,63 @@ test.describe('admin gating without Live!', () => {
     expect((await res.json()).admin).toBe(false);
   });
 });
+
+test.describe('the mark', () => {
+  /*
+   * The tab icons only mean something to somebody who has been taught them, and
+   * the Studio is where that teaching happens: it hands out the stage URL, the
+   * match control link and the commentary desk, each carrying the icon of the
+   * surface it opens. `docs/BRAND.md` §7.
+   */
+  test('each surface carries its own mark, and the Studio teaches them',
+    async ({ page }) => {
+      const origin = new URL(BASE).origin;
+
+      for (const [path, icon] of [
+        ['/app.php?view=index', 'studio'],
+        ['/c/702', 'desk'],
+        ['/k/702', 'score'],
+      ]) {
+        await page.goto(origin + path);
+        await expect(page.locator(`img.mark[src*="icon-${icon}.svg"]`).first(),
+          `${path} wears its own mark`).toBeVisible();
+      }
+
+      // Every mark must actually load. A 404 here is an invisible failure: the
+      // alt text is empty by design, so a broken one leaves nothing at all.
+      await page.goto(origin + '/app.php?view=index');
+      await expect.poll(async () => page.evaluate(() =>
+        [...document.querySelectorAll('img.mark')]
+          .filter((i) => !i.complete || i.naturalWidth === 0).length),
+      { message: 'no mark 404s' }).toBe(0);
+
+      // The teaching itself: the stage URL wears the stage's mark, and the
+      // match control link wears match control's.
+      await expect(page.locator('a.url img.mark[src*="icon-onair.svg"]').first(),
+        'the stage URL is marked as a stage').toBeVisible();
+      await expect(page.locator('a.action img.mark[src*="icon-score.svg"]').first(),
+        'the match control link is marked as match control').toBeVisible();
+    });
+
+  test('nothing visible is branded onto a page that goes to air',
+    async ({ page }) => {
+      /*
+       * The scoreboard and the stage are rendered to video. A mark there is this
+       * project's branding burned into somebody else's broadcast, beside the
+       * tournament's own logo — which is the one that belongs on air and has a
+       * corner chosen for it in the Studio.
+       *
+       * Their TAB icons are set, because a tab is not on air, so this asserts the
+       * absence in the body rather than the absence of a <link rel="icon">.
+       */
+      const origin = new URL(BASE).origin;
+
+      for (const path of ['/s/702', '/s/702/overlay']) {
+        await page.goto(origin + path);
+        await expect(page.locator('img.mark'),
+          `${path} is on air and carries no mark`).toHaveCount(0);
+        await expect(page.locator('link[rel="icon"]'),
+          `${path} still has a tab icon, which is not on air`).toHaveCount(1);
+      }
+    });
+});

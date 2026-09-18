@@ -205,11 +205,16 @@ header('Content-Type: text/html; charset=UTF-8');
     .msg ul { margin: .4rem 0 0; padding-left: 1.1rem; }
     .note { color: var(--mute); font-size: .84rem; margin-top: .5rem; }
     a { color: #93c5fd; }
+    /* The mark beside the page's own heading. These three pages are chrome
+       rather than surfaces, so they carry the project mark — the Studio's —
+       rather than one of their own. */
+    h1 { display: flex; align-items: center; gap: .55rem; }
+    h1 .mark { flex: none; }
 </style>
 </head>
 <body>
 <main>
-    <h1>Event</h1>
+    <h1><?= \Overlays\Brand::img('studio', '', 24) ?>Event</h1>
     <p class="sub">
         The part that does not change once the day starts. Squads arrive at the
         <a href="<?= $e(Mode::viewUrl('commentator')) ?>">commentary desk</a>; the

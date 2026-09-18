@@ -118,6 +118,16 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
     /* Header: identity and the login affordance. Someone arriving read-only
        needs to know that is why the controls are inert, and where to go. */
+    /* The mark, wherever it appears in this page's own chrome. `align-self`
+       because .topbar aligns on the baseline, which an image has none of —
+       left to itself it sits a few pixels low beside the heading. */
+    .mark { align-self: center; flex: none; }
+    .introbrand { display: flex; align-items: center; gap: .55rem; margin: 0 0 .5rem; }
+    .introbrand span { font-size: 1.05rem; font-weight: 700; color: #e2e8f0;
+                       letter-spacing: -.01em; }
+    /* Beside a URL or an action, the mark is a label rather than an ornament:
+       it is how somebody learns which tab icon belongs to which surface. */
+    .url .mark, .action .mark, a .mark { vertical-align: -.2em; margin-right: .35rem; }
     .topbar { display: flex; align-items: baseline; gap: 1rem; max-width: 1100px;
               flex-wrap: wrap; }
     .topbar h1 { flex: 1; }
@@ -151,6 +161,9 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     .intro .introdemo a { background: #1d4ed8; color: #fff; text-decoration: none;
                           font-weight: 600; padding: .4rem .85rem; border-radius: 4px; }
     .intro .introdemo a:hover { background: #2563eb; }
+    .intro .introdemo a .mark { margin-right: .4rem; vertical-align: -.25em;
+                                border-radius: 50%;
+                                box-shadow: 0 0 0 1px rgba(255, 255, 255, .3); }
     .intro .introdemo a:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
     /* Who it is for, as running text rather than a third list — three bullets
        here would compete with the four above them for the same attention. */
@@ -298,6 +311,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
   larger of the two.
 -->
 <header class="topbar">
+    <?= \Overlays\Brand::img('studio', $base, 22) ?>
     <h1>Studio</h1>
     <span class="who" id="who"><span class="dot"></span>Checking…</span>
     <span id="authAction"></span>
@@ -318,6 +332,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 -->
 <aside class="intro" id="intro">
     <button type="button" class="introclose" id="introClose" aria-label="Hide this">×</button>
+    <?php
+    /*
+     * The project's own name, which this page did not state anywhere.
+     *
+     * The tab said "Video overlays" and the heading said "Studio", so a visitor
+     * arriving from a posted link could read the whole introduction, try the
+     * demo, and still not know what to search for afterwards or what to call it
+     * when telling somebody else. The wordmark is real text rather than part of
+     * an image so that it can be selected, translated and read aloud.
+     */
+    ?>
+    <p class="introbrand">
+        <?= \Overlays\Brand::img('studio', $base, 30) ?>
+        <span>Ultimate Broadcast</span>
+    </p>
     <h2>A scoreboard for your Ultimate stream</h2>
     <p>
         Put a live scoreboard, team statistics and player graphics over your video — or
@@ -460,6 +489,28 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
     var BASE = <?= $json($base) ?>;
     var API = BASE + '/index.php?view=live/api';
+    var BRAND = <?= $json(\Overlays\Mode::assetBase($base) . '/brand') ?>;
+
+    /**
+     * The mark for a surface, for putting in front of a link to it.
+     *
+     * This is the whole teaching mechanism. The Studio is where somebody first
+     * meets every other surface — it hands out the stage URL, the match control
+     * link and the commentary desk — so putting each surface's icon beside its
+     * own link here is what makes that icon mean something when it turns up as
+     * a tab icon later. Decorative: the link text beside it already says which
+     * surface it is, and a screen reader does not need it twice.
+     */
+    function mark(name, px) {
+        var img = document.createElement('img');
+        img.className = 'mark';
+        img.src = BRAND + '/icon-' + name + '.svg';
+        img.width = img.height = px || 14;
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+
+        return img;
+    }
     var CAPTURE = <?= json_encode(\Overlays\Mode::captureBase($base), JSON_UNESCAPED_SLASHES) ?>;
     var POSSESSION_URL = <?= json_encode(\Overlays\Mode::viewUrl('possession', $base), JSON_UNESCAPED_SLASHES) ?>;
     // Where signing in happens, and whether it happens here. Both come from
@@ -634,6 +685,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             link.target = '_blank';
             link.rel = 'noopener';
             var urlCell = el('td');
+            link.prepend(mark('onair'));
             urlCell.append(link);
             row.append(urlCell);
 
@@ -655,6 +707,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             var keeperCell = el('td', 'keepers');
 
             var control = el('a', 'action', 'Match control ↗');
+            control.prepend(mark('score'));
             control.href = window.location.origin + BASE + '/k/' + id;
             control.target = '_blank';
             control.rel = 'noopener';
@@ -1882,6 +1935,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             a.target = '_blank';
             a.rel = 'noopener';
             a.title = 'Point the switcher here — a stage pinned to this game';
+            a.prepend(mark('onair'));
             urlBar.append(a);
 
             // The guided tour, one link away from the URL it demonstrates.
@@ -2336,6 +2390,10 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             // gap, so a interpunct between them would be a stray character
             // floating beside a control rather than punctuation in a sentence.
             var a = el('a', null, entry[1]);
+            // Both of these open a stage, so both carry the stage's mark. The
+            // desk link below carries its own. Marking one and not the others
+            // reads as arbitrary rather than as a system.
+            a.prepend(mark('onair', 16));
             a.href = origin + '/s/' + game.game_id + '/overlay?demo=1';
             a.target = '_blank';
             a.rel = 'noopener';
@@ -2349,6 +2407,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         if (open || mixed) {
             var g = mixed || open;
             var desk = el('a', null, 'the commentary desk');
+            desk.prepend(mark('desk', 16));
             desk.href = origin + '/c/' + g.game_id;
             desk.target = '_blank';
             desk.rel = 'noopener';

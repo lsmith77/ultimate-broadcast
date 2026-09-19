@@ -47,6 +47,11 @@ function respond(Show $store, bool $isAdmin, ?string $warning = null): void
         'rev' => $state['rev'],
         'game' => $state['game'],
         'logo' => $state['logo'],
+        // The expiry on diagnostics, so the Studio can show the switch it
+        // wrote. A board reads the static file directly and needs nothing
+        // here — which is exactly how this field came to be missing from this
+        // list while working perfectly on air.
+        'diagnostics' => $state['diagnostics'],
         'cards' => $state['cards'],
         'writable' => $store->isWritable(),
         'admin' => $isAdmin,

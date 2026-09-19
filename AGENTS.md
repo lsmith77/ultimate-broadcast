@@ -105,9 +105,15 @@ The broadcast surfaces (`scoreboard`, `stage`) are rendered to video and have no
 - **Colour is never the only carrier of a distinction, and the tints are proof of why.** FMP and violet MMP measure **1.05:1 against each other** in daylight, and red-green colour blindness collapses what hue difference remains to nothing (1.01:1 simulated). That is acceptable *because* the term is always written next to the tint and the picker groups by matching structurally. Anything the tint alone would say is a thing a commentator cannot read. Off-injured follows the same rule: the word INJ, a rule struck through the chip, and a dashed edge, each sufficient alone.
 - **Measure the tints too, not only the body text.** The FMP tag sat at 6.73:1 — under this page's own AAA bar — for as long as it did because the contrast test enumerated text pairs and never covered the matching tints. A new coloured label earns a line in that test.
 
-## Known open risk
+## What a surface may say when something is wrong
 
-Diagnostics are painted onto the broadcast canvas. A wrong game id, or five consecutive failed polls, replaces the scoreboard with white error text over the live picture. Useful on a laptop during setup, unacceptable once the source is live, and the page cannot tell the two apart. Unresolved by choice — see `docs/STUDIO.md` §11 for the three options.
+**Settled, and a rule rather than a preference.** An overlay never paints a diagnostic unless an operator asked for one, and never keeps showing something it can no longer support. `shared/diagnostics.js` owns both halves; `docs/STUDIO.md` §11a is the reasoning.
+
+- **Nothing by default.** A board that cannot load its game shows an empty canvas. Error text belonged to setup on a laptop and reached air instead, because the page cannot tell a laptop from a broadcast.
+- **Two switches, because one was not practical.** `?debug=1` for a laptop, and a **Show diagnostics** toggle in the Studio for a source already installed in a switcher, where editing a URL means a virtual keyboard. It travels in show state — a static file the board already polls, served by us, so it arrives when the API is what broke — and expires after ten minutes.
+- **A working board stays silent even when diagnostics are on.** That is what makes one switch safe across a multi-field broadcast.
+- **Never replace a painted board with an error.** A fatal id is fatal for the next paint, not the one on air.
+- **Withdraw rather than lie.** After four polls with nothing confirming it, a board hides itself. A blank corner claims nothing; a stale score is a false statement the audience cannot check. A board switched to match control is exempt while that store is answering, because the number on screen is still arriving.
 
 ## Every feature ships with docs and a test
 

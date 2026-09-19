@@ -19,6 +19,8 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 
 **Following along:** [`CHANGELOG.md`](CHANGELOG.md) is what each release contains, and [releases](https://github.com/lsmith77/ultimate-broadcast/releases) are the same entries with a downloadable archive. There is no build step, so the archive of a release *is* the installation. [`docs/RELEASES.md`](docs/RELEASES.md) explains the numbering and what 1.0 would have to promise.
 
+**When something is wrong**, an overlay says nothing rather than putting white error text over your programme, and a board that nothing has confirmed for two minutes hides itself rather than show a score the game has moved past. The Studio reports whether the game data is answering, and has a switch that lets a failing overlay explain itself — for ten minutes, without editing a URL on a switcher. [`docs/STUDIO.md`](docs/STUDIO.md) §11a.
+
 ## Try it without installing anything
 
 [ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.

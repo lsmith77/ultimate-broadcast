@@ -29,6 +29,7 @@ require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/colors.php';
 require_once __DIR__ . '/shared/logos.php';
 require_once __DIR__ . '/shared/brand.php';
+require_once __DIR__ . '/shared/show.php';
 
 $gameId = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
@@ -135,6 +136,33 @@ $atPhase = in_array(filter_input(INPUT_GET, 'phase'), ['pre', 'live', 'final'], 
     ? filter_input(INPUT_GET, 'phase')
     : 'live';
 
+/**
+ * Diagnostics on the broadcast canvas — off unless somebody asks.
+ *
+ * `?debug=1` is the laptop case: whoever is setting a source up has the URL in
+ * their hands anyway. It is deliberately NOT the only way in. The device that
+ * most needs diagnosing is a switcher in a rack, where editing a URL means a
+ * virtual keyboard, so an operator can also turn diagnostics on from the
+ * Studio — it lands in show state, which every board polls as a static file,
+ * and which keeps working when the thing that has broken is Live!'s API.
+ *
+ * See `shared/diagnostics.js` for what the two switches are allowed to paint.
+ */
+$debug = filter_input(INPUT_GET, 'debug') === '1';
+
+/**
+ * How long the board keeps believing a payload nothing has confirmed, in
+ * seconds. `shared/diagnostics.js` owns the rule; this is the override.
+ *
+ * Deliberately available, because the right answer depends on the connection
+ * at the venue rather than on anything this code can know — and 0 turns
+ * withdrawal off entirely, for whoever decides a stale score beats a blank
+ * corner on their broadcast.
+ */
+$stale = filter_input(INPUT_GET, 'stale', FILTER_VALIDATE_INT, [
+    'options' => ['min_range' => 0, 'max_range' => 86400],
+]);
+
 $demo = filter_input(INPUT_GET, 'demo') === '1';
 $demoStep = filter_input(INPUT_GET, 'step', FILTER_VALIDATE_INT, [
     'options' => ['default' => 3200, 'min_range' => 600, 'max_range' => 30000],
@@ -160,6 +188,7 @@ $apiBase = rtrim($prefix, '/') . '/index.php?view=live/api';
 $assetBase = \Overlays\Mode::assetBase(rtrim($prefix, '/'));
 
 $colorStore = new \Overlays\Colors();
+$showStore = new \Overlays\Show();
 
 /**
  * Asset URL stamped with the file's modification time.
@@ -204,7 +233,10 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 </div>
 
 <div class="overlay-container <?= htmlspecialchars($position, ENT_QUOTES) ?>">
-    <div class="loading" id="loadingState">Loading game data</div>
+    <!-- Hidden until somebody asks. "Loading game data" is a diagnostic like
+         any other, and a board whose game id is wrong would otherwise show it
+         over the live picture for the rest of the broadcast. -->
+    <div class="loading" id="loadingState" style="display: none;">Loading game data</div>
 
     <div class="scoreboard <?= htmlspecialchars($size, ENT_QUOTES) ?> plate-<?= htmlspecialchars($plate, ENT_QUOTES) ?>" id="scoreboard" style="display: none;">
         <div class="callout-row hide" id="calloutRow">
@@ -265,6 +297,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 <script src="<?= htmlspecialchars($assetUrl('shared/target.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/diagnostics.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/overlay-client.js'), ENT_QUOTES) ?>"></script>
 <?php if ($demo) : ?>
@@ -295,6 +328,13 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         captureBase: <?= $json(\Overlays\Mode::captureBase(rtrim($prefix, '/'))) ?>,
         possessionBase: <?= $json($assetBase) ?>,
         possessionPoll: 1000,
+        debug: <?= $debug ? 'true' : 'false' ?>,
+        showUrl: <?= $json($showStore->publicUrl($assetBase)) ?>,
+        // Slower than the stage's second, because this decides whether a
+        // message may be painted rather than what is on air. Ten seconds is
+        // within the time it takes to walk back to the laptop.
+        diagnosticsPoll: 10000,
+        staleAfter: <?= $stale === null ? 'null' : (int) $stale ?>,
         offline: <?= $json($offline) ?>,
         at: <?= (int) ($offline ? $atParam : 0) ?>,
         atGoals: <?= (int) $atGoals ?>,
@@ -598,6 +638,11 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
                 var wasOn = window.ScoreSource.active(localScore);
                 localScore = state;
                 var isOn = window.ScoreSource.active(state);
+                // Only a switched-on store vouches for the board: this file
+                // answers for every game whether or not an operator pointed
+                // anything at it.
+                seen.scoreActive = isOn;
+                if (state) { seen.score = Date.now(); }
                 // Repaint when the score moved, and when the SWITCH moved —
                 // otherwise turning it off leaves the local score on screen
                 // until the next upstream poll, up to thirty seconds later.
@@ -1192,23 +1237,137 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         fitName(el.awayName);
 
         painted = true;
+        withdrawn = false;
+        problem = null;
     }
 
-    function showError(error) {
+    /**
+     * What this board has been told, and by whom, lately.
+     *
+     * `game` and `score` are the last successful poll of each channel. The
+     * score channel is this project's own store and keeps answering when
+     * Live!'s API does not, which is why a board switched to match control
+     * does not withdraw when upstream disappears: the number on screen is
+     * still arriving.
+     */
+    var seen = { game: 0, score: 0, scoreActive: false };
+    /** The expiry an operator wrote into show state, in seconds. */
+    var diagUntil = 0;
+    /** The most recent failure, held so it can be shown if anybody asks. */
+    var problem = null;
+    var withdrawn = false;
+
+    function staleWindow() {
+        return CONFIG.staleAfter === null
+            ? window.Diagnostics.windowFor(CONFIG.interval / 1000)
+            : CONFIG.staleAfter;
+    }
+
+    function speaking() {
+        return window.Diagnostics.show({
+            now: Date.now(), until: diagUntil, debug: CONFIG.debug, failing: true
+        });
+    }
+
+    /**
+     * Take the board off the canvas, and say why only if somebody asked.
+     *
+     * The old behaviour was to replace the scoreboard with white error text,
+     * which is a defect broadcast to viewers — and the alternative of leaving
+     * the last frame up is a wrong score presented as a right one. Withdrawing
+     * is the only honest third option: a blank corner claims nothing.
+     */
+    function withdraw(error) {
+        if (error && error.message) { problem = error; }
+        withdrawn = true;
         if (timer) {
             clearInterval(timer);
             timer = null;
         }
         el.loadingState.style.display = 'none';
         el.scoreboard.style.display = 'none';
-        el.errorDisplay.style.display = 'block';
-        el.errorMessage.textContent = error.message;
+        el.connectionStatus.classList.add('hide');
+
+        var speak = speaking();
+        el.errorDisplay.style.display = speak ? 'block' : 'none';
+        if (speak) {
+            el.errorMessage.textContent = (problem && problem.message) || 'No game data.';
+        }
+    }
+
+    // Every existing caller means "this board cannot show a game"; the policy
+    // for what that looks like now lives in one place.
+    function showError(error) {
+        withdraw(error);
+    }
+
+    /**
+     * May diagnostics be painted, and has that changed?
+     *
+     * Polled rather than passed in the URL because the source that most needs
+     * diagnosing is a switcher in a rack: show state is a static file this
+     * board already has an address for, and it is served by our own server, so
+     * the switch still arrives when the thing that broke is Live!'s API.
+     */
+    /**
+     * A board that has never painted, while somebody is watching.
+     *
+     * Waiting is the one state where the message is the whole diagnosis — a
+     * source stuck on "Loading game data" has a wrong id or no route to the
+     * API — so it appears whenever diagnostics are on, without waiting for a
+     * poll to fail first.
+     */
+    function paintWaiting() {
+        var on = window.Diagnostics.enabled({
+            now: Date.now(), until: diagUntil, debug: CONFIG.debug
+        });
+        el.loadingState.style.display = (on && !painted && !withdrawn) ? 'block' : 'none';
+    }
+
+    function pollDiagnostics() {
+        fetch(CONFIG.showUrl + '?_=' + Date.now(), { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (state) {
+                diagUntil = Number(state && state.diagnostics) || 0;
+                // A switch flipped while a board is already down has to take
+                // effect without waiting for the fault to happen again.
+                if (withdrawn) { withdraw(null); }
+                paintWaiting();
+            })
+            .then(function () { setTimeout(pollDiagnostics, CONFIG.diagnosticsPoll); });
+    }
+
+    /**
+     * Is the board still entitled to show what it is showing?
+     *
+     * Runs on its own clock rather than off a poll result, because the case it
+     * exists for is polls that stop arriving at all.
+     */
+    function watchFreshness() {
+        var window_ = staleWindow();
+        if (!window_) { return; }
+        if (!window.Diagnostics.stale(Date.now(), seen, window_)) { return; }
+        if (withdrawn) { return; }
+        withdraw(problem || { message: 'No answer from the server.' });
     }
 
     // Declared possession runs on its own clock, independent of the game poll:
     // it is a different channel at a different pace, and it must keep working
     // when the game payload is stale.
     if (!CONFIG.demo) { pollDeclared(); pollScore(); }
+
+    /*
+     * Both are about what is allowed on the canvas, so neither runs for a
+     * frame nobody is polling for: `?at=` draws one deterministic still and
+     * the demo drives itself, and withdrawing either would blank a picture
+     * that is exactly as true as it was when it was drawn.
+     */
+    if (!CONFIG.demo && !CONFIG.offline) {
+        paintWaiting();
+        pollDiagnostics();
+        setInterval(watchFreshness, 1000);
+    }
 
     /**
      * Everything the board remembers about the game it is showing.
@@ -1220,6 +1379,11 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
      */
     function resetForNewGame() {
         painted = false;
+        // Nothing has confirmed the NEW game yet, so the freshness window
+        // starts again here. A board that cannot load it withdraws instead of
+        // sitting on the previous game's graphic, which is a true sentence
+        // about a match no longer in front of the camera.
+        seen.game = 0;
         shownScore = null;
         lastGoalNum = null;
         outcome = null;
@@ -1237,16 +1401,36 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 
     function buildClient() {
         return new OverlayDataClient(CONFIG)
-        .onData(render)
+        .onData(function (payload) {
+            // Here rather than in render(), which is also called to repaint a
+            // locally kept score: that is a different channel vouching for a
+            // different thing, and counting it here would keep a board up on
+            // an upstream payload nothing had confirmed for an hour.
+            seen.game = Date.now();
+            render(payload);
+        })
         .onStatus(function (status) {
             el.connectionIndicator.classList.toggle('connected', status.connected);
             el.connectionText.textContent = status.message;
-            el.connectionStatus.classList.toggle('hide', status.connected);
+            // The chip is a diagnostic like any other: a healthy board shows
+            // nothing, and an unhealthy one shows it only if somebody asked.
+            el.connectionStatus.classList.toggle('hide',
+                status.connected || !speaking());
         })
         .onError(function (error) {
-            // Keep the last good scoreboard on screen through a transient blip;
-            // only replace it once retrying has been abandoned.
-            if (error.fatal || error.consecutiveErrors >= 5) showError(error);
+            /*
+             * Never replace a working scoreboard with an error message. A
+             * fatal id is fatal for the NEXT paint, not for the one already on
+             * air, and five failed polls is a bad minute rather than a reason
+             * to put white text over the live picture.
+             *
+             * What happens instead is decided by time: watchFreshness()
+             * withdraws the board once nothing has confirmed what it shows.
+             * Until then it keeps showing it, because a board that has been
+             * right for an hour is probably still right ten seconds later.
+             */
+            problem = error;
+            if (!painted) { withdraw(error); }
         });
     }
 

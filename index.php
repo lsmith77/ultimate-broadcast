@@ -277,6 +277,21 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     .autobtn.on { border-style: solid; border-color: #38bdf8; color: #7dd3fc; background: #0b2536; }
     .autobtn:disabled { opacity: .4; cursor: not-allowed; }
 
+    /* Feed and diagnostics. Amber rather than red for a feed that has stopped
+       answering: it is usually a network, and a red panel on the operator's
+       screen during a broadcast is its own kind of noise. */
+    .health { border: 1px solid #1e293b; border-radius: 6px; padding: .8rem 1rem;
+              background: #0f1a30; max-width: 1100px; margin-bottom: 1.5rem; }
+    .health p { margin: .3rem 0; font-size: .88rem; color: #cbd5e1; }
+    .health .state { font-weight: 600; }
+    .health .state .dot { display: inline-block; width: 8px; height: 8px;
+                          border-radius: 50%; background: #4ade80; margin-right: .5rem;
+                          vertical-align: middle; }
+    .health.bad { border-left: 3px solid #b45309; }
+    .health.bad .state .dot { background: #f59e0b; }
+    .health .row { display: flex; gap: .6rem; align-items: center; margin-top: .6rem;
+                   flex-wrap: wrap; }
+
     .fullbtn { background: none; border: 1px solid #334155; color: #94a3b8;
                border-radius: 4px; padding: .3rem .6rem; font-size: .75rem; cursor: pointer;
                white-space: nowrap; }
@@ -434,6 +449,14 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     for a switcher that wants one fixed overlay and no control.
 </p>
 <div id="stagePanel"><p class="muted">Loading stage state…</p></div>
+
+<h2>Feed and diagnostics</h2>
+<p class="muted" style="margin-bottom:1rem">
+    What this page can see of the game data, and the switch that lets a failing overlay say
+    what is wrong. It reports this laptop's view — an overlay running in a switcher is a
+    separate browser, and nothing here can watch it.
+</p>
+<div id="healthPanel"><p class="muted">Checking…</p></div>
 
 <h2>Games</h2>
 <div id="games"><p class="muted">Loading games…</p></div>
@@ -754,11 +777,153 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
     var api = window.Provider.fromConfig({ apiBase: API, captureBase: CAPTURE });
     var readJson = window.Provider.readJson;
 
+    /**
+     * What this page can see of the feed, and the switch for what an overlay
+     * may say about it.
+     *
+     * An overlay that fails now shows nothing at all — a blank corner rather
+     * than white error text over the live picture, and a board withdraws
+     * rather than keep a score nothing has confirmed. That is right on air and
+     * leaves the operator with a question: why is the bug not there?
+     *
+     * Two answers, and this panel is both. Most faults are not specific to a
+     * browser source — the API is down, the event was unpublished, Live! is in
+     * maintenance — and this page reads the same API through the same client,
+     * so it can simply say so. For the rest, the operator turns diagnostics on
+     * and the failing board says it itself.
+     *
+     * What this page CANNOT see is whether a given switcher source is loading
+     * at all, or that somebody typed the wrong game id into it. Only that page
+     * knows, and it has no way to report in that would not mean a write from a
+     * surface that reaches air. Said out loud in the panel rather than implied.
+     */
+    var healthPanel = document.getElementById('healthPanel');
+    var feed = { ok: null, at: 0, failingSince: 0, message: '' };
+    var HEALTH_POLL = 30000;
+
+    function feedOk() {
+        feed.ok = true;
+        feed.at = Date.now();
+        feed.failingSince = 0;
+        feed.message = '';
+    }
+
+    function feedFailed(error) {
+        if (feed.ok !== false) { feed.failingSince = Date.now(); }
+        feed.ok = false;
+        feed.message = (error && error.message) || 'No answer';
+    }
+
+    /** "2 min", "40 sec" — an order of magnitude, which is all anybody needs. */
+    function lasting(seconds) {
+        var secs = Math.max(0, Math.round(seconds));
+        return secs < 90 ? (secs + ' sec') : (Math.round(secs / 60) + ' min');
+    }
+
+    function since(ms) { return lasting((Date.now() - ms) / 1000); }
+
+    var healthPainted = '';
+
+    function renderHealth() {
+        if (!healthPanel) { return; }
+        var until = Number(show.diagnostics) || 0;
+        var on = until * 1000 > Date.now();
+        /*
+         * Repaint only on a change. The panel holds a button and a countdown,
+         * and replacing it every second would take focus from whoever is
+         * reaching for the button — and make the text unselectable, which is
+         * exactly what somebody does with an error message.
+         */
+        var signature = [feed.ok, feed.message, on,
+            feed.ok === false ? since(feed.failingSince) : '',
+            on ? lasting(until - Date.now() / 1000) : '',
+            showCanEdit()].join('|');
+        if (signature === healthPainted) { return; }
+        healthPainted = signature;
+
+        var box = el('div', 'health' + (feed.ok === false ? ' bad' : ''));
+
+        var state = el('p', 'state');
+        state.append(el('span', 'dot'));
+        if (feed.ok === null) {
+            state.append(document.createTextNode('Checking the game data…'));
+        } else if (feed.ok) {
+            state.append(document.createTextNode('Game data is answering.'));
+        } else {
+            state.append(document.createTextNode(
+                'Game data has not answered for ' + since(feed.failingSince) + '.'));
+        }
+        box.append(state);
+
+        if (feed.ok === false) {
+            box.append(el('p', null, feed.message));
+            // The sentence that connects a vanished overlay to its cause,
+            // which is the whole reason this panel exists.
+            box.append(el('p', null, 'Overlays keep their last frame for about two minutes '
+                + 'and then hide themselves, rather than show a score that may have moved '
+                + 'on. They come back on their own when the data does.'));
+        }
+
+        var row = el('div', 'row');
+
+        if (on) {
+            row.append(el('span', 'muted',
+                'Diagnostics on — overlays that are failing will say why, for '
+                + lasting(until - Date.now() / 1000) + ' more.'));
+        } else {
+            row.append(el('span', 'muted', 'Diagnostics off. A failing overlay shows '
+                + 'nothing, which is what keeps an error message off the broadcast.'));
+        }
+
+        if (showCanEdit()) {
+            var toggle = el('button', 'autobtn' + (on ? ' on' : ''),
+                on ? 'Turn diagnostics off' : 'Show diagnostics on the overlays');
+            toggle.type = 'button';
+            toggle.addEventListener('click', function () {
+                toggle.disabled = true;
+                saveShow({
+                    rev: show.rev, game: show.game, logo: show.logo, cards: show.cards,
+                    diagnostics: !on
+                }).catch(function (e) { alert(e.message); })
+                  .then(function () { renderHealth(); });
+            });
+            row.append(toggle);
+        }
+        box.append(row);
+
+        if (!on) {
+            box.append(el('p', 'muted', 'It switches itself off after ten minutes, so a '
+                + 'broadcast cannot end up carrying it. Adding ?debug=1 to an overlay URL '
+                + 'does the same thing for that one page, when you have the URL to hand.'));
+        }
+
+        healthPanel.replaceChildren(box);
+    }
+
+    function pollHealth() {
+        api.games()
+            .then(feedOk, feedFailed)
+            .then(function () {
+                renderHealth();
+                setTimeout(pollHealth, HEALTH_POLL);
+            });
+    }
+
     api.games()
-        .then(function (body) { renderGames(body.games || []); })
+        .then(function (body) { feedOk(); renderGames(body.games || []); })
         .catch(function (error) {
+            feedFailed(error);
             fail('The Live! API did not return games.', error.message);
+        })
+        .then(function () {
+            renderHealth();
+            setTimeout(pollHealth, HEALTH_POLL);
         });
+
+    // The countdown, and the moment it lapses, without waiting for the next
+    // feed check: a switch that says "on" for half a minute after it stopped
+    // being on is a switch nobody trusts.
+    setInterval(renderHealth, 1000);
 
     // ---- kit colours -------------------------------------------------------
     //

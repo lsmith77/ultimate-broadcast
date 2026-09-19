@@ -137,6 +137,16 @@ final class Show
 
     public const LOGO_CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
+    /**
+     * How long diagnostics stay allowed on the broadcast canvas, in seconds.
+     *
+     * Long enough to reload a browser source, read what it says and change the
+     * URL; short enough that a broadcast which runs on past it is not carrying
+     * a switch somebody forgot. Half an hour of a tournament day is the wrong
+     * order of magnitude in both directions.
+     */
+    public const DIAGNOSTICS_WINDOW = 600;
+
     /** @return string[] */
     public static function slotsFor(string $cardId): array
     {
@@ -192,6 +202,7 @@ final class Show
             'rev' => max(0, (int) ($decoded['rev'] ?? 0)),
             'game' => self::cleanGame($decoded['game'] ?? null),
             'logo' => $logo,
+            'diagnostics' => self::cleanDiagnostics($decoded['diagnostics'] ?? null),
             'cards' => self::cleanCards($decoded['cards'] ?? [], $logo),
         ];
     }
@@ -208,6 +219,7 @@ final class Show
             'rev' => 0,
             'game' => null,
             'logo' => '',
+            'diagnostics' => 0,
             'cards' => [
                 ['id' => 'scoreboard', 'slot' => 'lower-left', 'visible' => true, 'params' => []],
             ],
@@ -277,10 +289,20 @@ final class Show
             array_key_exists('logo', $incoming) ? $incoming['logo'] : $current['logo']
         );
 
+        /*
+         * Absent means unchanged, as `logo` does: the Studio writes the whole
+         * document when a card moves, and a card move must not silently switch
+         * diagnostics off — or, worse, back on.
+         */
+        $diagnostics = array_key_exists('diagnostics', $incoming)
+            ? self::cleanDiagnostics($incoming['diagnostics'])
+            : $current['diagnostics'];
+
         $next = [
             'rev' => $current['rev'] + 1,
             'game' => self::cleanGame($incoming['game'] ?? $current['game']),
             'logo' => $logo,
+            'diagnostics' => $diagnostics,
             'cards' => self::cleanCards($incoming['cards'] ?? [], $logo),
         ];
 
@@ -302,6 +324,34 @@ final class Show
     {
         $id = (int) $raw;
         return $id > 0 ? $id : null;
+    }
+
+    /**
+     * When diagnostics stop being allowed on the broadcast canvas — a unix
+     * timestamp, or 0 for off, which is the default and the resting state.
+     *
+     * `true` means "from now", so a caller asks for the thing rather than
+     * computing a deadline; `false` and anything unreadable mean off. An
+     * explicit timestamp is honoured but capped, because the value's whole
+     * purpose is that it lapses: "turn it on, fix it, forget to turn it off"
+     * is the same failure the room code's auto-hide exists to prevent, and the
+     * consequence here is an error message on air during the next fault.
+     */
+    private static function cleanDiagnostics(mixed $raw): int
+    {
+        if ($raw === true) {
+            return time() + self::DIAGNOSTICS_WINDOW;
+        }
+        if ($raw === false || $raw === null) {
+            return 0;
+        }
+
+        $until = (int) $raw;
+        if ($until <= 0) {
+            return 0;
+        }
+
+        return min($until, time() + self::DIAGNOSTICS_WINDOW);
     }
 
     private static function cleanLogo(mixed $raw): string

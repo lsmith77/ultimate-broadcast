@@ -2679,3 +2679,206 @@ test.describe('the mark', () => {
       }
     });
 });
+
+test.describe('what an overlay is allowed to say', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+  const SHOW = '/app.php?view=show';
+
+  /** Diagnostics are off unless an operator says otherwise, from the Studio. */
+  async function setDiagnostics(page, on) {
+    await page.goto('/app.php?view=login');
+    // The login page shows the signed-in view once there is a session, and no
+    // password field with it — so a helper called twice in one test must not
+    // assume the form is there. It did, and the second call timed out with
+    // diagnostics left on for every test after it.
+    if (await page.locator('#password').count()) {
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+    }
+    const now = await (await page.request.get(SHOW)).json();
+    const r = await page.request.post(SHOW, {
+      data: {
+        rev: now.rev, game: now.game, logo: now.logo, cards: now.cards, diagnostics: on,
+      },
+    });
+    expect(r.ok(), 'the switch was written').toBe(true);
+  }
+
+  /** What is actually on the canvas, by geometry rather than by class. */
+  function visible(page, id) {
+    return page.evaluate((el) => {
+      const node = document.getElementById(el);
+      if (!node) { return false; }
+
+      return getComputedStyle(node).display !== 'none'
+        && node.getBoundingClientRect().height > 0;
+    }, id);
+  }
+
+  test('a board that cannot load its game shows nothing at all', async ({ page }) => {
+    /**
+     * The defect this replaces: a bad game id in a browser-source URL put
+     * white "Invalid ID" over the live picture, and the page had no way to
+     * tell a laptop from a broadcast. Measured on /s/999999 as three opaque
+     * white text nodes.
+     */
+    await page.goto('/app.php?view=scoreboard&game=999999');
+    await page.waitForTimeout(3000);
+
+    expect(await visible(page, 'errorDisplay'), 'no error text').toBe(false);
+    expect(await visible(page, 'loadingState'), 'no loading text').toBe(false);
+    expect(await visible(page, 'connectionStatus'), 'no connection chip').toBe(false);
+    expect(await visible(page, 'scoreboard'), 'and no board either').toBe(false);
+  });
+
+  test('?debug=1 is the laptop case, and says why', async ({ page }) => {
+    await page.goto('/app.php?view=scoreboard&game=999999&debug=1');
+    await expect(page.locator('#errorDisplay')).toBeVisible();
+    await expect(page.locator('#errorMessage')).not.toBeEmpty();
+  });
+
+  test('a working board stays silent, even with diagnostics on', async ({ page }) => {
+    /*
+     * The rule that makes ONE switch safe for a whole broadcast. Without it,
+     * turning diagnostics on to inspect a dead board on field 2 would put a
+     * connection chip on every healthy board on every other field.
+     *
+     * The rule itself is asserted in `diagnostics.spec.js`, where it can be
+     * stated directly; this is the end of the wire.
+     */
+    await page.goto('/app.php?view=scoreboard&game=702&debug=1');
+    await expect(page.locator('#scoreboard')).toBeVisible();
+
+    expect(await visible(page, 'connectionStatus'), 'no chip on a healthy board').toBe(false);
+    expect(await visible(page, 'errorDisplay')).toBe(false);
+  });
+
+  test('a painted board is never replaced by an error message', async ({ page }) => {
+    /**
+     * The mid-broadcast case, and the one the old code got wrong in the most
+     * expensive way: five consecutive failed polls hid a working scoreboard
+     * and put white text over the live picture, in front of an audience that
+     * cannot refresh.
+     *
+     * Staged as a 403 rather than a dropped connection, for two reasons: it
+     * is what an event being unpublished mid-broadcast looks like, and
+     * `provider.js` marks it FATAL, which is the branch that used to blank the
+     * board on the very first failure. A dropped connection takes a full
+     * minute to reach the five-failure threshold, because the client backs off
+     * exponentially — a test written that way passed against the old code.
+     *
+     * `?debug=1` is on throughout, so this also pins the other half of the
+     * rule: with diagnostics ALLOWED and the poll failing, the board is still
+     * not replaced — the chip appears, the scoreboard stays.
+     */
+    await page.goto('/app.php?view=scoreboard&game=702&debug=1&stale=3600');
+    await expect(page.locator('#scoreboard')).toBeVisible();
+
+    await page.route('**/games-702.json', (route) => route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Event is not published.' }),
+    }));
+
+    await page.waitForTimeout(6000);
+    expect(await visible(page, 'scoreboard'), 'the board somebody is watching').toBe(true);
+    expect(await visible(page, 'errorDisplay'), 'not replaced by a message').toBe(false);
+    // And because diagnostics are on, the failure is visible to the operator
+    // rather than silent — this is what the chip is for.
+    expect(await visible(page, 'connectionStatus'), 'the chip does appear').toBe(true);
+  });
+
+  test('an operator turns them on from the Studio, with no URL to edit',
+    async ({ page, browser }) => {
+      /*
+       * A URL parameter alone was not an answer: the source that most needs
+       * diagnosing is a switcher in a rack, where editing a URL means a
+       * virtual keyboard. Show state is a static file the board already polls,
+       * served by our own server — so the switch arrives even when the thing
+       * that broke is the game API.
+       */
+      await setDiagnostics(page, true);
+
+      const source = await browser.newContext();
+      const board = await source.newPage();
+      try {
+        const origin = new URL(page.url()).origin;
+        await board.goto(`${origin}/app.php?view=scoreboard&game=999999`);
+        // Longer than the board's diagnostics poll, which is deliberately slow:
+        // it decides whether a message may be painted, not what is on air.
+        await expect(board.locator('#errorDisplay')).toBeVisible({ timeout: 20000 });
+      } finally {
+        await source.close();
+        await setDiagnostics(page, false);
+      }
+    });
+
+  test('a board withdraws rather than keep a score nothing has confirmed',
+    async ({ page }) => {
+      /**
+       * The case none of the three options in STUDIO.md §11 covered. "Keep the
+       * last good frame" fixes the mid-broadcast error message and leaves a
+       * plausible, wrong score on air for the rest of the game — which is the
+       * failure this project guards against hardest.
+       *
+       * `stale=1` with a five-minute poll is that situation compressed: one
+       * payload arrives, and nothing confirms it afterwards.
+       */
+      // Set the state this asserts on: diagnostics are global, and a test
+      // that ran before this one may have left them on.
+      await setDiagnostics(page, false);
+
+      await page.goto('/app.php?view=scoreboard&game=702&stale=1&interval=300000');
+      await expect(page.locator('#scoreboard'), 'it paints first').toBeVisible();
+
+      await expect
+        .poll(() => visible(page, 'scoreboard'), { timeout: 10000 })
+        .toBe(false);
+      // Silently. A blank corner claims nothing; an error message is a defect
+      // broadcast to viewers.
+      expect(await visible(page, 'errorDisplay'), 'and says nothing about it').toBe(false);
+    });
+
+  test('the Studio reports the feed and owns the switch', async ({ page, browser }) => {
+    const panel = page.locator('#healthPanel');
+    await page.goto('/app.php?view=index');
+    const origin = new URL(page.url()).origin;
+
+    // A visitor sees the state and cannot change it — the Studio's standing
+    // rule that the information is not secret and the controls are.
+    const guest = await browser.newContext();
+    const anon = await guest.newPage();
+    try {
+      await anon.goto(`${origin}/app.php?view=index`);
+      await expect(anon.locator('#healthPanel')).toContainText(/Diagnostics off/i);
+      await expect(anon.locator('#healthPanel button')).toHaveCount(0);
+    } finally {
+      await guest.close();
+    }
+
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.goto('/app.php?view=index');
+
+    await expect(panel).toContainText(/Game data is answering/i);
+    const toggle = panel.locator('button');
+    await expect(toggle).toHaveText(/Show diagnostics/i);
+
+    try {
+      await toggle.click();
+      // It expires on its own: "turn it on, fix it, forget to turn it off" is
+      // the failure, and the consequence is text on air during the next fault.
+      await expect(panel).toContainText(/Diagnostics on/i);
+      await expect(panel).toContainText(/10 min more/i);
+
+      const state = await (await page.request.get(SHOW)).json();
+      const left = state.diagnostics - Math.floor(Date.now() / 1000);
+      expect(left, 'the store holds an expiry, not a flag').toBeGreaterThan(500);
+      expect(left).toBeLessThanOrEqual(600);
+    } finally {
+      await setDiagnostics(page, false);
+    }
+  });
+});

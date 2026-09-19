@@ -162,7 +162,9 @@ The step from *one overlay per URL* to *one stage per broadcast with an operator
 
 Its long middle section — **"What the data actually supports"** — is the most reusable part of the whole set: every statistic checked against real payloads and the UO schema, with a verdict. It is what stops a card being designed around data that does not exist. Turnovers do not exist anywhere in the schema; blocks do, behind a setting that ships off; break chances cannot be derived at all.
 
-**Go here for:** whether a card can be built, what a slot may contain, why a control is not disabled, and the full cases behind the upstream asks.
+§11a settles what an overlay may say when something is wrong, which is the one risk in that list that reached air: nothing is painted unless an operator asks, a working board is never replaced by an error, and a board nothing has confirmed for two minutes withdraws rather than show a score the game has moved past.
+
+**Go here for:** whether a card can be built, what a slot may contain, why a control is not disabled, what a failing overlay is allowed to say, and the full cases behind the upstream asks.
 
 ### [`POSTPRODUCTION.md`](POSTPRODUCTION.md) — adding an overlay after the fact
 

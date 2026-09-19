@@ -8,6 +8,7 @@ A release is a git tag and the source archive GitHub builds from it. There is no
 
 ## Unreleased
 
+- **Overlays no longer put error text on air.** A board that cannot load its game shows nothing at all, a working board is never replaced by a message, and a board that nothing has confirmed for about two minutes hides itself rather than keep showing a score the game may have moved past. Diagnostics are turned on by an operator — from the Studio, which needs no URL editing on a switcher and expires after ten minutes, or with `?debug=1` on a laptop — and a board that is working stays silent even then. The Studio's new **Feed and diagnostics** panel reports whether game data is answering. [`docs/STUDIO.md`](docs/STUDIO.md) §11a.
 - `deploy.sh --version v0.7.0` and `deploy.sh --latest` deploy a release rather than the working directory, from a temporary git worktree, so this directory is untouched and `dirty` stays honest. `--show` prints what would be sent without sending it. [`docs/DEPLOY.md`](docs/DEPLOY.md) §4.
 
 ## v0.7.0 — 2026-09-19

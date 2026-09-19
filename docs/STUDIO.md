@@ -831,6 +831,47 @@ A "turn" button in the control UI (§3.5) is the fastest way to find out whether
 | Blocks incomplete and indistinguishable from zero | leaderboards silently rank scorekeeper diligence | capture policy (§4); interim all-zero heuristic |
 | No player photos in Live! | the nicest card has no art | overlay-side `players/` store, mirroring `logos.php` (§5) |
 | An asset still decoding when a card shows | it pops in half-drawn, on air | arm/show lifecycle with `img.decode()` (§2.6); never block a card on a failed asset |
-| **Diagnostics are painted onto the broadcast canvas** | a bad game id in the browser-source URL puts white *"Invalid ID" / "No game data"* over the live picture, and the same happens on air after five consecutive poll failures — `showError()` hides the scoreboard and shows the message in its place. Measured on `/s/999999`: three white text nodes, fully opaque, at (1377,18), (92,688) and (92,719). The connection indicator behaves the same way, appearing whenever the poll is unhealthy | **Unresolved — a policy call, not a bug to quietly patch.** The error text is genuinely useful while setting a source up on a laptop and unacceptable once the source is live, and the page cannot tell those apart. Three options: gate all diagnostics behind an explicit `?debug=1` and default the canvas to blank; or keep them only until the first successful paint (the `painted` flag already exists) so a working overlay is never *replaced* by an error, which fixes the mid-broadcast case but leaves the bad-id case; or accept it and make "check the overlay on a laptop first" a checklist item. Worth deciding before a real broadcast |
+| **Diagnostics on the broadcast canvas** | a bad game id in a browser-source URL put white *"Invalid ID" / "No game data"* over the live picture, and five consecutive poll failures replaced a working scoreboard with the same. Measured on `/s/999999`: three white text nodes, fully opaque, at (1377,18), (92,688) and (92,719) | **Settled — §11a.** Nothing is painted unless an operator asks, a working board is never replaced, and a board that nothing has confirmed for two minutes withdraws rather than show a score that may have moved on |
 | Show state edited by two operators | last write wins, silently | `rev` check on write (§2.4) |
 | Live! upgrade | overwrites the tree | unchanged rule: nothing outside `live/overlays/` |
+
+## 11a. What an overlay is allowed to say — **settled**
+
+The rule: **an overlay never says anything unless an operator asked it to, and never keeps saying something it can no longer support.**
+
+### Why the canvas was the wrong channel
+
+Error text on a broadcast canvas is useful in exactly one situation — somebody is looking at that page, on a laptop, during setup. In the other two it is worthless or harmful: a source added to a switcher is read by nobody, and a source on air is read by the audience. The page cannot tell which of the three it is in, and the three options originally written here all tried to make it guess.
+
+It does not have to. **The person adding the URL knows**, and so does the operator at the Studio, and both of them can be asked.
+
+### The two switches, and why there are two
+
+| switch | for | reaches a board by |
+|---|---|---|
+| `?debug=1` | setup on a laptop, where the URL is already in your hands | the URL |
+| **Show diagnostics**, in the Studio | a source already installed in a switcher | `conf/show.json`, which every board polls |
+
+The second exists because the first is not practical where it is most needed. The device that most wants diagnosing is a Magewell or a Yolobox in a rack, where editing a URL means a virtual keyboard and a re-typed address. Show state is a static file the board already has an address for, served by **our** server — so the switch arrives even when the thing that has broken is Live's API, which is the common case.
+
+It **expires after ten minutes**. "Turn it on, fix it, forget to turn it off" is the same failure the room code's auto-hide exists to prevent (`COMMENTATOR.md` §5a), and the consequence here is an error message on air during the next fault, weeks later.
+
+### The rule that makes one switch safe for a whole broadcast
+
+**A board that is working paints nothing, even with diagnostics on.** No connection chip, no text. Turning them on therefore marks only the boards that are actually failing — which are already showing nothing useful — rather than decorating four healthy fields to inspect a fifth.
+
+### Withdrawing, which none of the three original options covered
+
+"Never replace a working board" is only half an answer. A board that keeps its last good frame through a dead API shows a **plausible, wrong score** for the rest of the game, and a wrong score presented as a right one is the failure this project guards against hardest.
+
+So a board withdraws: after a window with nothing confirming what it shows, it hides itself, silently. A blank corner claims nothing; 8-6 during an 11-9 game is a lie the audience cannot check. It comes back on its own when the data does.
+
+The window is four polls, floored at a minute — the payload's cache life is the server saying when it will have news, so four of them is "this is not one slow response". `?stale=<seconds>` overrides it, and `?stale=0` turns withdrawal off for whoever decides otherwise for their broadcast.
+
+One exception, and it is the interesting one: **a board switched to match control does not withdraw when Live! goes away**, because the score on screen is still arriving from this project's own store. What the missing API carries is team names, and those do not change during a game. `shared/diagnostics.js` holds that rule and `tests/e2e/diagnostics.spec.js` states it.
+
+### What the Studio can and cannot tell you
+
+A silent board leaves the operator with a question — *why is the bug not there?* — so the Studio answers the part it can. It reads the same API through the same client, so **Feed and diagnostics** reports whether game data is answering, for how long it has not been, and what the boards are doing about it.
+
+What it cannot see is whether a given switcher source is loading at all, or that somebody typed the wrong game id into one. Only that page knows, and the only way it could report in would be a write from a surface that reaches air — which this project does not do (`ANALYTICS.md`). So the panel says what it is: this laptop's view. For the rest, the operator turns diagnostics on and the failing board says it itself.

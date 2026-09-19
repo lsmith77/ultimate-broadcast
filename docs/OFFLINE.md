@@ -14,9 +14,16 @@ A code is **per game**, so a day of games means a code per game — and the easi
 
 The Studio's games table has a **Match control ↗** link per game, which is the `/k/<game>` URL to hand over. Sending those links is the whole handover.
 
+### Doing it alone
+
+One person filming their own club's game is operator, scorekeeper and camera at once, and for them the handover above is paperwork addressed to themselves. Two things make it shorter:
+
+- **Sign in on the phone and skip codes entirely.** An administrator may write any game without one, so a code you would nominate and then type back into your own phone is a step with no second person in it. The setup screen offers the link.
+- **Open `/k/` on the phone and pick the game there.** It lists the event's games — live ones first — so nothing has to be typed and no laptop has to be open at the pitch. Tapping one sets that game up on the phone, after which it appears under *Games on this phone* and works with no network.
+
 ## 2. What a scorekeeper does
 
-1. **At home, with signal:** open `/k/<game>` once for each game of the day, **enter the code on each one**, and add it to the phone's home screen ("Add to Home Screen" on iOS, "Install app" on Android). Opening a game caches it; entering the code is what lets the phone write; the home screen makes it open without browser chrome.
+1. **At home, with signal:** open `/k/` and tap each game of the day — or open `/k/<game>` directly — **and enter the code on each one**, and add it to the phone's home screen ("Add to Home Screen" on iOS, "Install app" on Android). Opening a game caches it; entering the code is what lets the phone write; the home screen makes it open without browser chrome.
 2. **At the pitch:** tap the icon. It opens the list of games on the phone. Pick one and keep score. Every press is applied on screen at once.
 3. **Back in signal:** the presses send themselves. The list shows what is still unsent.
 4. **If they cannot be sent:** export the file from the list and pass it on.

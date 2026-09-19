@@ -191,6 +191,8 @@ $swScope = $base . '/k/';
         border: 1px solid var(--line); border-radius: 10px; background: transparent;
         color: var(--ink-mute); }
     .games .drop:disabled { opacity: .35; }
+    .signin { display: inline-block; color: var(--ink-mute); font-size: .85rem; }
+    .signin.hide { display: none; }
     /* The row must shrink, or a long fixture name pushes the score and the
        Remove button off the side of a phone — which is what it did, and which
        a screenshot caught and a passing test did not. `min-width: 0` on both
@@ -299,6 +301,12 @@ $swScope = $base . '/k/';
         operator to switch the scoreboard to this game's match control.</span>
 </div>
 
+<section class="games hide" id="pick">
+    <h1>Games at this event</h1>
+    <p class="hint">Tap one to set it up on this phone. Needs signal, so do it before you go.</p>
+    <ul id="pickList"></ul>
+</section>
+
 <section class="games hide" id="games">
     <h1>Games on this phone</h1>
     <p class="hint" id="gamesHint"></p>
@@ -312,6 +320,7 @@ $swScope = $base . '/k/';
     <p id="setupWhy">Enter the code the operator gave you for this game.</p>
     <input id="code" inputmode="latin" autocapitalize="characters" autocomplete="off"
         maxlength="<?= (int) Score::CODE_LENGTH ?>" aria-label="Scorekeeping code">
+    <p><a class="signin hide" id="signin">Running this yourself? Sign in instead &mdash; no code needed.</a></p>
     <button class="bar" id="useCode" type="button" style="padding:.85rem;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)">Use this code</button>
 </div>
 
@@ -414,6 +423,10 @@ $swScope = $base . '/k/';
         // now accepts the SCOREKEEPING code for them, so this phone does not
         // have to carry a second one.
         possessionUrl: <?= $json(Mode::viewUrl('possession', $base)) ?>,
+        // Where somebody signs in. An operator keeping their own score needs no
+        // code at all — the store lets an administrator write any game — and on
+        // a one-person rig the operator and the scorekeeper are one person.
+        loginUrl: <?= $json(Mode::loginUrl($base)) ?>,
         // A link to one game, with the id to be filled in. From Mode rather
         // than written here: `/k/702` is a rewrite that only exists where the
         // host's snippet was pasted, and the long form always works.
@@ -527,7 +540,91 @@ $swScope = $base . '/k/';
         el('state').classList.add('hide');
         el('games').classList.remove('hide');
         renderList();
+        offerGames();
         return;
+    }
+
+    /**
+     * The event's games, for a phone that is the only device present.
+     *
+     * The list above is what this phone has already been given. That is no help
+     * to somebody setting one up: they would have to know a game id and type a
+     * URL, from a laptop they may not have. One person filming their own club's
+     * game is the case this project keeps saying it serves, and they were the
+     * one audience expected to arrive with a link already in hand.
+     *
+     * Only with signal, and quietly: a phone at a pitch has neither the network
+     * nor the need, and the games it is carrying are listed above regardless.
+     */
+    function offerGames() {
+        if (!window.Provider) { return; }
+        var api = window.Provider.fromConfig({ apiBase: CONFIG.api, captureBase: CONFIG.captureBase });
+        var known = {};
+        (window.ScoreArchive ? window.ScoreArchive.games() : []).forEach(function (g) {
+            known[String(g.id)] = true;
+        });
+
+        Promise.all([api.games(), api.teams().catch(function () { return null; })])
+            .then(function (both) {
+                var games = (both[0] && both[0].games) || [];
+                /**
+                 * `teams` is an OBJECT keyed by team id, not a list.
+                 *
+                 * Treating it as a list threw inside this promise, which the
+                 * catch below then swallowed — so the picker simply never
+                 * appeared, with nothing logged and nothing shown. That is the
+                 * shape trap `PLAN.md` keeps a list of, and the reason a catch
+                 * around a whole block is worth being suspicious of.
+                 */
+                var teams = (both[1] && both[1].teams) || {};
+                var names = {};
+                Object.keys(teams).forEach(function (id) {
+                    var t = teams[id] || {};
+                    names[String(t.team_id || id)] = t.name || t.abbreviation || '';
+                });
+                if (!games.length) { return; }
+
+                // Live games first, then by kickoff: at a tournament the next
+                // thing somebody keeps score for is nearly always one of those.
+                games.sort(function (a, b) {
+                    var live = (Number(b.isongoing) || 0) - (Number(a.isongoing) || 0);
+                    return live || String(a.time || '').localeCompare(String(b.time || ''));
+                });
+
+                var ul = el('pickList');
+                var shown = 0;
+                games.forEach(function (g) {
+                    if (shown >= 20 || known[String(g.game_id)]) { return; }
+                    shown += 1;
+                    var li = document.createElement('li');
+                    var a = document.createElement('a');
+                    a.href = CONFIG.gameUrl.replace('%GAME%', String(g.game_id));
+
+                    var who = document.createElement('span');
+                    who.className = 'who';
+                    var b = document.createElement('b');
+                    var home = names[String(g.hometeam)] || ('Team ' + g.hometeam);
+                    var away = names[String(g.visitorteam)] || ('Team ' + g.visitorteam);
+                    b.textContent = home + ' v ' + away;
+                    var sub = document.createElement('span');
+                    sub.textContent = [g.gamename || '', (g.time || '').slice(0, 16).replace('T', ' ')]
+                        .filter(Boolean).join(' \u00b7 ');
+                    who.appendChild(b);
+                    who.appendChild(sub);
+
+                    var flag = document.createElement('span');
+                    flag.className = 'state ' + (Number(g.isongoing) === 1 ? 'pending' : 'ok');
+                    flag.textContent = Number(g.isongoing) === 1 ? 'live' : 'set up';
+
+                    a.appendChild(who);
+                    a.appendChild(flag);
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                });
+
+                if (shown) { el('pick').classList.remove('hide'); }
+            })
+            .catch(function () { /* no signal, or no event: the device list stands */ });
     }
 
     /**
@@ -942,6 +1039,19 @@ $swScope = $base . '/k/';
                 el('setupWhy').textContent =
                     'Enter the code the operator gave you for this game.';
             }
+
+            /**
+             * The other way in, for whoever is running the whole thing.
+             *
+             * An administrator may write any game without a code — the store
+             * says so — and on a one-person rig the operator and the
+             * scorekeeper are the same person, typing a code they nominated
+             * themselves minutes earlier. Offered rather than assumed: it is a
+             * link, and anybody who is not the operator cannot use it.
+             */
+            var signin = el('signin');
+            signin.href = CONFIG.loginUrl;
+            signin.classList.toggle('hide', Boolean(s.error));
         }
     }
 

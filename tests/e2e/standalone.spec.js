@@ -1780,6 +1780,57 @@ test.describe('a phone with no signal at all', () => {
     await context.setOffline(false);
   });
 
+  test('a phone alone can find the event\'s games and set itself up', async ({ page, context }) => {
+    /**
+     * The person filming their own club's game is operator, scorekeeper and
+     * camera at once, and the phone is often the only device at the pitch. The
+     * device list is no help to them until a game is on it, so the way in was
+     * knowing a game id and typing a URL — from a laptop they may not have.
+     */
+    test.setTimeout(60000);
+    await page.goto('/k/');
+    await expect(page.locator('#pick')).toBeVisible({ timeout: 15000 });
+    const first = page.locator('#pickList li a').first();
+    await expect(first).toContainText(/ v /);
+    await expect(first).toHaveAttribute('href', /\/k\/\d+$/);
+
+    // Tapping one sets it up, after which it is on the device list instead.
+    const href = await first.getAttribute('href');
+    const id = href.split('/').pop();
+    await page.goto(href);
+    await expect(page.locator('#teams, #setup')).not.toHaveCount(0);
+    await page.goto('/k/');
+    await expect(page.locator('#gameList li')).toContainText([new RegExp(String(id) + '|v ')]);
+    // And it is no longer offered as something to set up.
+    const offered = await page.locator('#pickList li a').evaluateAll(
+      (as, want) => as.some((a) => a.getAttribute('href').endsWith('/' + want)), id,
+    );
+    expect(offered, 'a game already on the phone is not offered again').toBe(false);
+
+    // With no signal the picker stays out of the way; the device list does not.
+    await context.setOffline(true);
+    await page.goto('/k/');
+    await expect(page.locator('#games')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#pick')).toBeHidden();
+    await context.setOffline(false);
+  });
+
+  test('the phone offers signing in, for whoever is also the operator', async ({ browser }) => {
+    // An administrator may write any game without a code, and on a one-person
+    // rig the operator and the scorekeeper are the same person typing a code
+    // they nominated themselves minutes earlier.
+    const phone = await browser.newContext();
+    const q = await phone.newPage();
+    try {
+      await q.goto('/k/703');
+      await expect(q.locator('#setup')).toBeVisible();
+      await expect(q.locator('#signin')).toBeVisible();
+      await expect(q.locator('#signin')).toHaveAttribute('href', /login/);
+    } finally {
+      await phone.close();
+    }
+  });
+
   test('the list SENDS what it says is unsent, and says so afterwards',
     async ({ page, context }) => {
       /**

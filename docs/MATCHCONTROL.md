@@ -117,7 +117,7 @@ For score and clock that answer is unusually clear: *whoever is watching the gam
 
 ## 3. Scoring is cheap to do and expensive to get wrong
 
-Worth stating precisely, because the intuition is backwards.
+The intuition here is backwards.
 
 **The volume is tiny.** A game to 15 is about 30 goals over 80–100 minutes: one input every three minutes. The clock is start, halftime, restart, and the odd stoppage — under a dozen presses a game. Compare that with the surfaces this project already asks people to drive: line selection is seven picks per point (~200 a game), and possession is several presses per point.
 
@@ -193,7 +193,7 @@ With one phone surface, the allocation question becomes simply *who is holding t
 | **3** | A dedicated keeper, or a team volunteer at the pitch | Three + phone | Frees the commentator's hands for lines and possession, the high-frequency inputs. |
 | **4** | A dedicated keeper | Four + phone | Operator, two commentators, keeper. |
 
-The two-person case is the load-bearing one, because it is the most common and because the obvious allocation is wrong. Giving score to the operator "because they have the admin login" optimises for the permission model instead of for attention.
+The two-person case decides the design, because it is the most common and the obvious allocation is wrong. Giving score to the operator "because they have the admin login" optimises for the permission model instead of for attention.
 
 The keeper is often not broadcast crew at all. At three or more the natural candidate is the person already keeping the paper scoresheet. They should be able to hold the score capability without being able to touch what is on air — exactly the shape the room code already has, and the strongest argument for capability grants over a single admin password.
 
@@ -223,7 +223,7 @@ One thing this makes plain about standalone. Timeouts are `gameevents`, so in st
 
 In hosted mode score and clock come from UltiOrganizer's Scorekeeper, driven by a tournament volunteer at the pitch. That separation is healthy and should not be dissolved: **the scoresheet is the tournament's record and the overlay is a picture of it.** Standalone recreates the picture; it must not quietly become the record for a game the tournament also records elsewhere.
 
-That prediction was half wrong, and what shipped is worth stating plainly. Hosted mode *does* take a second score input, because latency made it worth one: an operator can switch a game's scoreboard to match control and the overlay then reads this score instead of Live!'s (§0). What has not changed is the direction of travel —
+That prediction was half wrong. Hosted mode *does* take a second score input, because latency made it worth one: an operator can switch a game's scoreboard to match control and the overlay then reads this score instead of Live!'s (§0). What has not changed is the direction of travel —
 
 > **Nothing here is ever written back to UltiOrganizer or Live!.** Their API is read-only, six endpoints and GET only, so there is nowhere to send a goal even if we wanted to. A game kept in match control is a **parallel** score that the overlay can be pointed at; UO's own scoresheet remains whatever UO's scorekeeper entered, and the tournament's record is unaffected either way.
 
@@ -247,7 +247,7 @@ It should say which it is doing, in words, on the screen. A clock that is the ov
 - **Double entry.** Solved structurally by §4, not by discipline or by locking a surface to one person.
 - **The wrong goal.** Undo must be one press and must be reachable while the next point is being played. The possession store already scopes corrections to the current point for exactly this reason, and the same reasoning applies: correcting the point being played changes a number nobody has read out; correcting an earlier one silently rewrites what a commentator already said.
 - **A sleeping phone.** It comes back with a stale view. It must reconcile to the store rather than push what it remembers — the same rule as every declared value: shared wins, local only fills a gap.
-- **Nobody pressing anything.** The overlay must be able to say the clock is not running rather than draw a stopped one, which is the honest version of the §7 gap.
+- **Nobody pressing anything.** The overlay must be able to say the clock is not running rather than draw a stopped one, which is the §7 gap stated accurately.
 
 ## 10. Undo, and the keys it lives under — logged, not settled
 

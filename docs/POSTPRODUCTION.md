@@ -27,7 +27,7 @@ Three data qualities follow, and the tool has to detect which it has rather than
 | **Sheet typed up later** | null | approximate | useless, all clustered | one anchor, plus care across pauses |
 | **Times hidden or blank** | null | absent | useless | one anchor **per goal** — there is no data to interpolate from |
 
-The third row is not a failure mode to engineer around. There is genuinely nothing to derive from, and the honest answer is that somebody marks the goals while scrubbing. For a fifteen-point game that is fifteen marks.
+The third row is not a failure mode to engineer around. There is nothing to derive from, so somebody marks the goals while scrubbing. For a fifteen-point game that is fifteen marks.
 
 ## Anchors
 
@@ -37,7 +37,7 @@ An anchor says "goal *n* happens at *this* position in the video". **One is requ
 - **Two or more** give a piecewise fit between them, which is also how the half-time break is handled: the game clock stops there and the video does not, so an anchor either side keeps both halves honest.
 - **One per goal** is the degenerate case above, and needs no special mode — the same mechanism, used exhaustively.
 
-Every goal that is *not* an anchor becomes a free check. That is the point of allowing more than one.
+Every goal that is *not* an anchor becomes a free check, which is why more than one is allowed.
 
 ## Residuals, and when to refuse
 

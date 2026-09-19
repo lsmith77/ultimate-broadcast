@@ -32,7 +32,7 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 
 ![A full frame, as a switcher receives it](docs/images/stage.png)
 
-*What actually reaches the switcher: a 1920×1080 frame, transparent everywhere except the graphics. The bug sits inside a title-safe inset with a companion strip above it, and the rest of the frame is left alone — which is the point.*
+*What actually reaches the switcher: a 1920×1080 frame, transparent everywhere except the graphics. The bug sits inside a title-safe inset with a companion strip above it, and the rest of the frame is left alone.*
 
 ![The scoreboard bug](docs/images/scoreboard.png)
 
@@ -212,7 +212,7 @@ Two kinds of help would make more difference to this project than more features.
 
 Standalone mode lowers the bar for trying: [ultimate-broadcast.org](https://ultimate-broadcast.org) can be pointed at from a switcher today, with no install and nothing to sign, purely to find out whether the device runs the page at all.
 
-If you are broadcasting an Ultimate event and willing to try it, or to run the self-test and report what happened, that is worth more than any amount of further development. Failures are the useful part: an overlay that never updated, a graphic that looked wrong on air, an instruction that made no sense at the side of a pitch.
+If you are broadcasting an Ultimate event and willing to try it, or to run the self-test and report what happened, that helps more than further development. Failures are the useful part: an overlay that never updated, a graphic that looked wrong on air, an instruction that made no sense at the side of a pitch.
 
 There is also a wishlist pointed the other way: [docs/UPSTREAM.md](docs/UPSTREAM.md) collects what these overlays want from UltiOrganizer and Live! by BULA themselves — one entry per ask, with what it unlocks and a link to the full case.
 
@@ -220,9 +220,9 @@ Open an issue either way.
 
 ## Development
 
-This project is built with heavy use of AI coding assistants. The conventions that keep that workable — what may not be touched, how claims are verified, and why the documentation is load-bearing rather than decorative — are written down in [AGENTS.md](AGENTS.md), which is meant for both the humans and the agents.
+This project is built with heavy use of AI coding assistants. The conventions that keep that workable — what may not be touched, how claims are verified, and why the documentation matters as much as the code — are written down in [AGENTS.md](AGENTS.md), which is meant for both the humans and the agents.
 
-Two of those conventions are worth stating here, because they shape everything else. Behaviour is established by **measurement** rather than by reading the code and reasoning about it: layout claims come from `getBoundingClientRect()` in a real browser, data claims from running the query and comparing rows. And the documents under [docs/](docs/) record *why* decisions were made, including the ones that turned out to be wrong — which is the part neither a human nor a model can reconstruct from the source later.
+Two of those conventions shape everything else. Behaviour is established by **measurement** rather than by reading the code and reasoning about it: layout claims come from `getBoundingClientRect()` in a real browser, data claims from running the query and comparing rows. And the documents under [docs/](docs/) record *why* decisions were made, including the ones that turned out to be wrong — which is the part neither a human nor a model can reconstruct from the source later.
 
 ## Tests
 

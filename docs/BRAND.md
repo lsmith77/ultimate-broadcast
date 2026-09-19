@@ -67,7 +67,7 @@ Chrome is already a dependency of the test suite, so this needs nothing new.
 
 ## 7. Where the mark appears in the UI, and where it must not
 
-The icons are in the pages as well as in the tabs, and that is the point rather than decoration: **a tab icon only means something to somebody who has been taught it.** The same microphone in the commentary desk's own toolbar and in its tab is what makes that tab legible a week later without reading the title. A different graphic in each place would teach nothing.
+The icons are in the pages as well as in the tabs, which is what teaches them: **a tab icon only means something to somebody who has seen it before.** The same microphone in the commentary desk's own toolbar and in its tab is what makes that tab legible a week later without reading the title. A different graphic in each place would teach nothing.
 
 The Studio does most of the teaching, because it is where somebody meets every other surface for the first time — it hands out the stage URL, the match control link and the commentary desk. Each of those links carries the icon of the surface it opens, so the association is made at the moment of clicking through.
 

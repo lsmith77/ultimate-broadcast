@@ -69,7 +69,7 @@ The thing that would actually earn the claim is end-to-end encryption, and this 
 
 The mechanics fit too: a key can ride in the **URL fragment**, which browsers do not send to servers, so a link handed to a commentator carries the key without the relay ever seeing it. The five-character room code is far too short to *be* a key, but it is already the thing people exchange, so a longer secret behind the same gesture is a UI problem rather than a new concept.
 
-That is the version worth wanting. It is also strictly harder: search, recovery, and "the operator lost the link" all become impossible by design, which is the point and the cost.
+That is the version to want, and it is strictly harder: search, recovery and "the operator lost the link" all become impossible by design, which is both the aim and the cost.
 
 ## 4. What I would actually build
 
@@ -146,7 +146,7 @@ A local-first design degrades correctly there: the desks keep talking, the score
 
 ## 7. Two tiers, because they are not the same client
 
-Everything above keeps running into one asymmetry, and it is worth stating as a rule rather than rediscovering per feature.
+Everything above keeps running into one asymmetry. It is a rule rather than a per-feature discovery.
 
 | | **Broadcast surfaces** — scoreboard, stage | **Desk surfaces** — Studio, commentary, match control |
 |---|---|---|
@@ -234,9 +234,9 @@ The three things that would settle it, in order of what they would rule out:
 3. **Prototype the room protocol against the existing stores**, not against a new model. If a relay can drive today's `notes`, `lines` and `possession` shapes unchanged, the claim in §1 is true; if it cannot, it was optimism.
 4. **Test a peer connection on venue wifi**, not on a home network or a hotspot. Client isolation and mDNS resolution are what decide whether §5 and §6 are designs or wishes, and neither can be discovered anywhere except on the kind of network the product runs on.
 
-The first of those is the one that matters most, and it is worth saying why: **it is the only question here whose answer changes the architecture rather than the effort.** If a switcher's browser source can hold a data channel, the offline design in §6 is complete. If it cannot, every version of this needs a small server on the network, and that server already exists.
+The first matters most: **it is the only question here whose answer changes the architecture rather than the effort.** If a switcher's browser source can hold a data channel, the offline design in §6 is complete. If it cannot, every version of this needs a small server on the network, and that server already exists.
 
-## 10. The honest cost comparison
+## 10. The cost comparison
 
 The current design is already close to free: flat files and PHP, no database, no Composer ([`STANDALONE.md`](STANDALONE.md) §6). A small box runs many tournaments today.
 

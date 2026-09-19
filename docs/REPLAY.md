@@ -59,7 +59,7 @@ Two buttons, not one configurable depth — 5 seconds and 10. That is better tha
 
 Those durations are short, and that is a constraint rather than a preference. While a replay plays, live play continues — so the cost of a replay is measured in *live action missed*, not in buffer. Five to ten seconds is short enough to come back having lost little. It is also why §6c's playlist arithmetic works out so favourably: a sixty-second timeout holds six to ten highlights, which is a lot.
 
-And the undo button is the precondition for all of it, not a nicety. Instant air is only safe because it is instantly reversible. Take the undo away and pressing the wrong key puts something wrong on air with no recourse, and the whole aggressive default becomes indefensible.
+The undo button is the precondition for all of it. Instant air is only safe because it is instantly reversible. Take the undo away and pressing the wrong key puts something wrong on air with no recourse, and the whole aggressive default becomes indefensible.
 
 Which is a principle worth naming, because this project has been circling it. The house rule is *never block a click to prevent a consequence — show the consequence first*. For a time-critical live control, there is a better answer still: make it undoable rather than confirmable. A confirmation dialog costs exactly the moment you are trying to catch. Reversibility buys the same safety and costs nothing.
 

@@ -2,7 +2,7 @@
 
 **Status:** the page is built. `PLAN.md` owns the scoreboard; `STUDIO.md` owns the stage and what goes on air. This document covers a third consumer: the person **talking** over the broadcast, who needs information rather than graphics.
 
-Sections are marked **built** or **not built** individually, because they landed at different times and the gap between them is where this document earns its keep. Prepared talking points and the bio round trip (§5a) are built; the spotter (§6) and the auto-surfacing behaviour (§7) are not.
+Sections are marked **built** or **not built** individually, because they landed at different times. Prepared talking points and the bio round trip (§5a) are built; the spotter (§6) and the auto-surfacing behaviour (§7) are not.
 
 **Written:** 2026-08-22
 
@@ -136,7 +136,7 @@ Same store as pronunciation, same graduation path — **also built**, as a struc
 
 Normalising is prep work, done by hand — and normalising is emptying. The emphasis rule needs to know which sets are not the everyday two, but nothing is gained by *storing* the everyday two: a commentator reads he or she off the player exactly as they would with no data, so a stored `he/him` is confirmation, not information, and this field keeps only what needs saying. The review panel lists every declared set the rule does not recognise ("He", "she/her/hers", another language, `she/they`, `xe/xem`): a variant that plainly means the everyday reading is **cleared** — one click, the field empties, the row leaves the list — while a genuinely declared set is edited if needed and **kept** exactly as written, emphasised, marked reviewed, and never asked about again. Nothing is ever cleared or kept automatically, and when in doubt the answer is Keep. Editing kept pronouns afterwards drops the reviewed mark, because a new declaration has not been reviewed.
 
-One amendment this makes to the bullets above: within this desk-side store, an empty field and "declared the everyday set" collapse into one state — in both, the commentator uses the name and the everyday pronoun. The distinction stays load-bearing upstream, where a profile field is self-declared and published under consent; here the store is a working surface, and it stores exceptions rather than confirmations.
+One amendment this makes to the bullets above: within this desk-side store, an empty field and "declared the everyday set" collapse into one state — in both, the commentator uses the name and the everyday pronoun. The distinction still matters upstream, where a profile field is self-declared and published under consent; here the store is a working surface, and it stores exceptions rather than confirmations.
 
 ### What registration already provides
 
@@ -222,7 +222,7 @@ The marker is a dot, and three things about it were settled by measurement rathe
 - **Colour and shape carry none of it.** The dot is `aria-hidden`; the button also says "has talking points" in visually-hidden text and in its `title`. Same rule as the hold/break blocks on the scoreboard (`PLAN.md` §4) — colour reinforces, words mean.
 - **Markers update in place, never by re-rendering the roster.** A 28-player squad scrolls inside its panel, and the moment a marker changes is exactly the moment somebody has finished writing a note and is looking at the row they wrote it for. Rebuilding the table to add one dot would throw them back to the top of the list.
 
-### The room is the code alone, and that is the whole design
+### The room is the code alone
 
 `Lines` keys a room by **game plus code**. This store keys by **code alone**, and the difference is the point rather than an inconsistency.
 
@@ -246,16 +246,16 @@ An empty box **deletes** rather than storing a blank. A blank entry would still 
 
 ### This is the one store holding one person's words about another
 
-Every other store here holds facts about a game. This holds what a commentator wrote about a named player, and that difference is load-bearing rather than decorative:
+Every other store here holds facts about a game. This holds what a commentator wrote about a named player, and that difference changes three things:
 
 - **It has no verification path at all.** A statistic can be incomplete and labelled so (§2). A note can simply be wrong, or out of date, and nothing in the system will ever notice. So every note carries **who wrote it and when** — a commentator about to repeat something on air should be able to tell their partner's note from their own, and a note from last week from one written this morning.
 - **It is third-party authored, which is the opposite of the rule §5 sets for pronouns and pronunciation.** That rule is not violated so much as out of scope: this is a commentator's own preparation notebook, not a claim about what the player says of themselves. It is worth being explicit that the two must not be conflated if these ever end up displayed together.
 - **It is personal data, so the boundaries are real.** `conf/` is default-closed in the overlays' `.htaccess`, so a note room is not a servable file — asserted by a test, not assumed. The directory is gitignored. And notes expire; see below.
-- **The code is still a namespace, not a credential.** Everything §6 says about that applies here, with one difference worth stating plainly: a guessed line room exposes who somebody thinks is on the field, and a guessed note room exposes what a commentary desk wrote about named players. That is a larger consequence from the same mechanism. It stays unauthenticated for the reason §6 gives — a tournament often has no admin at the field, and gating this behind broadcast control would be a much worse trade — but it is the reason the store expires, the reason the files are not servable, and the reason the code is no longer on permanent display.
+- **The code is still a namespace, not a credential.** Everything §6 says about that applies here, with one difference. A guessed line room exposes who somebody thinks is on the field; a guessed note room exposes what a commentary desk wrote about named players. Same mechanism, larger consequence. It stays unauthenticated for §6's reason — a tournament often has no admin at the field, and gating this behind broadcast control would be a worse trade — but that consequence is why the store expires, why the files are not servable, and why the code is no longer on permanent display.
 
 ### The code is masked, on both surfaces
 
-A namespace nobody can guess is exactly what these guarantees rest on — and a code printed on screen all day is not unguessable, it is published. Both the commentary booth and the operator's station are among the most-walked-past screens at a tournament, and five characters are memorable at a glance. Saying "it is a namespace, not a credential" describes what the code *is not*; it does not excuse handing it to anyone who walks past.
+These guarantees rest on a namespace nobody can guess, and a code printed on screen all day is published rather than unguessable. The commentary booth and the operator's station are among the most-walked-past screens at a tournament, and five characters are memorable at a glance. Calling the code a namespace rather than a credential describes what it is not; it does not excuse handing it to anyone walking past.
 
 So `shared/secret.js` masks both fields by default, with a Show button that reveals and **re-masks itself after thirty seconds**. The auto-hide is the part that does the work: "reveal, read it out, forget to hide it again" is the real failure mode, and a manual toggle alone would spend a tournament in the revealed state.
 
@@ -263,7 +263,9 @@ Three details, the last of which corrects an earlier draft of this section:
 
 - **On the Studio the stakes are higher, not lower.** That code authorises writing possession, which reaches air — so it is masked there too, and the change confirmation no longer echoes it back: the operator just typed it, so repeating it tells them nothing and only puts it on screen twice.
 - **Masking is testable without a password**, because the field renders for an anonymous visitor too — disabled, and with nothing behind the mask, since the nominated code is never published. The test therefore lives outside the logged-in block: a test that only runs when `ADMIN_PASS` happens to be set is a test that mostly does not run.
-- **Generating a new code does *not* reveal the field**, and the argument that said it should was circular. It ran: an operator who has to press Show after generating will leave it revealed — but the auto-hide means the field *cannot* be left revealed, which is the whole point of having one. Once the auto-hide exists, "reveal it for them" is only ever a convenience, never a safeguard, and here it was not even that: the confirmation message already carries the code for six seconds and then clears itself. Revealing the field as well was a second copy of the same secret, on screen for five times as long. **The general form is worth keeping: once a control makes a bad state unreachable, any argument of the shape "otherwise users will end up in that state" is no longer available.**
+- **Generating a new code does not reveal the field.** The argument that it should was circular: an operator who has to press Show after generating will leave it revealed — but the auto-hide is what makes "left revealed" unreachable. Once the auto-hide exists, revealing it automatically is a convenience rather than a safeguard, and here it was not even that, because the confirmation message already carries the code for six seconds and then clears. Revealing the field as well put a second copy of the same secret on screen for five times as long.
+
+  The general rule: once a control makes a bad state unreachable, arguments of the form "otherwise users will end up in that state" no longer apply.
 
 ### Retention: notes are gathered for one broadcast and then deleted
 
@@ -297,7 +299,7 @@ Beside the Import button there is also a number-and-name field, for the player w
 
 A shared document the players fill in themselves is a better shape than a commentator's notebook in every way that matters, and it is the principle §5 argues for the upstream profile fields, reached without waiting for a schema change:
 
-- **The player writes their own entry**, so it is self-declared rather than second-hand — which answers the sharpest objection to this whole feature, that it is one person's unverifiable words about another.
+- **The player writes their own entry**, so it is self-declared rather than second-hand — which answers the main objection to this feature, that it is one person's unverifiable words about another.
 - **It gives players agency at the point where agency means something.** A player can add, edit or remove their own line while the document is still open, before the game. A note typed at the desk gives them no such moment.
 - **It is reusable.** The same document serves every tournament the team attends, and it is the team's to keep.
 - **The team owns the boundary.** Whatever is in that document, the team chose to send it.
@@ -434,7 +436,7 @@ Lines change every point, and a point can end in fifteen seconds. So:
 
 ### The floating spotter: tracking the disc, and getting turnovers for free
 
-A commentary duo splits the teams; a third person — a **spotter** — can instead track **who currently holds the disc**. That single input is worth more than anything else discussed in these documents, because *possession changes fall out of it implicitly*. Nobody records a turnover: the disc simply passes from a player on one team to a player on the other, and that transition **is** the turnover.
+A commentary duo splits the teams; a third person — a **spotter** — can instead track **who currently holds the disc**. That single input yields more than anything else discussed in these documents, because possession changes fall out of it implicitly. Nobody records a turnover: the disc passes from a player on one team to a player on the other, and that transition is the turnover.
 
 Why a spotter is the right person, where nobody else was. Two candidates were considered for possession capture and both had the same flaw (`STUDIO.md` §10.4): the scorekeeper is already tracking goals, assists, timeouts and the clock, and the broadcast operator is directing — for both, possession is *additional* work competing with their real job. A spotter watching the disc is not doing a second job. That is the entire job. It is the first proposal where the capture cost is not stolen from something else.
 
@@ -525,7 +527,7 @@ Two reasons, and the second is the one that decided it. The play-by-play view ha
 
 What remains in the body is a **reading**, not a control: turnovers this point, and the previous point beside it for comparison.
 
-The buttons are smaller than the ones they replace, which is a real cost — the body versions were deliberately large to be hit without looking. Being permanently on screen is worth more than being large, because a button that has scrolled off cannot be hit at any size. The keyboard is unchanged and remains the fast path: `O`, `D`, `I`, `U`.
+The buttons are smaller than the ones they replace, which is a real cost, since the body versions were deliberately large enough to hit without looking. Being permanently on screen beats being large, because a button that has scrolled off cannot be hit at any size. The keyboard is unchanged and remains the fast path: `O`, `D`, `I`, `U`.
 
 Team stats sit at the bottom of this view, the opposite of the prep view. There the squads scroll and the short block belongs on top so it never leaves the screen; here nothing scrolls, and a season record does not change while a point is being played.
 
@@ -667,7 +669,7 @@ Moving JSON between two instances is the easy half and not worth designing here.
 
 - **The identifier has to be issued, not derived.** Matching on name plus birthdate fails in exactly the cases it most needs to get right, and it turns every federation request into a query containing personal data. An opaque issued id does neither.
 - **There is a real-world anchor rather than a registry to invent.** WFDF already issues player numbers for sanctioned events, and `uo_player_profile` already has somewhere to put one — it carries `national_id` and `accreditation_id` beside `ffindr_id`. Riding an identifier players already have, administered by a body that already administers it, sidesteps the hardest problem in the whole idea: who decides that two records are one person.
-- **Clubs are the easier half and worth doing first.** They are far fewer than players, they are public entities rather than private individuals, `uo_club` already exists per instance, and a wrong club merge is embarrassing where a wrong player merge is harmful. Club head-to-head is also among the most valuable outputs. It is the part of this that could be tried without answering the identity question in its hardest form.
+- **Clubs are the easier half, so do them first.** They are far fewer than players, they are public entities rather than private individuals, `uo_club` already exists per instance, and a wrong club merge is embarrassing where a wrong player merge is harmful. Club head-to-head is also among the most valuable outputs. This part can be tried without answering the identity question in its hardest form.
 
 ### Consent does not federate, and neither does erasure
 

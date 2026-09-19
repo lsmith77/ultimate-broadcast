@@ -114,7 +114,7 @@ Consolidate them into one page at `/s/`, public but read-only. Not a separate ad
 
 The line that must stay open is the overlay itself: `/s/702` and the stage are fetched by a browser source that cannot log in, so they can never be gated by anything beyond Live!'s event-publication boundary.
 
-A consequence worth noting for whoever moves it: the colour editor already renders read-only rather than erroring when not authenticated, and distinguishes "not admin" from "`conf/` not writable by the web server". Both behaviours should survive the move — they are what makes an unexpected read-only state diagnosable instead of mysterious.
+One consequence for whoever moves it: the colour editor already renders read-only rather than erroring when not authenticated, and it distinguishes "not admin" from "`conf/` not writable by the web server". Both behaviours must survive the move, because they are what makes an unexpected read-only state diagnosable.
 
 #### Overlay-local state as a proving ground
 
@@ -440,7 +440,7 @@ Two mount kinds, which was not in the original sketch. The scoreboard is already
 
 **One ordering trap worth recording.** The show-state poll always wins the race against the first game payload, so an inline card cannot mount on the first pass. Re-render must therefore re-apply the *whole* show state when a payload arrives, not just refresh already-mounted slots — iterating the mounted set silently skips exactly the cards still waiting to appear. Framed cards tolerate the repeat because mounting short-circuits when the frame it would build is already there.
 
-**On the second card.** `topplayers` rather than `embed`, deliberately. `embed` looked cheapest but its two preconditions are both unverified (§7), and if either fails the MVP collapses to "stage plus the scoreboard we already had" — which proves nothing about hosting *multiple* cards. `topplayers` runs on data confirmed present (`players[].total`, a sort with nothing to derive), needs no framing, and exercises the same mounting path. It also happens to be a card worth having.
+**On the second card.** `topplayers` rather than `embed`, deliberately. `embed` looked cheapest but its two preconditions are both unverified (§7), and if either fails the MVP collapses to "stage plus the scoreboard we already had" — which proves nothing about hosting *multiple* cards. `topplayers` runs on data confirmed present (`players[].total`, a sort with nothing to derive), needs no framing, and exercises the same mounting path. It is also a card worth having on its own merits.
 
 Explicitly **not** in the MVP: `player`, `halfsummary`, `bracket`, `spirit`, `embed`, drag-and-drop, transitions, preview. Each is a card added to a working stage afterwards.
 
@@ -508,7 +508,7 @@ The old `pregame`, `halftime` and `postgame` ids remain as the same card pinned 
 
 ### 9.03 The tournament logo owns its corner
 
-The logo does not move. The stage refuses to place a card in the corner it occupies, and that is the whole rule — visible in the position picker as a blocked cell, and enforced in the store so a stale tab or a direct write cannot get a card underneath it.
+The logo does not move. The stage refuses to place a card in the corner it occupies. That is the entire rule: visible in the position picker as a blocked cell, and enforced in the store so a stale tab or a direct write cannot slip a card underneath it.
 
 It used to step out of the way instead, and that was worse in two ways. A branding mark that repositions itself is not doing its job, and the avoidance was quietly broken for most of its life: it compared the logo's *viewport* rectangle against the scoreboard's *canvas* rectangle. `.stage-canvas` is CSS-transformed to fit the window, so an element inside it reports scaled pixels, while an element inside a card's iframe reports its own untransformed document's pixels. The two agree only in a window exactly 1920 CSS pixels wide. Everywhere else the collision went undetected and the logo sat on top of the bug — which is exactly what was reported from the field.
 
@@ -539,7 +539,7 @@ A tournament runs several fields at once and this project supports that explicit
 
 The second is the worst: no consumer checked whose game the document belonged to, and two games at the same score is routine rather than unlucky.
 
-Keying by game makes all three impossible to write, which is worth more than any guard the consumers could have carried — a guard has to be remembered in every new reader, and this shape does not. `shared/lines.php` was per game from the start; this is the same arrangement.
+Keying by game makes all three impossible to write, which beats any guard the consumers could carry: a guard has to be remembered in every new reader, and this shape does not. `shared/lines.php` was per game from the start; this is the same arrangement.
 
 Every request names its game: a call without one is a 400 rather than a guess.
 
@@ -587,7 +587,7 @@ What it does not survive is two people who disagree — one pressing O while the
 
 A staircase on a grid, the way an ultimate scoresheet has always drawn it: the line steps **right** when the home team scores and **down** when the away team does.
 
-The shape is the whole point. A long horizontal run is a scoring streak, a tight staircase is two teams trading, and a game that stayed close hugs the diagonal all the way into the corner — none of which a running score can show, and none of which needs any numbers read. It is the one card that says how a game went rather than what it ended.
+The shape carries the information. A long horizontal run is a scoring streak, a tight staircase is two teams trading, and a close game hugs the diagonal into the corner. A running score shows none of that, and reading the shape needs no numbers. It is the one card that says how a game went rather than how it ended.
 
 The grid is as wide as the winning score and as tall as the losing one, so it changes shape with the game. One cell is a fixed 40 units in the SVG and the viewBox grows around it, which means a 15-13 game and a 3-1 game both fill the card instead of one being a postage stamp.
 
@@ -742,7 +742,7 @@ But the operator route is a bridge, not the answer. Their attention is not spare
 
 Scorekeeper-captured possession is also better on every axis except build cost: it exists for every game rather than only broadcast ones, it persists into `uo_player_stats` and season stats, it is authoritative, and it serves consumers that have nothing to do with overlays.
 
-So: build the Studio version (§3.5) because it works today and proves whether the feature earns its keep; pursue the upstream log because that is where the data belongs. Per §2.5 and §3.3 the overlay prefers real possession data whenever it appears, so the two are a graduation path rather than competing designs. An overlay-captured stream must never be written back into the scoresheet. Level B stays with the scorekeeper or a dedicated stats keeper regardless, because a per-player turnover count assembled from guesses is worse than no column at all.
+So: build the Studio version (§3.5) because it works today and shows whether the feature is used; pursue the upstream log because that is where the data belongs. Per §2.5 and §3.3 the overlay prefers real possession data whenever it appears, so the two are a graduation path rather than competing designs. An overlay-captured stream must never be written back into the scoresheet. Level B stays with the scorekeeper or a dedicated stats keeper regardless, because a per-player turnover count assembled from guesses is worse than no column at all.
 
 Two further considerations:
 
@@ -818,7 +818,7 @@ Unlike possession, these have no obvious no-cost capturer either: the broadcast 
 
 The columns for the attributed version already exist in `uo_player_stats`, written as hard-coded zeros — so part of this is finishing something, not starting it.
 
-A "turn" button in the control UI (§3.5) is the fastest route to *seeing whether the feature is worth having*, and it needs no upstream change at all. It is not a substitute for the request: capture belongs with the scorekeeper, so that the data exists for every game rather than only broadcast ones, and so the operator stays free to do their own job.
+A "turn" button in the control UI (§3.5) is the fastest way to find out whether the feature earns its place, and it needs no upstream change. It is not a substitute for the request: capture belongs with the scorekeeper, so that the data exists for every game rather than only broadcast ones, and so the operator stays free to do their own job.
 
 ## 11. Risks
 

@@ -199,7 +199,7 @@ Ordered by **what the crew can do** — the people constraint made concrete. It 
 
 Two things follow from reading it this way.
 
-The bottom two rungs are nearly free, because they are what this project already is. A skilled OBS operator needs the overlay pages and a local hub; the pages exist and the hub is §12's phase 1. So this is not three products to build — it is one to build and two to document, and the documentation is worth writing regardless of whether the appliance ever ships.
+The bottom two rungs are nearly free, because they are what this project already is. A skilled OBS operator needs the overlay pages and a local hub; the pages exist and the hub is §12's phase 1. So this is not three products to build: one to build and two to document, and the documentation is worth writing whether or not the appliance ships.
 
 The hardest engineering here serves the crews least able to debug it. The appliance carries every risk in this document and is aimed at the people who cannot work around it when it misbehaves at a field. That raises its reliability bar above a system built for experts rather than lowering it, and it is why §12 delivers the easy rungs first.
 
@@ -219,11 +219,11 @@ Everything above is reasoning. These two rigs actually run, and they show which 
 
 **Rig A is a federation's reference build**, documented by the DFV, the German flying disc association — used across events, written down for people who did not design it, and representing what an association believes a volunteer can be handed. That is precisely the audience the scope note names.
 
-Rig B is the more directly relevant benchmark, because it is what the appliance is actually trying to be. One camera that operates itself, one box doing graphics, switching, replay, recording and streaming, one cellular router, one person. On a one-camera field the Director Mini's job list *is* the appliance's scope — which makes this the sharpest test case in the document.
+Rig B is the more directly relevant benchmark, because it is what the appliance is actually trying to be. One camera that operates itself, one box doing graphics, switching, replay, recording and streaming, one cellular router, one person. On a one-camera field the Director Mini's job list *is* the appliance's scope — which makes it the closest test case in the document.
 
 And between them they isolate the problem exactly. Rig B already achieves §1a's goal — more games, watchable, with almost nobody — and proves the quality and crew-size halves are solvable today. What it cannot do is happen six times, because at roughly €2,000 a field nobody equips six fields. Rig A reaches a comparable result by spending people instead of money, and cannot scale for the opposite reason.
 
-So neither constraint is theoretical and neither rig fails on quality. They fail on the two things §1a names, one each. That is the whole case for this document, demonstrated rather than argued.
+So neither constraint is theoretical and neither rig fails on quality. They fail on the two things §1a names, one each, which is the case for this document.
 
 Four things they settle, three of which are argued in full elsewhere and are listed here only because these rigs are the evidence for them:
 
@@ -329,7 +329,7 @@ The useful way to spend, given money is counted per field, is **not a shopping l
 | the stream drops | a 5G router ([§10a](#10a-the-network-at-a-field)) |
 | no replay | a laptop already in the rig, plus OBS ([§6b](#6b-replay-off-the-box)) |
 
-**Spend where it hurts, not everywhere.** That is the whole difference from buying a bundle.
+**Spend where it hurts, not everywhere** — which is the difference from buying a bundle.
 
 #### Why this attacks both constraints at once
 
@@ -392,7 +392,7 @@ A Director Mini is a switcher, an audio mixer, a battery and a touchscreen, with
 | **A battery** | **recovered for the low-power shape** — a full day from one bank; awkward on x86 | [§10b](#10b-running-off-a-battery) |
 | **A confidence monitor** | **recovered where an HDMI output is spare**, as an ambient dashboard | [§10c](#10c-a-monitor-on-the-box) |
 
-The first row is the only one that does not come back, and it is worth being precise about why. Not because it cannot be built — a second input and a software switch are unremarkable. Because of what comes with it:
+The first row is the only one that does not come back. Not because it cannot be built — a second input and a software switch are unremarkable. Because of what comes with it:
 
 - **A second capture path**, which doubles the most variable line in [§11](#11-cost) — €30–150 for another capture device, or €100–400 for another network encoder.
 - **Two simultaneous decodes**, which forces x86 ([§5d](#5d-x86-instead-of-a-pi)) and rules out the cheap board.
@@ -401,9 +401,9 @@ The first row is the only one that does not come back, and it is worth being pre
 
 So it fails on both of [§1a](#1a-the-goal-and-the-two-constraints)'s constraints at once, and at the end of it you have built a switcher — worse, and for more than a switcher costs. That is why [§3b](#3b-the-graphics-source-the-box-out-of-the-video-path) hands the job to one: not because the box is incapable, but because switchers are cheap, mature, and already good at exactly this.
 
-Which is the third time the same shape has appeared, and it is [§1a](#1a-the-goal-and-the-two-constraints) doing its job: OBS is declined because it asks an operator to know things, not because it cannot do the work ([§7b](#7b-obs-instead-of-a-custom-pipeline)); on-box replay is declined for an operator and a control surface, not for silicon ([§6a](#6a-replay-on-the-box-later)); multi-camera is declined here for a multiview and a person. Nothing in this document is turned down for being technically out of reach.
+That is the third time the same shape has appeared, and it follows [§1a](#1a-the-goal-and-the-two-constraints): OBS is declined because it asks an operator to know things, not because it cannot do the work ([§7b](#7b-obs-instead-of-a-custom-pipeline)); on-box replay is declined for an operator and a control surface, not for silicon ([§6a](#6a-replay-on-the-box-later)); multi-camera is declined here for a multiview and a person. Nothing in this document is turned down for being technically out of reach.
 
-So the honest framing is not *a cheaper Director Mini*. It is: **for a one-camera field this removes the need for one entirely, and for a multi-camera field it makes the switcher cheaper to live with.** What it does not do is pretend to be a switcher — and that is a choice about where the money and the people go, restated in [§1d](#1d-a-grid-of-independent-dials-not-a-ladder) as a dial a tournament turns rather than a wall it hits.
+This is not *a cheaper Director Mini*. It is: **for a one-camera field this removes the need for one entirely, and for a multi-camera field it makes the switcher cheaper to live with.** What it does not do is pretend to be a switcher — and that is a choice about where the money and the people go, restated in [§1d](#1d-a-grid-of-independent-dials-not-a-ladder) as a dial a tournament turns rather than a wall it hits.
 
 Audio looks like the biggest gap and is not. [`COMMENTATOR.md`](COMMENTATOR.md) is an entire document about the people talking over this footage, so a box that composites well but drops the commentary mics has replaced nothing. §3a solves it for about €70, with a purchase rather than a pipeline.
 
@@ -437,7 +437,7 @@ That is the cheapest correct answer here, and it costs a purchase rather than a 
 
 §3 concedes replay, multi-camera cutting and audio to the switcher. There is a version of this idea that feeds the switcher instead of competing with it. It is cheaper, more reliable, and shares nearly all the same software, which is why it is a peer of the all-in-one rather than a footnote. It is the middle rung of §1a's ladder: for a crew that has a switcher and somebody who can run it.
 
-And it is not speculative. §1b's rig A already runs this topology — a laptop's HDMI output feeding an ATEM as a keyed graphics layer, with the switcher cutting two cameras and streaming. What follows is a cost reduction of something proven rather than an untried design.
+It is not speculative: §1b's rig A already runs this topology — a laptop's HDMI output feeding an ATEM as a keyed graphics layer, with the switcher cutting two cameras and streaming. What follows is a cost reduction of something proven rather than an untried design.
 
 The Pi renders the overlay and outputs it over HDMI. A switcher does the cutting, the replay, the audio and the streaming. The box is a *hardware browser source* and nothing else.
 
@@ -475,7 +475,7 @@ The third costs almost nothing, because nobody would build that renderer from sc
 
 ## 4. Getting video in: a capture device is always needed
 
-No board here has an HDMI input. This is the most load-bearing fact in the document and the easiest to assume away. The HDMI ports on a Raspberry Pi, on a Radxa X4 and on an N100 mini PC are **outputs only**, and this is not a driver limitation that can be worked around. HDMI source and sink are different roles in hardware: receiving requires a chip that decodes TMDS and handles EDID and HDCP, and general-purpose computers do not have one. A machine with four HDMI ports still cannot accept a camera.
+No board here has an HDMI input. This is the most consequential fact in the document and the easiest to assume away. The HDMI ports on a Raspberry Pi, on a Radxa X4 and on an N100 mini PC are **outputs only**, and this is not a driver limitation that can be worked around. HDMI source and sink are different roles in hardware: receiving requires a chip that decodes TMDS and handles EDID and HDCP, and general-purpose computers do not have one. A machine with four HDMI ports still cannot accept a camera.
 
 So a capture device is mandatory for the all-in-one shape — it is not optional and it is not cheap. At €30–150 it is the most variable line in §11's budget and, per §10, the component most likely to misbehave at a field.
 
@@ -629,13 +629,13 @@ Commentators need a monitor too, and the earlier distinction was too clean. They
 
 Which breaks the naive delay line, and the fix is one specific detail. If commentary is held back by the delay and the monitor shows what is going to air, the commentator sees a replay, speaks, and their words land seconds after the replay has ended. **The monitor has to show the programme *before* the audio delay is applied** — so they are watching what will air at the moment their delayed voice arrives. Then both cases align without a special case: during live play they speak to the field, during a replay they speak to the monitor, and the same fixed delay carries either onto the right pictures.
 
-Get that backwards and replay commentary is unusable, which is worth knowing before wiring a monitor to the convenient output rather than the correct one.
+Get that backwards and replay commentary is unusable, so wire the monitor to the correct output rather than the convenient one.
 
 **None of this arises on the other tiers.** With an undelayed source the commentator watches the field, glances at a monitor for replays, and their audio is live — everything aligns because nothing was shifted.
 
 #### The version that would fix all of it, and why it is not ours to build
 
-Everything above works around the delay. **A tighter integration would remove it**, and it is worth recording because it is the right design rather than a workaround.
+Everything above works around the delay. **A tighter integration would remove it**, and it is the right design rather than a workaround.
 
 **Separate the two delays.** Stitching a panorama is cheap; deciding where to crop is what costs seconds. So expose the **stitched wide feed live**, at whatever the stitch alone costs — plausibly one to three seconds — and treat the crop as an *instruction* applied to it rather than as the only output. Then:
 
@@ -710,7 +710,7 @@ So it is a fourth deployment rather than a third camera option — worth keeping
 
 RTMP is push-based, so the box has to listen. This is a concrete architectural requirement rather than a configuration detail: there is no "fetch the RTMP stream" — the camera pushes, and something must accept it. MediaMTX is the off-the-shelf answer — a single Go binary, packaged, that ingests RTMP, SRT, RTSP and WebRTC and republishes them internally.
 
-And it earns its place beyond this one case: it makes every source look the same to the pipeline. **RTMP in from an XbotGo, SRT in from a ZowieBox, one uniform internal feed** — which is exactly the shape §8b wants, where a per-field configuration names a source and nothing downstream has to care what kind it is.
+It also helps beyond this one case: it makes every source look the same to the pipeline. **RTMP in from an XbotGo, SRT in from a ZowieBox, one uniform internal feed** — which is exactly the shape §8b wants, where a per-field configuration names a source and nothing downstream has to care what kind it is.
 
 **The honest costs**, because this is the worst-quality path here and should not be sold as anything else:
 
@@ -722,7 +722,7 @@ And it earns its place beyond this one case: it makes every source look the same
 
 Worth noticing, because it is the first thing that favours rung 1 over rung 2. **A hardware switcher cannot ingest RTMP.** It wants SDI, HDMI or at best NDI — so an XbotGo cannot feed §3b's switcher at all, while the box can accept it and could even re-emit it as NDI for a switcher downstream.
 
-Where the cheap automated cameras are the source, the appliance is not merely the cheaper option — it is the only one that works. That is a better reason to build it than cost, and it is worth weighing when §12 reaches phase 3.
+Where the cheap automated cameras are the source, the appliance is not merely the cheaper option — it is the only one that works. That is a better reason to build it than cost, and it belongs in the decision at §12's phase 3.
 
 ---
 
@@ -768,7 +768,7 @@ But the exit costs much more than €100, and the reason is §9 rather than the 
 
 RK3588 does not offer that yet, and the gap is precisely in the part we need. Mainline Linux gained RK3588 hardware *decode* only recently (Collabora's VDPU381/383 work), while **hardware H.264 encode still effectively means Rockchip's vendor BSP kernel — 5.10 or 6.1 — plus `rkmpp`.** The trade is put well in the reporting on it: you can have a recent, powerful processor with a vendor BSP, or an older one with mainline, but not a new one with mainline.
 
-A vendor BSP kernel is exactly the obligation §9 exists to refuse. So the honest cost of the RK3588 exit is not a €100 board, it is the maintenance model. Revisit when mainline encode support lands, not before — and in the meantime §5d is a better exit in every respect.
+A vendor BSP kernel is exactly the obligation §9 exists to refuse. So the cost of the RK3588 exit is not a €100 board, it is the maintenance model. Revisit when mainline encode support lands, not before — and in the meantime §5d is a better exit in every respect.
 
 ### 5c. The SBC market is moving away from this
 
@@ -795,7 +795,7 @@ Two form factors, and they suit different halves of this document.
 
 The **Radxa X4** is an N100 in a Pi 5 form factor at roughly €55 for 4GB and €75 for 8GB, with dual micro-HDMI out, an M.2 slot, 2.5GbE and USB 3.2 at 10 Gbps. That last one meaningfully relieves §4, where the Pi 4's capture bandwidth runs through a VL805 on a single PCIe 2.0 lane; the M.2 slot serves §7a's recording without the §5e slot conflict; and the two HDMI outputs serve §3b's fill and key.
 
-A **generic N100 mini PC** at €110–140 arrives with RAM, SSD, case, cooler and a real power supply. That is worth noticing against §10, because most of §10's field-reliability list is a single-board-computer problem rather than a computer problem: SD card corruption, brownouts from an inadequate supply, and a bare board cooking in a bag are all things a finished mini PC has already solved. Buying one deletes three bullets.
+A **generic N100 mini PC** at €110–140 arrives with RAM, SSD, case, cooler and a real power supply. That matters against §10, because most of §10's field-reliability list is a single-board-computer problem rather than a computer problem: SD card corruption, brownouts from an inadequate supply, and a bare board cooking in a bag are all things a finished mini PC has already solved. Buying one deletes three bullets.
 
 And it answers the objection that killed RK3588. The concern with leaving the Pi was losing a mainstream platform. But on x86 the *software* is the most mainstream target in existence — plain Debian, `i915`, VAAPI, no vendor kernel, no BSP, no board-specific image — so the community that matters is not the board's. Nor is the board a dependency: any N100 machine runs the same install, so unlike RK3588 there is no vendor to be locked to and nothing to be stranded by. What is genuinely given up is Raspberry Pi's long availability guarantee and its unmatched community for *hardware* questions, which is real but narrower than it first appears.
 
@@ -890,7 +890,7 @@ A plain Debian install onto a USB SSD is not an image. It is the same install §
 
 ## 6. Frame rate: 50 fps is not needed
 
-The frame rate is the requirement that drives the board choice, so it is worth being precise about what 50p is actually *for*. Two things, and they have different answers.
+The frame rate drives the board choice, so what 50p is *for* has to be precise. Two things, with different answers.
 
 **Motion rendering.** 50p genuinely looks better live than 25p on a fast horizontal pan following a disc, and this is real rather than pixel-peeping. It is also a modest difference on a laptop or a phone, which is where this is watched.
 
@@ -983,7 +983,7 @@ So automatic replay needs a **second, clean recording** alongside the program on
 
 The system does know who was injured; [`COMMENTATOR.md`](COMMENTATOR.md) tracks it, because a desk needs it. **That makes this the one tag in the list with a privacy edge, and it needs stating before it is built rather than after.**
 
-`AGENTS.md` is already explicit that `notes.php` holds personal data none of the other stores do, and treats that as load-bearing rather than tidy. **An injury is health information about a named person.** So:
+`AGENTS.md` is already explicit that `notes.php` holds personal data none of the other stores do, and treats that as a constraint rather than a tidiness point. **An injury is health information about a named person.** So:
 
 - **As a stoppage marker it is genuinely useful** — an injury stoppage is unplanned dead air, exactly when filler is wanted.
 - **As a highlight tag it must not exist, and an automatic playlist must never be able to select one.** Replaying somebody's injury, or naming them under it, is not a thing this system should be capable of doing by accident at three in the afternoon because a rating was high.
@@ -1010,7 +1010,7 @@ But the requirement lands somewhere cheaper than "stream at 50p". Slow motion ne
 
 So [§6](#6-frame-rate-50-fps-is-not-needed)'s output conclusion survives — **25/30p out is still right** — but its reasoning changes, and one requirement moves upstream: the capture path and the ring buffer want the higher rate the moment replay is in scope.
 
-**And that couples to the board.** Holding a 50p buffer while encoding a 30p programme means the buffer is not simply a tee off the encoder — it is a second, faster path. [§6a](#6a-replay-on-the-box-later) already established two encodes are comfortable on QuickSync and out of the question on a Pi 4. So replay does not merely make x86 attractive, it makes the Pi's ceiling load-bearing — which is one more entry in the N100 column and, unlike the others, a consequence of a feature rather than a preference.
+**And that couples to the board.** Holding a 50p buffer while encoding a 30p programme means the buffer is not simply a tee off the encoder — it is a second, faster path. [§6a](#6a-replay-on-the-box-later) already established two encodes are comfortable on QuickSync and out of the question on a Pi 4. So replay does not merely make x86 attractive: it makes the Pi's ceiling the binding limit, which is one more entry in the N100 column and, unlike the others, a consequence of a feature rather than a preference.
 
 #### Producing replays is what lets the stream stay at 30p — and that pays for itself
 
@@ -1091,7 +1091,7 @@ Choosing x86 has a consequence worth confronting rather than discovering later. 
 
 The overlap is uncomfortable to look at: a browser source, scene switching, **a replay buffer built in**, VAAPI encoding with QSV in recent Linux releases, RTMP and SRT output, recording, and an audio mixer with filters, meters and a limiter — which is §3a's entire list of what software should own. It is packaged in Debian, so §9's maintenance model applies to it unchanged. And it is remotely controllable: obs-websocket has been bundled since OBS 28, so the Studio could drive it rather than driving a pipeline we wrote. Even the browser objection is weaker than it looks — `AGENTS.md` already notes that OBS moved off CEF 75 and current releases ship Chromium 95 or newer.
 
-Said plainly: if OBS does the job, a large part of this document is a research project competing with working software. That is worth saying out loud before any of it is built.
+If OBS does the job, a large part of this document is a research project competing with working software.
 
 The case against is real but narrower than it first appears, and it is all about *what kind of thing the box is*:
 
@@ -1121,7 +1121,7 @@ So the fork is open, and narrower than "pipeline or OBS" — but it is not a con
 
 The obvious fix for "a dialog nobody can see" is to make a screen part of the rig. It helps, and [§10c](#10c-a-monitor-on-the-box) wants one anyway on x86, where the HDMI output is spare because the video leaves over the network. **But visible is not the same as noticed** — a modal on a monitor nobody is looking at is still a stopped broadcast, and §10c argues that screen should be showing an *ambient dashboard* rather than an application window, so the two compete for it.
 
-The load-bearing thing is detection, not visibility, and it needs no monitor at all:
+What matters is detection rather than visibility, and it needs no monitor:
 
 - **A watchdog over obs-websocket.** Poll liveness *and* the output statistics. If a modal blocks the UI thread the socket likely stops answering; if it answers while the encode has stalled, the output stats say so. Either way it is caught, whether or not anybody is watching.
 - **Supervised restart with the scene collection regenerated from `conf/` on every start.** A hang or crash then costs about ten seconds rather than the rest of the game, and comes back deterministically — which is also what makes OBS’s own persistence safe to ignore.
@@ -1206,7 +1206,7 @@ That last row is the reason the Studio's device page does not disappear. It is a
 
 #### "Central" means the tournament's own install, not a service we run
 
-This is the load-bearing decision, and it goes against the instinct to build an API. **The config should be served by the tournament's own overlays install** — a document in its `conf/`, keyed by field, read through the same `live/api`-shaped path everything else already uses.
+This is the decision everything else rests on, and it goes against the instinct to build an API. **The config should be served by the tournament's own overlays install** — a document in its `conf/`, keyed by field, read through the same `live/api`-shaped path everything else already uses.
 
 Two reasons, and the second is the serious one. It needs **no upstream change**: `UPSTREAM.md` exists because asks against UltiOrganizer and Live! are expensive, and this ask can be avoided entirely by putting the document in a directory this project already owns. And it adds no new party to the trust boundary. §8a establishes that a stream key is the first real credential here; a service we operate would hold every tournament's keys, which is a far better target than any single box and precisely the responsibility [`RELAY.md`](RELAY.md) is trying to avoid taking on when it prefers having no data at rest. The tournament already trusts its own server with its own data. Keep it there.
 
@@ -1240,7 +1240,7 @@ Create on the schedule, go live on the box. Tournament schedules slip constantly
 
 #### Where this sits
 
-This is broadcast *management*, not overlay rendering, and it is worth saying plainly that it is a different product growing out of the side of this one. It belongs here only because the schedule does. **Build it in tiers, and stop wherever the value runs out**: per-field destinations from `conf/` with static keys (§8b, no external dependency at all); then schedule-derived titles and metadata handed to whoever is creating broadcasts by hand, which needs no Google API; and only then automated creation, if somebody is prepared to own a Google Cloud project and the verification that comes with it. The first tier delivers most of §8b's operational benefit and cannot break because a third party changed something.
+This is broadcast *management* rather than overlay rendering: a different product growing out of the side of this one. It belongs here only because the schedule does. **Build it in tiers, and stop wherever the value runs out**: per-field destinations from `conf/` with static keys (§8b, no external dependency at all); then schedule-derived titles and metadata handed to whoever is creating broadcasts by hand, which needs no Google API; and only then automated creation, if somebody is prepared to own a Google Cloud project and the verification that comes with it. The first tier delivers most of §8b's operational benefit and cannot break because a third party changed something.
 
 ---
 
@@ -1363,7 +1363,7 @@ The uplink the stream depends on is the same one the crew's phones are on. **Giv
 
 **Prefer prioritisation over prohibition.** The instinct is to block, but an allowlist means knowing every host a scorekeeper needs — and getting that wrong breaks something on a Saturday that nobody at the field can diagnose, which is this section's worst failure mode arriving by a new route. Traffic shaping cannot fail that way: give the box's traffic strict priority by MAC address and let everything else have what is left. Somebody streaming video then slows *their own* video down, which is exactly the right person to inconvenience. An OpenWrt-based travel router — a GL.iNet, as in [§1b](#1b-two-working-rigs)'s rig B — does this out of the box.
 
-Worth knowing who genuinely needs what, because it is less than it looks: **nobody in the crew needs open internet.** A scorekeeper needs the tournament's own host, the commentary desk and the Studio need that host and the box, and the box needs the streaming platform. An allowlist is therefore *possible* as a second layer where the venue is hostile — but it should sit behind shaping, not instead of it.
+Who genuinely needs what, which is less than it looks: **nobody in the crew needs open internet.** A scorekeeper needs the tournament's own host, the commentary desk and the Studio need that host and the box, and the box needs the streaming platform. An allowlist is therefore *possible* as a second layer where the venue is hostile — but it should sit behind shaping, not instead of it.
 
 And it is a router setting, not a box feature, which puts it on the right side of [§1a](#1a-the-goal-and-the-two-constraints)'s two roles: configured once by whoever sets the rig up, never touched on a tournament morning. The one thing that does not survive contact with a field is a shared wifi password — [§8a](#8a-the-stream-key-the-first-real-secret)'s observation about room codes applies unchanged, so assume the password spreads and let the shaping, not the secret, be what protects the stream.
 
@@ -1448,7 +1448,7 @@ And one line recurs rather than being bought once: connectivity. Every field nee
 
 The line that actually decides the total is the transport, not the board. §4c's network ingress needs an encoder at the camera unless the camera speaks NDI or SRT itself, and at $300–400 a ZowieBox-class device costs more than everything else combined. A €30 USB capture device with the box beside the tripod is a tenth of that and gives up the cable, power and placement advantages in §4c. Scaling to many fields makes this the dominant cost, which argues for cameras with native network output as the thing to specify when a tournament next buys any.
 
-§5d barely moves this, which is the point. A complete N100 mini PC at €110–140 arrives with the PSU, cooler and SSD already in it, so it lands inside the same range while removing the encoder problem entirely — and §3b's graphics-only box is cheaper than either, because it needs no capture device, no SSD-for-recording and no audio interface at all. The interesting spread in this table is not between boards, it is between the two shapes in §3b.
+§5d barely moves this. A complete N100 mini PC at €110–140 arrives with the PSU, cooler and SSD already in it, so it lands inside the same range while removing the encoder problem entirely — and §3b's graphics-only box is cheaper than either, because it needs no capture device, no SSD-for-recording and no audio interface at all. The interesting spread in this table is not between boards, it is between the two shapes in §3b.
 
 And the comparison this section makes is the wrong one anyway. §1b names the real competitor: a MacBook running H2R Graphics, driven from a Stream Deck, which already produces good graphics today. The case for this project is not that it is cheaper — it is that nobody has to keep score twice. H2R needs an operator typing the score into it, duplicating what a scorekeeper already entered and adding a second chance to be wrong; these overlays read it from UltiOrganizer and cannot disagree with it. Any budget argument that ignores that is arguing about the wrong thing.
 
@@ -1515,7 +1515,7 @@ Two things only the all-in-one can do, worth weighing against the stop condition
 
 It can do data-driven replay, and that replay pays for itself. §6c: the marks already exist as data, and replay needs the video, the marks and the output in one place. §6d adds the economics: producing replays is what lets the stream stay at 30p, a recurring saving against the cost §10a says never stops. No other option offers this capability, whereas anything can match a cost saving. If phase 3 goes well, this feature justifies the box rather than the €1,000 saved.
 
-#### The likely answer is neither, and that is worth planning for
+#### The likely answer is neither
 
 The realistic outcome is **a partial go: the all-in-one works with a ZowieBox-class source and not with §4d's RTMP-only AI cameras**, which are the tier with two lossy generations, no clean master and wifi in the path. That is a real product — it just has a narrower supported-source list than the ambition, and saying so up front is better than discovering it at a tournament.
 

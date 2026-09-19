@@ -137,7 +137,7 @@ So the ladder runs silent-first:
 
 Whether audio is safe is a fact about the rig, which is what a profile is for (§5). A commentary booth acoustically separate from the operator can beep freely; a two-person crew sharing a table cannot. Nobody but the crew knows which they are, so nobody but the crew should be setting it — and the default has to be the safe one.
 
-### The limit worth stating plainly
+### The limit
 
 A crew watching a hardware multiview cannot be reached by a browser at all. No notification, wash or buzz appears on an ATEM's monitor output. For that setup the reminder can only reach somebody sitting at the laptop, and if nobody is, it reaches nobody.
 

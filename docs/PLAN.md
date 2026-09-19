@@ -313,31 +313,6 @@ Every number derived from that record carries the denominator it was measured ov
 
 **A room can be reset.** `POST {"clearPoints": true}` forgets the recorded points and keeps the current lines: for a desk that recorded the wrong game, and for the screenshot recipe, which has to leave a room as it found it or the committed shots differ on every run.
 
-### 4c. Who was on the field, and what follows from it
-
-Nothing upstream records a line: no table, no payload, and `UPSTREAM.md` carries the ask. The commentary desk knows it anyway, because picking the line every point is what that surface is for. What was missing was the record, not the knowledge — `shared/lines.php` kept one current selection per team and overwrote it on every change.
-
-It now keeps a per-point history, keyed by the score the point started at — the same key the possession store uses, so the two can be joined without being a point out. `shared/playingtime.js` derives from it, tested in `tests/e2e/playingtime.spec.js`.
-
-**What makes it trustworthy is when a point is not recorded.** The desk's line carries over between points (`resetFor()` clears the injury prompt at a goal, not the line), because substitutions are edited incrementally rather than by re-picking seven players. A snapshot at every goal would therefore copy the previous point's line into every point nobody was watching, and playing time built on that over-counts the players who were on earlier. So a point is recorded only where somebody said it was this point's line:
-
-- **an edit during the point**, which happens automatically while a desk is substituting, and
-- **a "Same line again" tap**, for the case an edit-only rule loses: a settled O-line going out unchanged.
-
-Every number derived from that record carries the denominator it was measured over:
-
-| fact | where it is |
-|---|---|
-| **Playing time** — "on for 9 of 11 points" | the quick card, above the season line. Never a percentage: the denominator is the points the desk confirmed, not the points played, and a share that hides the difference is the number on that card most likely to be wrong while looking right |
-| **Coverage** — "8 of 14 points recorded" | under each on-field panel, so a desk that has stopped keeping up sees it at the time rather than later, in a figure that looked complete |
-| **Units and crossovers** — "Crossed from the O line at 2-3" | the quick card. A team's O points are the ones they received, so a player's unit is inferred from where they have played, and a crossover is an established O-line player taking a D point. It happens late in close games and around half |
-
-**Crossovers refuse more than they claim.** A player has a unit only after a run of points in one unit and none in the other, so their first appearance in the other one is a real crossing rather than a rotation. For teams that do not split O and D, nothing is shown at all. Once a player has crossed, their unit is no longer clear and they stop being reported, because the fact is the crossing rather than a label. A point whose receiver is unknown counts towards neither unit.
-
-**Still open: none of this reaches the scoreboard.** The obstacle is not the derivation. The line history lives in a commentary room addressed by a code that is a namespace rather than a credential, and the board cannot read one. Publishing that code into the per-game store the scoreboard polls would put it in a world-readable file, and the same code addresses the notes room, which holds what a desk wrote about named people. Two routes to weigh when it is built: the desk writing a derived summary into the possession store it may already write to, or the operator holding the code in the Studio and publishing the summary from there. Either way the number reaching air is computed at a desk, like declared possession, and has to be labelled as recorded rather than played.
-
-**A room can be reset.** `POST {"clearPoints": true}` forgets the recorded points and keeps the current lines: for a desk that recorded the wrong game, and for the screenshot recipe, which has to leave a room as it found it or the committed shots differ on every run.
-
 ### Scoreboard feature reference
 
 | feature | notes |
@@ -345,6 +320,7 @@ Every number derived from that record carries the denominator it was measured ov
 | **Game clock** | Derived, not read — UO has no countdown anywhere. Mirrors `GameClockState()` (`lib/game.functions.php:1042`): `elapsed = now − timer_start − timer_paused_duration`, minus any open pause. `timer_start` is unix **seconds**. Ticks locally every second so it does not wait on the 30s poll, with server skew corrected from `meta.generated_timestamp` |
 | **Countdown** | When `poolinfo.timecap` is set (minutes), the clock counts down to it and clamps at 0:00; otherwise it counts up |
 | **Cap states** | `half_cap` → amber, `time_cap` → red, matching Timekeeper's convention (`docs/timekeeper.md:99-101`), with the new point cap shown (`TIME CAP · TO 4`). Dropped once the game is not running: red behind "Final" reads as an alarm |
+| **Universe / galaxy point** | `UNIVERSE POINT` when both sides are one short of the game target, `GALAXY POINT` at the half target. `shared/target.js`, and see §4a for where the numbers come from and what it refuses to claim. Takes the centre line from the cap text and the status word, without repainting the cap tint — a cap and a decider are different facts and a game can be both at once |
 | **Timeouts** | Ticks under each name. Allowance from `poolinfo.timeouts`, taken counted from `gameevents`. `timeoutsper: "half"` resets the allowance at the half |
 | **Timeout callout** | A tab over the team that called it, from the `timeout` events already in `gameevents`. The window is measured on the *game* clock, which handles both scorekeeping habits without knowing which is in use: with the clock paused for the timeout the age stays put and the tab lasts exactly as long as play is stopped, and with it running the tab drops off after `poolinfo.timeoutlen`. Outranks a break chance — during a timeout nobody has the disc, so claiming one would assert something that is not happening |
 | **Hold / break callout** | A tab above the bar over the scoring team, sharing one `FLASH_MS` with the score flash so the two read as one event |
@@ -353,7 +329,7 @@ Every number derived from that record carries the denominator it was measured ov
 | **Turnover count** | On the context ribbon, from the possession log on the ~1s channel, and only from two upwards — one change of hands is noise and zero is where every point starts. 12-11 looks identical whether the last point took one throw or fifteen; this is the only thing on the bug that says which |
 | **`?field=`** | Follows whatever is live on a field rather than a fixed game, so a switcher set up in the morning survives every round change. `STUDIO.md` §9.0 |
 | **`?size=compact`** | A smaller bug for replays and busy shots. Drops standing context — seed, timeouts, ribbon, the ON DEFENCE tag — but keeps outcome callouts: a break is the most valuable thing the bug ever says and worthless a few seconds later, and this is the variant used for exactly the shots where one is most likely |
-| **`?demo=1`** | Walks every display state from one real fetched payload — scheduled, live, hold, break, timeout, cap, paused, final. The only way to see a running clock locally, and the sharpest switcher test: no polling or server cache in the path |
+| **`?demo=1`** | Walks every display state from one real fetched payload — scheduled, live, hold, break, timeout, cap, paused, final. The only way to see a running clock locally, and the strictest switcher test: no polling or server cache in the path |
 | **`?at=`** | Draws one deterministic frame for post-production. See `POSTPRODUCTION.md` |
 | **`tests/selftest`** | Four independently moving panels (JS timer, rAF, pure CSS, network) so a switcher that fails to update can be diagnosed by *which* layer is frozen |
 | **Asset cache-busting** | `?v=<filemtime>` on CSS and JS, `Cache-Control: no-store` on the page. Neither asset sent any cache header, so browsers cached them heuristically and a stale stylesheet survived a rewrite — harmless on a laptop, serious on a switcher mid-broadcast |

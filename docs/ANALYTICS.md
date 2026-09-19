@@ -14,7 +14,7 @@ A third-party script — Plausible, Fathom, GoatCounter, Umami. Two problems, an
 
 **The access log.** It already exists, it is already disclosed on the imprint as the host's, and reading it adds nothing to what is collected. No cookie and no browser storage is touched, so the ePrivacy consent rule is never engaged and no banner is needed. Nothing new is retained: the log's retention is the host's, and the aggregate you keep afterwards is not personal data.
 
-That is the whole argument. The cost is accuracy, and §4 is honest about how much.
+The cost is accuracy, and §4 says how much.
 
 ## 2. Running it
 
@@ -22,7 +22,7 @@ That is the whole argument. The cost is accuracy, and §4 is honest about how mu
 tools/stats.sh
 ```
 
-That is the whole thing. [`../tools/stats.sh`](../tools/stats.sh) finds the access log on the host, streams it here, and reads it — one command and one SSH connection. **Nothing is written on the server and no log is stored here**: it is piped straight through, so the only thing that lands on this machine is the counts.
+[`../tools/stats.sh`](../tools/stats.sh) finds the access log on the host, streams it here, and reads it — one command and one SSH connection. **Nothing is written on the server and no log is stored here**: it is piped straight through, so the only thing that lands on this machine is the counts.
 
 It takes the host from `deploy.env`, which already names it for `deploy.sh`. The alternative was a second setting holding the same hostname, and two places to change when it moves is how one of them ends up wrong. `deploy.env` is gitignored, so no hostname enters the repository this way either.
 

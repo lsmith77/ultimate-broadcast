@@ -53,7 +53,7 @@ cp deploy.env.example deploy.env      # fill in REMOTE
 ./deploy.sh
 ```
 
-[`../deploy.sh`](../deploy.sh) is rsync over SSH and it does two things that are worth knowing about, because both are ways this could go wrong quietly.
+[`../deploy.sh`](../deploy.sh) is rsync over SSH. Two things it does are ways this could go wrong without anybody noticing.
 
 **It replaces the `.htaccess`.** The one at the top of the project is for hosted mode: it rewrites onto UltiOrganizer's front controller with `RewriteBase /live/overlays/`, and on a site of its own that means every URL is a 404 — including `/`, because the file the server reaches for is `index.php`, which is the Studio page, which refuses to run unrouted. So that file is excluded and [`../install/standalone.htaccess`](../install/standalone.htaccess) is sent in its place, first, so that a first deployment is never briefly serving `conf/` with no rules in front of it.
 
@@ -78,7 +78,7 @@ It refuses a password under twelve characters, refuses to overwrite an existing 
 
 ### The directory above the installation is not yours
 
-Worth knowing because the first real deployment ran straight into it. `Overlays\Auth` decides hosted-or-standalone by looking one directory up for Live!, and hosted that directory is Live!'s own. **Standalone it belongs to the host**, and a shared-hosting account's `public_html` can have anything in it — this one had an unrelated `vendor/autoload.php`, left by something else entirely.
+The first real deployment ran straight into this. `Overlays\Auth` decides hosted-or-standalone by looking one directory up for Live!, and hosted that directory is Live!'s own. **Standalone it belongs to the host**, and a shared-hosting account's `public_html` can have anything in it — this one had an unrelated `vendor/autoload.php`, left by something else entirely.
 
 The old test was "is there a `vendor/autoload.php` up there", which matched it, and would have `require`d a stranger's autoloader into this process on every auth check. Now the standalone front controller says so itself (`OVERLAYS_STANDALONE`), and the fallback wants Live!'s entry point beside its autoloader before executing anything. `tests/standalone-setup.js` plants a decoy that throws if it is ever loaded, so the suite fails loudly if this comes back.
 
@@ -208,7 +208,7 @@ Dismissing it is remembered per browser, so an operator reads it once rather tha
 
 ## 8. What a visitor can do on a public installation
 
-Worth knowing before pointing a domain at it, because the answer is not "nothing".
+Before pointing a domain at it, because the answer is not "nothing".
 
 They cannot change what is on air, and they cannot keep score. Both need the administrator session, or — for the score — a five-character code that an administrator nominates and hands to a scorekeeper. With no code nominated, `score.php` refuses every write that is not an admin's ([`../score.php`](../score.php)).
 

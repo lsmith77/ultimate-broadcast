@@ -238,7 +238,7 @@ The encouraging half: **the stores are already most of the way to CRDTs**, not b
 
 Because those stores merge without coordination, a late joiner can take a snapshot from **any** peer — which is what makes a peer-to-peer version viable rather than merely appealing. And on a single LAN, peer-to-peer needs no STUN, no TURN and no internet at all.
 
-What that is worth is narrower than it first appears, and worth stating plainly: **no internet means no stream**, whatever the overlays do. What offline buys is local recording, and — the valuable one — **fault tolerance against an uplink that comes and goes**, so a system that loaded fine does not quietly keep drawing a score from four minutes ago.
+The benefit is narrower than it first appears. No internet means no stream, whatever the overlays do. What offline buys is local recording and, more usefully, fault tolerance against an uplink that comes and goes, so a system that loaded fine does not quietly keep drawing a score from four minutes ago.
 
 It all turns on one unanswered hardware question: whether a switcher's browser source can hold a peer connection. If it can, the design is complete; if it cannot, something on the network must serve HTTP — which is a laptop running `php -S`, the deployment that already exists and is already offline. Hence the reframing worth keeping: **peer-to-peer is not what makes offline possible, it is what removes the need for a local server.** The doc also covers why "no data at rest" is a weaker claim than end-to-end encryption, and the two-tier rule: broadcast surfaces stay conservative, desk surfaces may take dependencies, and neither gets a build step.
 
@@ -286,13 +286,21 @@ Most of it comes from a workflow that has actually been operated on a Director M
 
 **Go here for:** why marks are stored and tags derived, why instant air needs an undo rather than a confirmation, and why injury marks an interval and never a clip.
 
+### [`OFFLINE.md`](OFFLINE.md) — keeping score with no signal
+
+**Built, and the entry point for a club that films a game and streams nothing.** No broadcast, no operator at a laptop: one person at a sideline with a phone and a camera running. What they record is the input to the post-production workflow, which makes it a critical path rather than an extra on a live one.
+
+Add `/k/<game>` to a home screen and it opens as an app with no network: several games through a weekend, sent when there is signal or exported as a file. Short and practical — what a scorekeeper does, why it is safe, and where it stops.
+
+**Go here for:** the instruction to give somebody at a pitch, why the first visit needs signal, why only `/k/` is covered, and the two things to do at teardown so footage can be aligned later. The reasoning behind the surface is `MATCHCONTROL.md`; the conflict rules are its §0b.
+
 ### [`MATCHCONTROL.md`](MATCHCONTROL.md) — score and clock, and who keeps them
 
 **Built.** §0 is what shipped; the rest is the reasoning that preceded it.
 
-Not standalone-specific, and the reasoning is worth reading even though the thing is built. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
+Not standalone-specific. A broadcast crew is one, two, three or four people depending on the day, and the wrong way to allocate the score button is to pick a crew size and design for it. `STUDIO.md` §3.5 already settled the axis — *does this compete with the capturer's main job, or is it their main job* — and for score the answer is whoever is already watching the game, which at two people is the commentator rather than the operator.
 
-The load-bearing conclusion is technical rather than organisational: **a goal must be written as the point it creates, not as `+1`.** A delta entered twice is a real 2–0 from one point; a statement of the result is safe by construction, and that is what lets several surfaces hold the button without anybody having to own it.
+The conclusion that decides the design is technical rather than organisational: a goal must be written as the point it creates, not as `+1`. A delta entered twice becomes a real 2–0 from one point, whereas a statement of the result is safe by construction. That is what lets several surfaces hold the button without anybody owning it.
 
 What shipped is the simple one: **a single phone-optimised page, nothing embedded** — with keyboard shortcuts in the commentator page as the likely later step rather than a panel, since that page is already keyboard-driven and its play view cannot afford the rows.
 

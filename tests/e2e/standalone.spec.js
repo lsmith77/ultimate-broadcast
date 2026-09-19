@@ -1825,6 +1825,240 @@ async function clearLocalScore(request, game) {
   throw new Error(`could not empty the score store for game ${game}`);
 }
 
+test.describe('a phone with no signal at all', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('the manifest describes an installable match control, and nothing else', async ({ request }) => {
+    const res = await request.get('/app.php?view=manifest');
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('application/manifest+json');
+    const m = await res.json();
+    // The LIST, not a game: an icon on a home screen is opened cold, days
+    // later, and which game is a question only the person holding it can
+    // answer.
+    expect(m.start_url).toMatch(/\/k\/$/);
+    expect(m.display).toBe('standalone');
+    expect(m.icons.length).toBeGreaterThan(0);
+  });
+
+  test('the worker is served, and only match control links it', async ({ page, request }) => {
+    const sw = await request.get('/sw.js');
+    expect(sw.status()).toBe(200);
+    const body = await sw.text();
+    // The guard that matters more than the scope: standalone this worker is
+    // allowed the whole origin, so it has to refuse air-facing URLs itself.
+    expect(body).toContain('view=scoreboard');
+
+    await page.goto('/app.php?view=matchcontrol&game=702');
+    await expect(page.locator('link[rel=manifest]')).toHaveCount(1);
+
+    // Never on a surface that reaches air.
+    await page.goto('/app.php?view=scoreboard&game=702');
+    await expect(page.locator('link[rel=manifest]')).toHaveCount(0);
+    const registered = await page.evaluate(
+      () => Boolean(navigator.serviceWorker && navigator.serviceWorker.controller),
+    );
+    expect(registered, 'the scoreboard is never under a worker').toBe(false);
+  });
+
+  test('/k/ lists the games this phone is carrying', async ({ page }) => {
+    await page.goto('/k/702');
+    await expect(page.locator('#teams, #setup')).not.toHaveCount(0);
+    // Opening a game is what puts it on the list, and the names arrive with the
+    // payload rather than being typed by anybody.
+    await page.goto('/k/');
+    await expect(page.locator('#games')).toBeVisible();
+    await expect(page.locator('#gameList li')).toHaveCount(1);
+    await expect(page.locator('#gameList li').first()).toContainText('Mosquitos');
+    await expect(page.locator('#gameList a').first()).toHaveAttribute('href', /\/k\/702$/);
+    // Nothing owed, so the list says so rather than showing a count.
+    await expect(page.locator('#gamesHint')).toContainText(/has been sent/i);
+  });
+
+  test('the short URL is served in place, so the worker scope can exclude air', async ({ page }) => {
+    // Every other short URL redirects to the long form. This one must not: a
+    // worker's scope is a path, and `/app.php` is shared with the scoreboard.
+    const res = await page.goto('/k/702');
+    expect(new URL(page.url()).pathname, 'still at /k/702').toBe('/k/702');
+    expect(res.status()).toBe(200);
+  });
+
+  test('the home screen icon opens OFFLINE after one game visit', async ({ page, context }) => {
+    // `/k/` is the manifest's start_url — what a home screen icon opens. A
+    // phone that had only ever opened a GAME would tap its own icon in a car
+    // park and get a network error, so a game visit caches the list too.
+    test.setTimeout(60000);
+    await page.goto('/k/702');
+    await page.waitForFunction(
+      () => navigator.serviceWorker && navigator.serviceWorker.controller,
+      null, { timeout: 20000 },
+    );
+    // Deliberately never visiting /k/ while online.
+    await context.setOffline(true);
+    await page.goto('/k/');
+    await expect(page.locator('#games')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('#gameList li')).not.toHaveCount(0);
+    await context.setOffline(false);
+  });
+
+  test('the list SENDS what it says is unsent, and says so afterwards',
+    async ({ page, context }) => {
+      /**
+       * The list is the screen that answers "have I handed everything over",
+       * and it used to be a display only: no client was built there, so
+       * somebody in signal could sit on it while it handed nothing over. The
+       * documentation said otherwise, which made it a false promise rather
+       * than a missing feature.
+       */
+      test.setTimeout(60000);
+      await page.goto('/app.php?view=login');
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+      await page.request.post('/app.php?view=score', { data: { game: 702, code: 'ABCDE' } });
+      await clearLocalScore(page.request, 702);
+      await page.addInitScript(() => localStorage.setItem('uo-score-code-702', 'ABCDE'));
+
+      // Two presses made with no network, so they are still on the phone.
+      await page.goto('/k/702');
+      await expect(page.locator('#homeBtn')).toBeVisible();
+      await context.setOffline(true);
+      await page.locator('#homeBtn').click();
+      await page.locator('#awayBtn').click();
+      await expect(page.locator('#state')).toHaveText('2 unsent');
+
+      // Back in signal, and the scorekeeper opens the list rather than the game.
+      await context.setOffline(false);
+      await page.goto('/k/');
+      await expect(page.locator('#gamesHint')).toContainText(/has been sent/i, { timeout: 15000 });
+      // The row reports the SERVER's score, not the phone's, and has nothing
+      // queued and nothing refused.
+      const row = page.locator('#gameList li').first();
+      await expect(row).toContainText(/1–1 sent|1\u20131 sent/);
+      await expect(row).not.toContainText(/to send|not accepted/i);
+
+      const state = await (await page.request.get('/app.php?view=score&game=702')).json();
+      expect(state.goals.length, 'the server has both presses').toBe(2);
+
+      await clearLocalScore(page.request, 702);
+    });
+
+  test('a game can be removed once it has nothing left to send', async ({ page, context }) => {
+    // `forget()` existed, was documented and was tested, and no screen called
+    // it — so a phone accumulated games, and their scorekeeping codes, with no
+    // way to clear one.
+    test.setTimeout(60000);
+    await page.goto('/k/703');
+    await expect(page.locator('#teams, #setup')).not.toHaveCount(0);
+    await page.evaluate(() => localStorage.setItem('uo-score-code-703', 'ABCDE'));
+
+    await page.goto('/k/');
+    const row = page.locator('#gameList li').filter({ hasText: '703' }).first();
+    const any = (await row.count()) ? row : page.locator('#gameList li').first();
+    await expect(any.locator('.drop')).toBeEnabled();
+    await any.locator('.drop').click();
+
+    await expect(page.locator('#gameList li')).toHaveCount(0);
+    const left = await page.evaluate(() => localStorage.getItem('uo-score-code-703'));
+    expect(left, 'the code goes with it').toBeNull();
+  });
+
+  test('offline, the buttons carry the team names this phone already knows',
+    async ({ page, context }) => {
+      // The payload never arrives with no signal, so the two big buttons said
+      // "Home" and "Away" — on a phone holding the real names in its own index
+      // from the last time it opened this game. Whose game it is matters at a
+      // pitch with two matches in earshot.
+      test.setTimeout(60000);
+      await page.goto('/k/702');
+      await expect(page.locator('#homeName')).toHaveText(/Mosquitos/);
+      await page.waitForFunction(
+        () => navigator.serviceWorker && navigator.serviceWorker.controller,
+        null, { timeout: 20000 },
+      );
+
+      await context.setOffline(true);
+      await page.reload();
+      await expect(page.locator('#homeName'), 'remembered, not "Home"')
+        .toHaveText(/Mosquitos/, { timeout: 20000 });
+      await expect(page.locator('#awayName')).toHaveText(/Lemmings/);
+      await context.setOffline(false);
+    });
+
+  test('the cache is never consulted without the query that names the game',
+    async ({ page }) => {
+      /**
+       * A trap that was in the worker and is now out of it.
+       *
+       * Match control is also reachable as `?view=matchcontrol&game=702`, where
+       * the game id is in the QUERY. An `ignoreSearch` fallback — which the
+       * offline path had — would happily answer a request for game 702 with a
+       * cached page for 703, and a scorekeeper would enter a whole game against
+       * the wrong fixture. Those URLs are out of scope today, so this guards
+       * the thing that would make widening the scope dangerous rather than
+       * merely a decision.
+       */
+      const worker = await (await page.request.get('/sw.js')).text();
+      // The OPTION, not the word: the file explains at length why it is not
+      // here, and a checker that cannot tell the two apart would make the
+      // explanation unwritable.
+      expect(worker).not.toMatch(/ignoreSearch\s*:/);
+    });
+
+  test('a reload with the network OFF still opens the game and its score',
+    async ({ page, context }) => {
+      /**
+       * The whole point of the worker, and the one thing the outbox could not
+       * do on its own: an unsent press survived a reload only if the page could
+       * LOAD, and with no signal a reload was a dead page — at exactly the
+       * moment somebody pulls to refresh to see whether that helps.
+       */
+      test.setTimeout(90000);
+      await page.goto('/app.php?view=login');
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+      // page.request, not the bare fixture: these are admin writes and the
+      // session lives on the page's context.
+      await page.request.post('/app.php?view=score', { data: { game: 702, code: 'ABCDE' } });
+      await clearLocalScore(page.request, 702);
+
+      await page.addInitScript(() => localStorage.setItem('uo-score-code-702', 'ABCDE'));
+      // The short URL, which is the one a phone is told to add to its home
+      // screen and the only one a worker covers.
+      await page.goto('/k/702');
+      await expect(page.locator('#homeBtn')).toBeVisible();
+      // Wait until a worker is actually in control, which is the state a phone
+      // reaches after its first visit with signal.
+      await page.waitForFunction(
+        () => navigator.serviceWorker && navigator.serviceWorker.controller,
+        null, { timeout: 20000 },
+      );
+
+      await page.locator('#homeBtn').click();
+      await expect(page.locator('#homeScore')).toHaveText('1');
+      await expect(page.locator('#state')).toHaveText('saved');
+
+      // The signal goes. A press still registers, and still shows.
+      await context.setOffline(true);
+      await page.locator('#homeBtn').click();
+      await expect(page.locator('#homeScore')).toHaveText('2');
+
+      // And the reload that used to be a dead page.
+      await page.reload();
+      await expect(page.locator('#homeBtn'), 'the page loaded from the worker')
+        .toBeVisible({ timeout: 20000 });
+      await expect(page.locator('#homeScore'),
+        'the synced point AND the unsent one').toHaveText('2');
+
+      // Away from the page before clearing up: back online it drains its own
+      // outbox, which would re-post goals as fast as this undid them.
+      await context.setOffline(false);
+      await page.goto('about:blank');
+      await clearLocalScore(page.request, 702);
+    });
+});
+
 test.describe('admin gating without Live!', () => {
   test('this really is a hostless tree', async ({ request }) => {
     // The assertion that gives the rest of this block its meaning. If an

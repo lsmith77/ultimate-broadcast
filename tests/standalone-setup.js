@@ -47,7 +47,12 @@ function routedFiles() {
 }
 
 const RUNTIME = [
-  'app.php', 'shared', 'images', 'brand', 'robots.txt', '.htaccess', ...routedFiles(),
+  // `sw.js` is named here because it is the one runtime file that is neither a
+  // routed page nor inside a directory: the service worker has to sit at the
+  // ROOT to take the scope it needs, which is exactly why it is easy to forget
+  // when a tree is assembled from the routes.
+  'app.php', 'sw.js', 'shared', 'images', 'brand', 'robots.txt', '.htaccess',
+  ...routedFiles(),
 ];
 
 /**

@@ -38,6 +38,63 @@ The phone says when it is not the source. A banner across the top, shown whether
 
 It arose from the standalone question ([`STANDALONE.md`](STANDALONE.md)), where nothing keeps the score, but it is **not standalone-specific**: hosted mode has the same problem wearing different clothes, and §8 is about that.
 
+## 0a. Keeping score with no signal at all — **built**
+
+[`OFFLINE.md`](OFFLINE.md) is the practical version: what to tell somebody at a pitch, and what to do with what they recorded. This section is why it is built this way.
+
+The outbox survived a reload, but only if the page could load, and with no signal a reload produced a dead page — at the moment somebody refreshes to see whether that helps. Four pieces close that.
+
+| | |
+|---|---|
+| **A manifest and a service worker** (`manifest.php`, `sw.js`) | Add `/k/<game>` to a home screen and it opens as an app, with no browser chrome and no network. Only match control gets either; see the scope rule below |
+| **A snapshot of the last server answer** (`shared/score-client.js`) | The outbox holds what has not been sent and drops each item as it lands. Without a snapshot, a phone that synced a few points, lost signal and was reloaded came back with the server's answer gone — it was in memory — and only the unsent tail, so the score jumped backwards |
+| **A list of games on the device** (`shared/score-archive.js`, `/k/`) | Where a home-screen icon lands. Every game the phone has opened, its score, and how many presses it is still holding. Opening it flushes every game that owes something, and a row can be removed once it owes nothing — which takes its scorekeeping code with it |
+| **Export** | One game or all of them, as JSON, from a page that may be offline. Synced and unsent parts separately, and each press still names the point it completes, so the file can be replayed into a store |
+
+**Preparing at home already worked:** author the event and open each game once while there is signal, which also fills the cache. The phone can then be dark all day.
+
+**The scope rule decided two other things.** A service worker's scope is a path, and every other surface here is on air. A stale cached scoreboard served to a switcher is the failure this project guards against hardest, so the worker is scoped to `/k/` in both modes and refuses air-facing URLs by name as well. Two consequences:
+
+- Hosted, `sw.js` is served from `live/overlays/` and cannot claim a prefix above itself, so `.htaccess` sends `Service-Worker-Allowed: /k/` with that one file. Scoping it to `/` would put a worker in front of UltiOrganizer's own pages.
+- Standalone, `app.php` serves match control in place at `/k/` instead of redirecting to the long form as every other short URL does. Redirected, the phone lands on `/app.php`, which is also the scoreboard's path, and a worker for the phone would be a worker for the broadcast. The cost is one page reading `$_GET` instead of `filter_input`, noted at that call site.
+
+**The page fills the cache, not the worker.** A first visit loads before any worker controls it, so a worker-only cache would still be empty after the one visit somebody was told to make while they had signal. The page stores its own shell on load; the worker reads it back.
+
+**What it does not do.** It does not sync to UltiOrganizer: that API is read-only, six GET endpoints, so a score kept here stays parallel to the tournament record. "Upload when home" means this project's own store, plus the file.
+
+## 0b. Conflicts: what happens today, case by case
+
+Offline makes conflicts possible, so this is what happens in each case. **The model is not a merge.** One store per game is the authority, every message names the thing it describes rather than a change to it, and where two answers exist the store's wins. That is a policy rather than a limitation: two people keeping divergent scores is worse than one of them being corrected, and a merge would hide the case somebody needs to sort out.
+
+| case | what happens | is anybody told? |
+|---|---|---|
+| **A press that has not been sent** | Queued, applied on screen, retried until it lands. Not a conflict at all | yes — an unsent count on the chip |
+| **The same press sent twice** | A goal names the point it completes, so the store keeps one and reports the second as already recorded | nothing to tell: nothing was lost |
+| **Two scorekeepers, and the other one got there first** | This phone's point 9 arrives after theirs. The store keeps theirs; this phone's press is **dropped** and its screen converges on the store's answer at the next read | **yes** — a notice on the game, and the press is written down as not accepted, which the list of games shows afterwards and the export carries |
+| **This phone is out of step** (it was dark for several points) | The head of the queue is numbered from a score that no longer matches, so the store answers 409, the client drops that message and re-reads rather than renumbering it. Renumbering would invent a second goal for a point the other scorekeeper may already have recorded | **yes** — same notice, same record |
+| **An undo that arrives late** | An undo names the point it takes back and only applies if that is still the last point. Arriving after the game has moved on, it does nothing | **no** — this is the known gap below |
+| **A timeout** | Numbered per side, so the same timeout twice is one timeout | nothing to tell |
+| **The clock** | `timer_start` is absolute and starting a running clock is not a restart, so a replayed start is harmless. Two people starting *different* clocks is last-write-wins, and the drift is visible on air | no |
+| **A line for a point** (the commentary desk) | Last write wins, per team, per point. Two desks confirming different sevens for one point leaves the later one | no |
+| **An exported file, re-imported later** | Not built. When it is, the point-number rule means an import merges by point number and the store's own goals win | — |
+
+**Why "nothing left to send" is not "everything got through".** Three paths empty the outbox and only one of them is delivery: a conflict and any other refusal both drop the message, because leaving it would block every good press behind it. A phone that counted only its queue would therefore report a game as sent over a press that was never stored anywhere. So a dropped press is written down — what it was, which point it named, and why it was refused — and the list of games reports it apart from the queue, because finding signal fixes one and not the other. The export carries them for the same reason: nothing else records that the press existed.
+
+**Three limitations:**
+
+1. **A dropped press is kept, not reconciled.** The phone shows that it happened and the export carries it, but there is no "your version / their version" screen and no way to resubmit — somebody reads it and decides.
+2. **A late undo is silent.** It is the one message that can do nothing without saying so, and the one most likely to be queued during an outage.
+3. **Nothing detects two scorekeepers in advance.** The conflict surfaces on the first press that collides, which may be several points in.
+
+They are listed in the order they should be fixed.
+
+### Where this goes if it needs to be better
+
+- **Say which points were refused, on the game screen.** The device keeps each dropped press with its point number, and the list of games counts them; the game itself still only shows the notice. "The other desk had points 9, 10 and 11" is the same data, one screen further in.
+- **Make a late undo speak.** The store already distinguishes applied from not applied (`applied: false`, which is what the notice above is built on); the undo path does not surface it yet.
+- **Say who else is writing, before the collision.** The possession store already counts connected clients for the commentary desk. The same count here would let a phone say "another phone is also keeping this game" when the second one opens it, rather than at the first contested point.
+- **A replication protocol — PouchDB or similar.** It solves a problem this system does not have. [`RELAY.md`](RELAY.md) §7a has the full reasoning: there is nothing CouchDB-shaped to replicate to (PHP, files, no database), and its conflict model — keep both revisions, ask the application to choose — is the opposite of the policy above. The decision point is not offline work; it is many writers producing many documents that have to merge. Two things would cross it: per-throw stats collection (§10a), and device-to-device sync with no server in the middle. At that point IndexedDB is the floor and a replication protocol pays for itself.
+
 ## 1. The question
 
 Standalone mode has to get the score and the clock from somewhere, and "somewhere" is a person with a device. Which person, and which device, changes with how many people showed up — and a broadcast crew is one, two, three or four people depending on the day, the round and who did not turn up.

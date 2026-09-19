@@ -4,6 +4,8 @@
 
 Most games are recorded by somebody with a camera and no video switcher. The footage is fine, the tournament data is in UltiOrganizer, and there is no scoreboard on the picture. This is about putting one there before the video is uploaded — using the same overlay the live broadcast would have used, driven by the same configuration the Studio exports.
 
+**Where the score comes from when the tournament has no data either.** A club game is often scored on paper and nowhere else. [`OFFLINE.md`](OFFLINE.md) is the other half of this workflow: a phone at the sideline keeps the score with no signal, and what it records is the sequence of points this tool draws. It does not solve the alignment problem below — a phone's clock is not the camera's — but without it there is no input at all. Its §5 lists two things to do at the pitch that make alignment cheaper afterwards.
+
 ## The problem is alignment, and it is the whole problem
 
 The video has one timeline and the game has another. Everything else here is mechanical; getting these two to agree is not.

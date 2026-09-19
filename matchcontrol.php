@@ -42,11 +42,24 @@ if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/score.php';
 require_once __DIR__ . '/shared/brand.php';
+require_once __DIR__ . '/shared/auth.php';
 
 use Overlays\Mode;
 use Overlays\Score;
 
-$gameId = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+/**
+ * The game id, read from `$_GET` rather than with `filter_input`.
+ *
+ * Every other page here uses `filter_input(INPUT_GET, ...)`, which reads the
+ * ORIGINAL request and ignores anything a router wrote. This page is the one
+ * exception, because standalone `app.php` serves it in place at `/k/<game>`
+ * rather than redirecting to the long form — and it does that so a service
+ * worker can be scoped to `/k/` in both modes, which is what keeps the worker
+ * away from the surfaces that reach air. See the note in `app.php`.
+ *
+ * Validated exactly as the others are: a positive integer or nothing.
+ */
+$gameId = filter_var($_GET['game'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
 $base = rtrim(defined('UO_URL_PREFIX') ? UO_URL_PREFIX : '/', '/');
 
@@ -58,6 +71,51 @@ $assetUrl = static function (string $relative) use ($base): string {
     return Mode::assetBase($base) . '/' . $relative . '?v=' . $version;
 };
 $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+
+/**
+ * The service worker, and the scope it is allowed.
+ *
+ * Two modes, two answers, and neither is a choice about caching — they follow
+ * from where the file ends up being served.
+ *
+ * **Standalone** this directory IS the document root, so the worker sits at
+ * `/sw.js` and takes the default scope `/`, which is the whole site. That is
+ * only acceptable because the site is ours: the worker itself refuses every
+ * air-facing URL by name (see `sw.js`), which is the guard that matters, rather
+ * than the scope.
+ *
+ * **Hosted** it is served from `live/overlays/`, which by default would scope
+ * it to that directory — and match control lives at `/k/<game>`, which is a
+ * rewrite at the ROOT. A worker cannot claim a scope above itself unless the
+ * response says so, so `.htaccess` sends `Service-Worker-Allowed: /k/` with
+ * this one file. That keeps the claim to the one prefix this page uses, rather
+ * than taking the whole origin, which under a Live! install would put a worker
+ * in front of UltiOrganizer's own pages.
+ *
+ * A phone that opens the LONG url (`?view=live/overlays/matchcontrol`) hosted
+ * is outside `/k/` and so gets no worker. That is the trade for not claiming
+ * the origin, and it is why the instruction is to add `/k/<game>` to a home
+ * screen.
+ */
+$hosted = \Overlays\Auth::isHosted();
+/**
+ * The cache name lives here, and is handed to the worker in its URL.
+ *
+ * The page fills the cache and the worker reads it, so both need the name — and
+ * the page has to be the one that fills it: a first visit loads before any
+ * worker controls it, so a worker-only cache would still be empty after the one
+ * visit somebody was told to make while they had signal.
+ *
+ * Bump the version when what is cached changes shape. A new name is a new
+ * worker, and the worker deletes every cache that is not its own.
+ */
+$swCache = 'uo-matchcontrol-v1';
+$swUrl = ($hosted ? (Mode::assetBase($base) . '/sw.js') : ($base . '/sw.js'))
+    . '?cache=' . rawurlencode($swCache);
+// One scope, both modes: the prefix match control actually lives at. Standalone
+// the file sits at the root and may narrow its own scope freely; hosted it is
+// served from this directory and is allowed this prefix by a header.
+$swScope = $base . '/k/';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -68,6 +126,14 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 <meta name="color-scheme" content="light dark">
 <title>Match control</title>
 <?= \Overlays\Brand::head('score', $base) ?>
+<link rel="manifest" href="<?= htmlspecialchars(Mode::viewUrl('manifest', $base), ENT_QUOTES) ?>">
+<!-- iOS reads these rather than the manifest on older versions, and the
+     manifest on newer ones. Both are cheap and neither is on air. -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Score">
+<meta name="theme-color" content="#0d1420">
 <style>
     :root {
         --bg: #0d1420; --panel: #16202f; --line: #2a3a52; --ink: #f2f6fb;
@@ -273,6 +339,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
 
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-client.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/score-archive.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script>
 (function () {

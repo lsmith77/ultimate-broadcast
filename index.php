@@ -362,10 +362,20 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             a break.</li>
         <li><strong>Filmed it without streaming?</strong> Most club games are recorded on
             one camera and nothing else. The same graphics can be added to that footage
-            afterwards.</li>
+            afterwards — and the score for it can be kept on a phone at the sideline with
+            <a href="https://github.com/lsmith77/ultimate-broadcast/blob/main/docs/OFFLINE.md"
+               rel="noopener">no signal at all</a>, which is the usual case at a club
+            pitch.</li>
         <li><strong>Keeping score</strong> is two large buttons on a phone at the
             sideline, and it keeps working when the signal does not — which, at a pitch in
-            a park, it frequently does not.</li>
+            a park, it frequently does not. Add the page to a phone's home screen and it
+            opens as an app <strong>with no network at all</strong>: keep several games
+            through a weekend, then send or export them when you are home.
+            <a href="https://github.com/lsmith77/ultimate-broadcast/blob/main/docs/OFFLINE.md"
+               rel="noopener">Keeping score with no signal</a> is the whole of it in a
+            page, including
+            <a href="https://github.com/lsmith77/ultimate-broadcast/blob/main/docs/MATCHCONTROL.md#0b-conflicts-what-happens-today-case-by-case"
+               rel="noopener">what happens if two people keep score at once</a>.</li>
         <li><strong>Commentators get their own screen</strong>, never on air: both rosters,
             who is on the field, season statistics, and notes prepared before the game. In
             mixed divisions it follows the gender ratio and the matchings.</li>

@@ -133,6 +133,50 @@ for (const rel of files.sort()) {
   }
 }
 
+/*
+ * The same rename, from a PAGE.
+ *
+ * `index.php` sends a visitor to the offline scorekeeping documentation by its
+ * GitHub URL rather than a relative path, because `docs/` is not deployed — and
+ * an absolute URL is exactly the kind of link nothing here was checking. It
+ * carries the same heading slug as any internal one, so a reworded heading
+ * breaks it in the same silent way: the page still renders, the link is still
+ * blue, and it lands at the top of the document instead of the section that
+ * answers the question.
+ */
+let external = 0;
+
+for (const rel of ['index.php', 'imprint.php', 'README.md']) {
+  let body;
+  try {
+    body = readFileSync(path.join(ROOT, rel), 'utf8');
+  } catch (e) {
+    if (e.code === 'ENOENT') continue;
+    throw e;
+  }
+
+  const pattern = /github\.com\/[\w-]+\/[\w-]+\/blob\/[\w.-]+\/(docs\/[\w.-]+\.md)#([\w-]+)/g;
+  for (const m of body.matchAll(pattern)) {
+    external += 1;
+    const [, doc, anchor] = m;
+    let target;
+    try {
+      target = readFileSync(path.join(ROOT, doc), 'utf8');
+    } catch (e) {
+      console.error(`${rel}: links to ${doc}, which is not in this repository`);
+      danglingAnchors += 1;
+      continue;
+    }
+    const headings = new Set(
+      [...target.matchAll(/^#{1,6}\s+(.+)$/gm)].map((h) => slug(h[1]))
+    );
+    if (!headings.has(anchor)) {
+      console.error(`${rel}: links to ${doc}#${anchor}, which is not a heading there`);
+      danglingAnchors += 1;
+    }
+  }
+}
+
 if (anchors === 0) {
   console.error('No anchors were checked — the matcher is wrong, not the docs.');
   process.exit(1);
@@ -159,4 +203,7 @@ if (broken) {
 
 console.log(
   `${checked} relative links and ${anchors} section links across ${files.length} documents all resolve.`
+);
+console.log(
+  `${external} section link${external === 1 ? '' : 's'} from a served page into the docs on GitHub resolve too.`
 );

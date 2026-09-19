@@ -152,13 +152,17 @@ php install/make-event.php my-event.json --set-capture
 
 Both write the same thing through the same code (`shared/event.php`), so the payload shape — the one thing in this project that must not exist twice — exists once. The description is stored in `conf/event.json` and the capture is derived from it, rebuilt on every save; edit in either place and the other opens on it.
 
+Two of the pool's rules decide what the scoreboard may say about the end of a game. **Game to** is what the game is played to; without it the board never calls universe point, because nothing has said what would end the game. **Half at** is optional — left empty, half is taken as half the game total plus one, so a game to 15 puts galaxy point at 7-7. It is spelled `halftimescore` in the file: `halftime` is UltiOrganizer's field for the *length* of the break in minutes, and events written before this was noticed used that name for the score. Those still load. `PLAN.md` §4a.
+
 Squads are deliberately not in that file. Nobody should type forty names into JSON, and there is already a door for them: the commentary desk exports a team's sheet, the team fills it in, and the desk imports it back. Standalone, that import also **creates** the players it does not recognise — and there is a field on the same bar to type one in directly, for whoever turns up unlisted. Hosted, neither is possible and the endpoint 404s, because a squad belongs to UltiOrganizer and an import must not invent people into somebody's tournament.
+
+**Tell scorekeepers to add `/k/<game>` to their home screen**, not the long URL. That short path is the only one the service worker covers: a worker's scope is a path, and widening it to reach the long form would put one in front of the scoreboard and the stage. Opening each game once while there is signal fills the offline cache. `/k/` on its own lists the games that phone is carrying. [`OFFLINE.md`](OFFLINE.md).
 
 Team and game ids are yours to choose and must not change afterwards: `conf/score-<game>.json` is keyed by game id, so is every URL typed into a switcher, and a squad and its prepared notes are keyed by team and player id. Re-running with different ids silently detaches all of it.
 
 `events/` is excluded from `deploy.sh`, like `conf/` and `logos/`, because an event authored on the server exists nowhere else.
 
-One thing worth knowing if you edit `conf/local-config.php` by hand: it is a PHP file, so it is compiled and cached, and opcache revalidates a cached file only every couple of seconds. Edit it and refresh immediately and it looks like the edit did nothing. The editor calls `opcache_invalidate()` itself, so saving through the page takes effect at once.
+If you edit `conf/local-config.php` by hand: it is a PHP file, so it is compiled and cached, and opcache revalidates a cached file only every couple of seconds. Edit it and refresh immediately and it looks like the edit did nothing. The editor calls `opcache_invalidate()` itself, so saving through the page takes effect at once.
 
 ### Demonstration mode, for an installation on the open internet
 

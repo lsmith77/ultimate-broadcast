@@ -37,6 +37,27 @@
     </FilesMatch>
 </IfModule>
 
+# The service worker, which makes match control usable with no signal at all.
+#
+# A worker may only control URLs at or below the directory it is served from,
+# and match control lives at /k/<game> — a rewrite at the ROOT, one level above
+# this directory. This header is what lets a worker served from here claim that
+# prefix, and it claims THAT PREFIX ONLY: scoping it to / would put a worker in
+# front of UltiOrganizer's own pages, which is not ours to do.
+#
+# Standalone the question does not arise. There this directory IS the document
+# root, so sw.js sits at /sw.js and takes the root scope by default — see
+# install/standalone.htaccess and matchcontrol.php.
+<IfModule mod_headers.c>
+    <Files "sw.js">
+        Header set Service-Worker-Allowed "/k/"
+        # A worker is fetched by the browser on its own schedule and updates
+        # only when the bytes change. No-cache keeps that check honest without
+        # making it an every-request fetch.
+        Header set Cache-Control "no-cache"
+    </Files>
+</IfModule>
+
 # Anchored on "conf/" rather than on /live/overlays/conf/ so the rule still
 # bites when this directory is not at that URL — a standalone installation
 # serves it at the document root, and a prefix-bound pattern would silently

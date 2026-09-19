@@ -303,3 +303,216 @@ test.describe('score client', () => {
         expect(c.view().away, 'and the good one landed').toBe(1);
     });
 });
+
+test.describe('a phone that goes home, is closed, and comes back', () => {
+  /** A localStorage stand-in that outlives a "reload". */
+  const memory = () => ({
+    d: {},
+    getItem(k) { return this.d[k] ?? null; },
+    setItem(k, v) { this.d[k] = v; },
+    removeItem(k) { delete this.d[k]; },
+  });
+
+  test('the score that already SYNCED survives a reload with no network', async () => {
+    /**
+     * The difference between "survives a reload" and "works offline".
+     *
+     * The outbox holds what has not been sent, and an item is dropped the
+     * moment it lands. So a phone that syncs a few points, loses signal and is
+     * then reloaded used to come back with the server's answer gone — it lived
+     * in memory — and only the unsent tail in hand. The score jumped backwards
+     * on the one surface whose whole promise is that what you entered is what
+     * you see.
+     */
+    const s = server();
+    const mem = memory();
+    const opts = { url: '/score', game: 702, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: mem };
+
+    const first = ScoreClient.create(opts);
+    await first.goal(true);
+    await first.goal(false);
+    await first.goal(true);
+    expect(first.view(), 'all three landed').toMatchObject({ home: 2, away: 1, pending: 0 });
+
+    // The signal goes, one more point is scored, and the phone is reloaded.
+    s.online = false;
+    await first.goal(true);
+
+    const after = ScoreClient.create(opts);
+    expect(after.view().home, 'three home goals, not the one unsent').toBe(3);
+    expect(after.view().away).toBe(1);
+    expect(after.view().pending, 'and the unsent one is still queued').toBe(1);
+  });
+
+  test('a whole game kept with no network at all comes back intact', async () => {
+    const s = server();
+    s.online = false;
+    const mem = memory();
+    const opts = { url: '/score', game: 703, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: mem };
+
+    const phone = ScoreClient.create(opts);
+    for (let i = 0; i < 5; i += 1) { await phone.goal(i % 2 === 0); }
+    expect(phone.view()).toMatchObject({ home: 3, away: 2, pending: 5 });
+
+    const reopened = ScoreClient.create(opts);
+    expect(reopened.view()).toMatchObject({ home: 3, away: 2, pending: 5 });
+
+    // Home at last, and the whole game lands in order.
+    s.online = true;
+    await reopened._drain();
+    expect(reopened.view()).toMatchObject({ home: 3, away: 2, pending: 0 });
+    expect(s.state().goals.length).toBe(5);
+  });
+
+  test('the snapshot is a cache of the server, never an authority over it', async () => {
+    // Somebody else kept score while this phone was away. The server wins on
+    // the next read, which is the rule the whole client is built on.
+    const s = server();
+    const mem = memory();
+    const opts = { url: '/score', game: 704, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: mem };
+
+    const phone = ScoreClient.create(opts);
+    await phone.goal(true);
+    expect(phone.view().home).toBe(1);
+
+    s.state().goals.push({ num: 2, home: false }, { num: 3, home: false });
+    const reopened = ScoreClient.create(opts);
+    await reopened.refresh();
+    expect(reopened.view(), "the other desk's score, not this phone's")
+      .toMatchObject({ home: 1, away: 2 });
+  });
+
+  test('a device with storage blocked still keeps score in memory', async () => {
+    // A private window throws on access rather than returning nothing, and a
+    // scorekeeper in one should still be able to press the buttons.
+    const s = server();
+    s.online = false;
+    const hostile = {
+      getItem() { throw new Error('blocked'); },
+      setItem() { throw new Error('blocked'); },
+      removeItem() { throw new Error('blocked'); },
+    };
+    const phone = ScoreClient.create({ url: '/score', game: 705, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: hostile });
+    await phone.goal(true);
+    expect(phone.view()).toMatchObject({ home: 1, pending: 1 });
+  });
+});
+
+test.describe('when somebody else is also keeping score', () => {
+  const memory = () => ({
+    d: {},
+    getItem(k) { return this.d[k] ?? null; },
+    setItem(k, v) { this.d[k] = v; },
+    removeItem(k) { delete this.d[k]; },
+  });
+
+  test('a press the other desk already recorded says so, rather than vanishing', async () => {
+    /**
+     * The quietest way this system can be wrong.
+     *
+     * The queue empties, the score changes underneath somebody who pressed the
+     * buttons, and the only visible evidence is a number they did not expect.
+     * Delivery succeeded; the press was declined. Those are different things
+     * and the person holding the phone is the one who can sort it out.
+     */
+    const s = server();
+    s.online = false;
+    const phone = ScoreClient.create({ url: '/score', game: 706, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: memory() });
+
+    await phone.goal(true);
+    expect(phone.view()).toMatchObject({ home: 1, pending: 1, notice: null });
+
+    // While this phone was dark, the other desk recorded point 1.
+    s.state().goals.push({ num: 1, home: false });
+    s.online = true;
+    await phone._drain();
+
+    expect(phone.view().pending, 'delivered').toBe(0);
+    expect(phone.view().notice, 'and declined, out loud').toMatch(/already recorded/i);
+    expect(phone.view(), "the other desk's score stands")
+      .toMatchObject({ home: 0, away: 1 });
+  });
+
+  test('a declined press is written down, and survives the page', async () => {
+    /**
+     * The notice dies with the page; the record must not. "Nothing left to
+     * send" and "everything got through" are different answers, and the only
+     * evidence for the difference is this.
+     */
+    const s = server();
+    s.online = false;
+    const mem = memory();
+    const opts = { url: '/score', game: 709, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: mem };
+
+    const phone = ScoreClient.create(opts);
+    await phone.goal(true);
+    s.state().goals.push({ num: 1, home: false });
+    s.online = true;
+    await phone._drain();
+
+    expect(phone.view().pending).toBe(0);
+    expect(phone.view().declined, 'and one that never landed').toBe(1);
+    expect(phone.declined()[0].why).toMatch(/already recorded/i);
+
+    // Reopened tomorrow, the phone still knows.
+    const reopened = ScoreClient.create(opts);
+    expect(reopened.view().declined).toBe(1);
+  });
+
+  test('a press that lands is not recorded as declined', async () => {
+    const s = server();
+    const phone = ScoreClient.create({ url: '/score', game: 710, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: memory() });
+    await phone.goal(true);
+    expect(phone.view()).toMatchObject({ pending: 0, declined: 0 });
+  });
+
+  test('a refusal that is not a conflict is recorded too, with its reason', async () => {
+    // Any non-retryable refusal drops the message so it cannot block the queue
+    // behind it. Dropped is dropped, whatever the status code said.
+    const s = server();
+    const phone = ScoreClient.create({ url: '/score', game: 711, code: () => 'ABCDE',
+      fetch: () => Promise.resolve({
+        ok: false, status: 500, json: async () => ({ error: 'the store is read-only' }),
+      }), poll: 0, retry: 0, storage: memory() });
+
+    await phone.goal(true);
+    await phone._drain();
+    expect(phone.view().declined).toBe(1);
+    expect(phone.declined()[0].why).toBe('the store is read-only');
+  });
+
+  test('a notice is dismissible, because it is news rather than a state', async () => {
+    const s = server();
+    s.online = false;
+    const phone = ScoreClient.create({ url: '/score', game: 707, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: memory() });
+    await phone.goal(true);
+    s.state().goals.push({ num: 1, home: false });
+    s.online = true;
+    await phone._drain();
+
+    expect(phone.view().notice).not.toBeNull();
+    phone.clearNotice();
+    expect(phone.view().notice).toBeNull();
+  });
+
+  test('an ordinary outage produces no notice at all', () => {
+    // Nothing was declined: it has not been sent yet. Crying conflict here
+    // would train somebody to ignore the one that matters.
+    const s = server();
+    s.online = false;
+    const phone = ScoreClient.create({ url: '/score', game: 708, code: () => 'ABCDE',
+      fetch: s.fetch, poll: 0, retry: 0, storage: memory() });
+
+    return phone.goal(true).then(() => {
+      expect(phone.view()).toMatchObject({ pending: 1, notice: null });
+    });
+  });
+});

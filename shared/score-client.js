@@ -187,6 +187,7 @@
                 timer_pause_start: Number(body.timer_pause_start) || 0,
                 half_at: body.half_at || null
             };
+            persistServer();
         }
 
         function refresh() {
@@ -246,6 +247,7 @@
                     // the queue or one bad message blocks every good one behind
                     // it forever.
                     if (!res.r.ok) {
+                        decline(item, (res.body && res.body.error) || ('HTTP ' + res.r.status));
                         outbox.shift();
                         error = (res.body && res.body.error) || ('HTTP ' + res.r.status);
                         announce();
@@ -375,6 +377,20 @@
                 if (retryMs) {
                     setInterval(function () { if (outbox.length) { drain(); } }, retryMs);
                 }
+            },
+
+            /**
+             * Deliver whatever is queued, once, and resolve when it settles.
+             *
+             * For a caller that is not a screen: the list of games on the phone
+             * builds one client per game with something unsent and flushes them
+             * when it opens. It resolves either way — a failure leaves the queue
+             * where it was, which is what the retry timer on a game page is for.
+             */
+            flush: function () {
+                if (!outbox.length) { return Promise.resolve(false); }
+
+                return drain().then(function () { return outbox.length === 0; });
             },
 
             /** Test seam: the queue, without waiting for a timer. */

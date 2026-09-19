@@ -140,6 +140,7 @@ $views = [
     'event' => 'event.php',
     'imprint' => 'imprint.php',
     'matchcontrol' => 'matchcontrol.php',
+    'manifest' => 'manifest.php',
     'login' => 'login.php',
     'tests/selftest' => 'tests/selftest.php',
 ];
@@ -187,6 +188,9 @@ $short = [
     // The scorekeeper's own entry point, for the same reason /c/ has one: a
     // different job and a different person, and this one is typed on a phone.
     ['#^/k/([0-9]+)/?$#', 'matchcontrol', ['game' => 1]],
+    // With no game: the games this phone is carrying. This is where a home
+    // screen icon lands, so it has to be a route rather than a 404.
+    ['#^/k/?$#', 'matchcontrol', []],
 ];
 
 $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -205,6 +209,31 @@ if (preg_match('#^/(s|c|k)(/|$)#', $requestPath) === 1) {
         $extra = [];
         parse_str((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY), $extra);
         unset($extra['view']);
+
+        /**
+         * Match control is served WHERE IT WAS ASKED FOR, not redirected.
+         *
+         * Everything else here answers a short URL with a redirect to the long
+         * form, for the reason above: the pages read their parameters with
+         * `filter_input(INPUT_GET, ...)`, which reads the original request.
+         *
+         * This one cannot afford it. A service worker's scope is a PATH, and
+         * the redirect lands the phone on `/app.php?view=matchcontrol` — the
+         * same path as the scoreboard and the stage, which standalone means a
+         * worker covering match control necessarily covers the surfaces that go
+         * on air. Keeping the phone on `/k/` gives both modes one narrow scope
+         * and puts the on-air pages permanently out of a worker's reach.
+         *
+         * The cost is exactly one page reading `$_GET` rather than
+         * `filter_input`, which `matchcontrol.php` states at the call site.
+         */
+        if ($view === 'matchcontrol') {
+            $_GET = $query + $extra;
+            $view = 'matchcontrol';
+            define('UO_ROUTED_VIEW', true);
+            require __DIR__ . '/matchcontrol.php';
+            exit;
+        }
 
         header('Location: ' . OVERLAYS_SELF . '?' . http_build_query($query + $extra), true, 302);
         exit;

@@ -2463,6 +2463,57 @@ test.describe('resetting the clock', () => {
     const state = await (await page.request.get('/app.php?view=score&game=703')).json();
     expect(state.timer_start, 'the store agrees').toBeNull();
   });
+
+  test('an open panel scrolls; the two presses never give way', async ({ page }) => {
+    /**
+     * The panel grew by one section and the page had no room for it. `.teams`
+     * takes what is left of a height-constrained column, what was left went to
+     * zero, and the clock row was then drawn over the remains of the score
+     * buttons — so a tap aimed at the home team hit the clock instead. It read
+     * as a flaky test ("element intercepts pointer events") and was a real
+     * phone bug: on a short screen the job of the page had disappeared.
+     *
+     * Geometry, not appearance. A screenshot of this looks fine.
+     */
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login&next=%2Fk%2F703');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await expect(page.locator('#homeBtn')).toBeVisible();
+    if (await page.locator('#more').isHidden()) {
+      await page.locator('#moreBtn').click();
+    }
+    await expect(page.locator('#clockReset')).toBeVisible();
+
+    // The smallest phone still in use, and the one that fails first.
+    for (const size of [{ width: 375, height: 667 }, { width: 320, height: 568 }]) {
+      await page.setViewportSize(size);
+      const seen = await page.evaluate(() => {
+        const rect = (id) => document.getElementById(id).getBoundingClientRect();
+        const home = rect('homeBtn');
+        const at = document.elementFromPoint(home.left + home.width / 2,
+          home.top + home.height / 2);
+        const panel = document.getElementById('moreWrap');
+
+        return {
+          home: Math.round(home.height),
+          away: Math.round(rect('awayBtn').height),
+          undo: Math.round(rect('undoBtn').height),
+          hits: at ? (at.closest('#homeBtn') ? 'homeBtn' : at.id || at.className) : null,
+          overflows: document.body.scrollHeight > window.innerHeight + 1,
+          panelScrolls: panel.scrollHeight > panel.clientHeight,
+        };
+      });
+
+      const where = `${size.width}x${size.height}`;
+      expect(seen.hits, `a tap on the home button reaches it at ${where}`).toBe('homeBtn');
+      expect(seen.home, `the home press is still a press at ${where}`).toBeGreaterThan(100);
+      expect(seen.away, `the away press is still a press at ${where}`).toBeGreaterThan(100);
+      expect(seen.undo, `undo survives too at ${where}`).toBeGreaterThan(30);
+      expect(seen.overflows, `the page itself does not scroll at ${where}`).toBe(false);
+      expect(seen.panelScrolls, `the panel is what gives at ${where}`).toBe(true);
+    }
+  });
 });
 
 test.describe('signing in is a detour, not a destination', () => {

@@ -225,7 +225,12 @@ $swScope = $base . '/k/';
         background: var(--panel); color: var(--ink); }
     /* The advanced panel. Deliberately quieter than the score buttons: it is
        read and considered, not thumbed at speed. */
-    .more { padding: 0 .6rem .8rem; }
+    /* And the panel is what gives. A flex item's default minimum is its
+       content, so an open panel taller than the room left simply pushed the
+       column past the bottom of a page that does not scroll. It scrolls
+       itself instead: it is the part somebody reads, and the part they can
+       afford to reach for. */
+    .more { padding: 0 .6rem .8rem; min-height: 0; overflow-y: auto; }
     .moretoggle { width: 100%; padding: .6rem; font: inherit; font-size: .85rem;
                   color: var(--ink-mute); background: none; border: 0; }
     .panel section { border-top: 1px solid var(--line); padding: .7rem .1rem .2rem; }
@@ -258,8 +263,14 @@ $swScope = $base . '/k/';
         border-radius: 6px; background: transparent; color: inherit; opacity: .7; }
 
     /* The two presses. Everything else on the page is smaller than these. */
+    /* `min-height` is a floor under the job, not a nicety. The column is
+       height-constrained, `.teams` takes what is left, and what was left went
+       to ZERO the first time the More panel grew past the viewport: the two
+       presses vanished and the clock row was painted over what remained of
+       them, so a tap meant for the home team hit the clock. Measured at
+       720px, not guessed at. Whatever else has to give, these do not. */
     .teams { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
-        padding: 0 .5rem; min-height: 0; }
+        padding: 0 .5rem; min-height: 9rem; }
     .team { border: 0; border-radius: 12px; color: #fff; font: inherit;
         display: flex; flex-direction: column; align-items: center;
         justify-content: center; gap: .3rem; padding: .5rem; cursor: pointer;

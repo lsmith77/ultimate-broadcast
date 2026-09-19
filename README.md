@@ -23,7 +23,7 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 
 ## Try it without installing anything
 
-[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.
+[ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock — the commentary desk opens on a prepared mixed squad with its matching bands and grouped line picker, and match control can be pressed: it publishes its code, so you can keep score from a phone and watch the board follow. Nothing needs a sign-in.
 
 [`docs/DEPLOY.md`](docs/DEPLOY.md) is how to put one of your own on a domain, and most of its sharper notes came from putting that one there rather than from planning it.
 

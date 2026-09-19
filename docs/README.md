@@ -37,6 +37,8 @@ Hosted, **no overlay touches the database** — everything goes through Live!'s 
 
 [ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting — no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any stage or scoreboard URL plays a whole game through: holds, breaks, a timeout, the cap, a running clock. No sign-in, and nothing a visitor does is written.
 
+The desk arrives prepared rather than empty: the mixed game has FMP/MMP for both squads, so the matching bands, the quota counts and the grouped line picker show what they are for, and match control publishes its scorekeeping code so a visitor can actually press it. Every code a crew would agree on at an event is filled in — there is nothing to type and nothing to upload.
+
 It is a demonstration rather than a service: nobody else's event is being authored on it, and the two stores that normally take unauthenticated writes are closed there. [`DEPLOY.md`](DEPLOY.md) is how to run one of your own, and most of its sharper notes came from putting that one on a host rather than from planning it.
 
 ### Why hosted mode lives in `live/overlays/`

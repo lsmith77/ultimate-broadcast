@@ -1943,6 +1943,65 @@ test.describe('a phone with no signal at all', () => {
       await clearLocalScore(page.request, 702);
     });
 
+  test('the list distinguishes what landed from what was refused', async ({ page, context }) => {
+    /**
+     * "Nothing left to send" is not "everything got through". A conflict
+     * empties the queue exactly as a success does, so a row that counted only
+     * the queue would read "Sent" over a press that was never stored anywhere.
+     */
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    await page.request.post('/app.php?view=score', { data: { game: 702, code: 'ABCDE' } });
+    await clearLocalScore(page.request, 702);
+    await page.addInitScript(() => localStorage.setItem('uo-score-code-702', 'ABCDE'));
+
+    // The phone records point 1 with no signal.
+    await page.goto('/k/702');
+    await expect(page.locator('#homeBtn')).toBeVisible();
+    await context.setOffline(true);
+    await page.locator('#homeBtn').click();
+    await expect(page.locator('#state')).toHaveText('1 unsent');
+
+    // Meanwhile somebody else records point 1, so the phone's press cannot land.
+    await context.setOffline(false);
+    await page.request.post('/app.php?view=score', {
+      data: { game: 702, code: 'ABCDE', goal: { home: false, num: 1 } },
+    });
+
+    await page.goto('/k/');
+    const row = page.locator('#gameList li').first();
+    await expect(row).toContainText(/not accepted/i, { timeout: 15000 });
+    await expect(row, 'and what DID land, from the server').toContainText(/0–1 sent|0\u20131 sent/);
+    await expect(page.locator('#gamesHint')).toContainText(/not accepted/i);
+
+    /**
+     * Measured, not eyeballed, at phone width.
+     *
+     * The first version of this row pushed the score and the Remove button off
+     * the side of the screen whenever a fixture had two long club names — which
+     * every assertion above passed straight through, because the text was in
+     * the DOM. A screenshot caught it.
+     */
+    await page.setViewportSize({ width: 390, height: 700 });
+    const fits = await page.locator('#gameList li').first().evaluate((li) => {
+      const rect = li.getBoundingClientRect();
+      const drop = li.querySelector('.drop').getBoundingClientRect();
+      return {
+        overflow: li.scrollWidth - li.clientWidth,
+        dropRight: Math.round(drop.right),
+        rowRight: Math.round(rect.right),
+      };
+    });
+    expect(fits.overflow, 'the row does not scroll sideways').toBeLessThanOrEqual(1);
+    expect(fits.dropRight, 'Remove is inside the row').toBeLessThanOrEqual(fits.rowRight + 1);
+
+    await clearLocalScore(page.request, 702);
+    await page.evaluate(() => localStorage.removeItem('uo-score-declined-702'));
+  });
+
   test('a game can be removed once it has nothing left to send', async ({ page, context }) => {
     // `forget()` existed, was documented and was tested, and no screen called
     // it — so a phone accumulated games, and their scorekeeping codes, with no

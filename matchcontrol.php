@@ -169,6 +169,47 @@ $swScope = $base . '/k/';
         font-size: .72rem; white-space: nowrap; }
     .state.ok { background: var(--ok); }
     .state.pending { background: var(--warn); }
+    /* The list of games this phone is carrying.
+       Shown at /k/ with no game, which is where an icon on a home screen lands
+       once somebody has added one. Rows are big enough to hit with a thumb and
+       say the one thing that matters in a car park: is anything still owed. */
+    /* Somebody else's score won. Loud enough to be read once, quiet enough
+       not to be mistaken for the buttons: it is not an error, and the phone is
+       still working perfectly. */
+    .clash { display: flex; align-items: center; gap: .6rem; margin: 0 .6rem .4rem;
+        padding: .55rem .7rem; border-radius: 8px; background: var(--warn);
+        font-size: .85rem; font-weight: 600; }
+    .clash button { flex: none; font: inherit; font-weight: 700; padding: .25rem .7rem;
+        border-radius: 6px; border: 1px solid rgba(255, 255, 255, .35);
+        background: rgba(0, 0, 0, .18); color: var(--ink); }
+    .games { padding: .4rem .7rem 1rem; overflow-y: auto; }
+    .games h1 { font-size: 1rem; margin: .3rem 0 .2rem; }
+    .games .hint { color: var(--ink-mute); font-size: .82rem; margin: 0 0 .7rem; }
+    .games ul { list-style: none; margin: 0; padding: 0; }
+    .games li { display: flex; align-items: stretch; gap: .4rem; margin-bottom: .5rem; }
+    .games .drop { flex: none; padding: 0 .7rem; font: inherit; font-size: .76rem;
+        border: 1px solid var(--line); border-radius: 10px; background: transparent;
+        color: var(--ink-mute); }
+    .games .drop:disabled { opacity: .35; }
+    /* The row must shrink, or a long fixture name pushes the score and the
+       Remove button off the side of a phone — which is what it did, and which
+       a screenshot caught and a passing test did not. `min-width: 0` on both
+       flex children is what lets the name's ellipsis do its job. */
+    .games li > a { flex: 1; min-width: 0; }
+    .games a { display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem;
+        border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+        color: var(--ink); text-decoration: none; }
+    .games .sc, .games .state { flex: none; }
+    .games .who { flex: 1; min-width: 0; }
+    .games .who b { display: block; font-size: .95rem; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; }
+    .games .who span { display: block; color: var(--ink-mute); font-size: .76rem;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .games .sc { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.1rem; }
+    .gamebar { display: flex; gap: .5rem; margin-top: .8rem; }
+    .gamebar button { flex: 1; padding: .7rem; font: inherit; font-weight: 700;
+        border-radius: 10px; border: 1px solid var(--line);
+        background: var(--panel); color: var(--ink); }
     /* The advanced panel. Deliberately quieter than the score buttons: it is
        read and considered, not thumbed at speed. */
     .more { padding: 0 .6rem .8rem; }
@@ -245,11 +286,27 @@ $swScope = $base . '/k/';
     <span class="state" id="state">…</span>
 </header>
 
+<!-- A conflict, which is news rather than a state: it is dismissed by the
+     person who reads it, not by the next poll. -->
+<div class="clash hide" id="clash">
+    <span id="clashText"></span>
+    <button id="clashOk" type="button">OK</button>
+</div>
+
 <div class="offair hide" id="offair">
     Not on the scoreboard
     <span id="offairWhy">The overlay is still showing the score from upstream. Ask the
         operator to switch the scoreboard to this game's match control.</span>
 </div>
+
+<section class="games hide" id="games">
+    <h1>Games on this phone</h1>
+    <p class="hint" id="gamesHint"></p>
+    <ul id="gameList"></ul>
+    <div class="gamebar">
+        <button id="exportAll" type="button">Export all</button>
+    </div>
+</section>
 
 <div class="setup hide" id="setup">
     <p id="setupWhy">Enter the code the operator gave you for this game.</p>
@@ -356,15 +413,261 @@ $swScope = $base . '/k/';
         // fact — true about the game, recorded nowhere else — and `possession.php`
         // now accepts the SCOREKEEPING code for them, so this phone does not
         // have to carry a second one.
-        possessionUrl: <?= $json(Mode::viewUrl('possession', $base)) ?>
+        possessionUrl: <?= $json(Mode::viewUrl('possession', $base)) ?>,
+        // A link to one game, with the id to be filled in. From Mode rather
+        // than written here: `/k/702` is a rewrite that only exists where the
+        // host's snippet was pasted, and the long form always works.
+        gameUrl: <?= $json($base . '/k/%GAME%') ?>,
+        listUrl: <?= $json($base . '/k/') ?>,
+        // Where the worker lives, and the scope it may have. Both differ by
+        // mode: standalone this directory IS the document root, so the script
+        // sits at /sw.js and may control everything; hosted it is served from
+        // this directory and is allowed the /k/ prefix by a header, which is
+        // where match control actually lives.
+        swUrl: <?= $json($swUrl) ?>,
+        swScope: <?= $json($swScope) ?>,
+        swCache: <?= $json($swCache) ?>
     };
+
+    /**
+     * Register the worker, and never let it be the reason the page fails.
+     *
+     * Everything on this screen works without one — the outbox, the local
+     * score, the list — so a browser that refuses (no support, a private
+     * window, an insecure origin, a scope the header did not allow) loses
+     * offline RELOADS and nothing else. It is registered after load so it never
+     * competes with the first paint on a phone with one bar.
+     */
+    if ('serviceWorker' in navigator && CONFIG.swUrl) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register(CONFIG.swUrl, { scope: CONFIG.swScope })
+                .catch(function () { /* offline reloads only; the score still works */ });
+            warmCache();
+        });
+    }
+
+    /**
+     * Put this page and its assets in the cache, from the page.
+     *
+     * The worker cannot do it on a first visit: the navigation and every asset
+     * have already been fetched by the time it activates, so its fetch handler
+     * never sees them and the cache stays empty — after exactly the one visit a
+     * scorekeeper was told to make while they had signal. The second visit
+     * would fix it, which is not an instruction anybody should have to follow.
+     *
+     * So the page stores its own shell. The worker still owns READING, and
+     * still refuses everything that reaches air.
+     */
+    function warmCache() {
+        if (!window.caches) { return; }
+        /**
+         * This page, its assets, AND the list.
+         *
+         * The list is the manifest's `start_url` — it is what a home screen
+         * icon opens — so a phone that had only ever opened a GAME would tap
+         * its own icon in a car park and get a network error. One game visit
+         * now caches both, which matches the instruction people are given:
+         * open each game once while you have signal.
+         */
+        var urls = [window.location.href, CONFIG.listUrl];
+        var nodes = document.querySelectorAll('script[src], link[href]');
+        for (var i = 0; i < nodes.length; i += 1) {
+            var u = nodes[i].getAttribute('src') || nodes[i].getAttribute('href');
+            // Only this origin's own files, and never the manifest's icons by
+            // accident: an absolute URL elsewhere is somebody else's to serve.
+            if (u && u.indexOf('//') !== 0 && u.indexOf('http') !== 0) { urls.push(u); }
+        }
+        caches.open(CONFIG.swCache).then(function (c) {
+            // One at a time rather than addAll: addAll rejects the whole set if
+            // any single request fails, and a missing icon must not cost the
+            // page its offline copy.
+            urls.forEach(function (u) { c.add(u).catch(function () { }); });
+        }).catch(function () { /* storage blocked; online still works */ });
+    }
 
     var el = function (id) { return document.getElementById(id); };
     var CODE_KEY = 'uo-score-code-' + CONFIG.gameId;
 
+    /**
+     * Downloading a file from a page that may be offline.
+     *
+     * A Blob URL rather than a request: there is nothing to ask a server for,
+     * and the whole point is that this works in a car park.
+     */
+    function download(name, text) {
+        var blob = new Blob([text], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Revoked on a turn of the loop: Safari has been known to cancel a
+        // download whose URL is revoked in the same tick as the click.
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    }
+
+    function exportName(game) {
+        var stamp = new Date().toISOString().slice(0, 10);
+        return game ? ('score-' + game + '-' + stamp + '.json')
+            : ('scores-' + stamp + '.json');
+    }
+
+    /**
+     * With no game: the games this phone is carrying.
+     *
+     * This is where a home-screen icon lands, so it is a real screen rather
+     * than an error — and the sentence it has to answer is "have I handed
+     * everything over", which is why the pending count is the loudest thing on
+     * a row after the score.
+     */
     if (!CONFIG.gameId) {
-        el('fixture').textContent = 'Add ?game= to the URL.';
+        el('fixture').textContent = 'Match control';
+        el('state').classList.add('hide');
+        el('games').classList.remove('hide');
+        renderList();
         return;
+    }
+
+    /**
+     * Send what every game on this phone is still holding.
+     *
+     * The list used to be a display, and the documentation said "open the game
+     * or the list and it sends" — which was true of the game and false here,
+     * because only the game page built a client. Somebody in signal could sit
+     * on the screen that exists to answer "have I handed everything over"
+     * while it handed nothing over.
+     *
+     * One client per game with something unsent, drained once. They are the
+     * same clients the game page uses, with the same code and the same
+     * idempotence, so a press that lands here is a press that does not land
+     * twice when the game is next opened.
+     */
+    function drainAll(list, done) {
+        var owedGames = list.filter(function (g) { return g.pending > 0; });
+        if (!owedGames.length) { done(false); return; }
+
+        var left = owedGames.length;
+        owedGames.forEach(function (g) {
+            var stored = '';
+            try { stored = window.localStorage.getItem('uo-score-code-' + g.id) || ''; }
+            catch (e) { stored = ''; }
+
+            window.ScoreClient.create({
+                url: CONFIG.scoreUrl,
+                game: g.id,
+                code: function () { return stored; },
+                // No polling: this is a delivery run, not a screen.
+                poll: 0
+            }).flush().then(function () {
+                left -= 1;
+                if (left === 0) { done(true); }
+            });
+        });
+    }
+
+    function renderList() {
+        var list = window.ScoreArchive ? window.ScoreArchive.games() : [];
+        var owed = window.ScoreArchive ? window.ScoreArchive.owed() : { games: 0, presses: 0 };
+
+        /**
+         * Three states, not two.
+         *
+         * "Nothing left to send" is not "everything got through": a conflict or
+         * a refusal empties the queue exactly as a success does. Refused work
+         * is counted separately because finding signal cannot fix it — somebody
+         * has to look at it.
+         */
+        el('gamesHint').textContent = !list.length
+            ? 'Open a game once while you have signal and it will be listed here, '
+                + 'ready to keep offline.'
+            : owed.games
+                ? (owed.presses + (owed.presses === 1 ? ' press' : ' presses')
+                    + ' from ' + owed.games + (owed.games === 1 ? ' game' : ' games')
+                    + ' still to send. Sending…')
+                : owed.declined
+                    ? (owed.declined + (owed.declined === 1 ? ' press was' : ' presses were')
+                        + ' not accepted — everything else has been sent.')
+                    : 'Everything here has been sent.';
+
+        var ul = el('gameList');
+        ul.replaceChildren();
+        list.forEach(function (g) {
+            var li = document.createElement('li');
+            var a = document.createElement('a');
+            a.href = CONFIG.gameUrl.replace('%GAME%', String(g.id));
+
+            var who = document.createElement('span');
+            who.className = 'who';
+            var b = document.createElement('b');
+            b.textContent = (g.home && g.away) ? (g.home + ' v ' + g.away)
+                : (g.name || ('Game ' + g.id));
+            var sub = document.createElement('span');
+            // What LANDED, rather than only what is left: the server's own
+            // score where it has given one, so "Sent" is a fact rather than an
+            // inference from an empty queue.
+            var landed = g.sent ? (g.sent.home + '\u2013' + g.sent.away + ' sent') : 'Not sent yet';
+            sub.textContent = g.pending
+                ? (landed + ' \u00b7 ' + g.pending
+                    + (g.pending === 1 ? ' press' : ' presses') + ' to send')
+                : g.declined
+                    ? (landed + ' \u00b7 ' + g.declined
+                        + (g.declined === 1 ? ' press' : ' presses') + ' not accepted')
+                    : landed;
+            who.appendChild(b);
+            who.appendChild(sub);
+
+            var sc = document.createElement('span');
+            sc.className = 'sc';
+            sc.textContent = g.score.home + '\u2013' + g.score.away;
+
+            var flag = document.createElement('span');
+            flag.className = 'state ' + (g.pending ? 'pending' : (g.declined ? 'bad' : 'ok'));
+            flag.textContent = g.pending ? String(g.pending)
+                : (g.declined ? '!' : 'ok');
+
+            a.appendChild(who);
+            a.appendChild(sc);
+            a.appendChild(flag);
+            li.appendChild(a);
+
+            /**
+             * Remove a game from this phone.
+             *
+             * Refused while anything is unsent — that queue is the only copy of
+             * something somebody did — and it takes the scorekeeping code with
+             * it, because a phone that has "forgotten" a game and can still
+             * write to it has not forgotten it.
+             */
+            var drop = document.createElement('button');
+            drop.type = 'button';
+            drop.className = 'drop';
+            drop.textContent = 'Remove';
+            drop.disabled = g.pending > 0;
+            drop.title = g.pending > 0
+                ? 'Not while presses are still to send.'
+                : (g.declined
+                    ? 'Forget this game, including the presses that were not accepted.'
+                    : 'Forget this game on this phone, including its code.');
+            drop.addEventListener('click', function () {
+                if (window.ScoreArchive.forget(null, g.id)) { renderList(); }
+            });
+            li.appendChild(drop);
+
+            ul.appendChild(li);
+        });
+
+        el('exportAll').disabled = list.length === 0;
+        el('exportAll').onclick = function () {
+            download(exportName(null),
+                JSON.stringify(window.ScoreArchive.exportAll(), null, 2));
+        };
+
+        // Hand over whatever is still owed, then say so.
+        drainAll(list, function (sent) {
+            if (sent) { renderList(); }
+        });
     }
 
     var code = '';
@@ -593,6 +896,11 @@ $swScope = $base . '/k/';
             st.textContent = 'saved';
         }
 
+        // A conflict outranks the state chip: the chip says "saved", which is
+        // true and is not the thing that just happened.
+        el('clash').classList.toggle('hide', !s.notice);
+        if (s.notice) { el('clashText').textContent = s.notice; }
+
         el('startBtn').textContent = s.running ? 'Pause' : (s.timer_start ? 'Resume' : 'Start');
         el('halfBtn').textContent = s.half_at ? 'Half ✓' : 'Half';
         el('undoBtn').disabled = s.home + s.away === 0;
@@ -663,19 +971,57 @@ $swScope = $base . '/k/';
        that must survive the network being gone.
        ------------------------------------------------------------------ */
 
+    /**
+     * Note that this phone is keeping this game.
+     *
+     * Before the names are fetched, not after: a phone opening a game for the
+     * first time with no signal still belongs on the list, and a row reading
+     * "Game 702" is one somebody can use. The names are filled in the moment
+     * they arrive, and kept for the next cold open.
+     */
+    if (window.ScoreArchive) {
+        window.ScoreArchive.remember(null, CONFIG.gameId, {});
+
+        /**
+         * The names this phone already knows, before asking anybody.
+         *
+         * With no signal the payload never arrives, so the two big buttons said
+         * "Home" and "Away" — on a phone that has the real names sitting in its
+         * own index from the last time it opened this game. The fetch below
+         * still runs and still wins; this is what the screen says until it
+         * does, and all it says when it cannot.
+         */
+        var known = window.ScoreArchive.games().filter(function (g) {
+            return g.id === Number(CONFIG.gameId);
+        })[0];
+        if (known && known.home && known.away) {
+            el('homeName').textContent = known.home;
+            el('awayName').textContent = known.away;
+            el('fixture').textContent = known.home + ' v ' + known.away;
+        }
+    }
+
     if (window.Provider) {
         window.Provider.fromConfig({ apiBase: CONFIG.api, captureBase: CONFIG.captureBase })
             .game(CONFIG.gameId)
             .then(function (p) {
                 var t = (p && p.teams) || {};
+                var info = (p && p.game_info) || {};
                 var h = (t.hometeam && t.hometeam.name) || 'Home';
                 var a = (t.visitorteam && t.visitorteam.name) || 'Away';
                 el('homeName').textContent = h;
                 el('awayName').textContent = a;
                 el('fixture').textContent = h + ' v ' + a;
+                if (window.ScoreArchive) {
+                    window.ScoreArchive.remember(null, CONFIG.gameId, {
+                        home: h, away: a, name: info.gamename || '', at: info.time || ''
+                    });
+                }
             })
             .catch(function () { /* names are a luxury; the score is not */ });
     }
+
+    el('clashOk').addEventListener('click', function () { keeper.clearNotice(); });
 
     keeper.start();
     paint();

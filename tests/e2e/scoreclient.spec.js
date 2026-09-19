@@ -54,8 +54,13 @@ function server() {
                 const num = sent.goal.num;
                 const next = state.goals.length + 1;
                 if (state.goals.some((g) => g.num === num)) {
-                    // Already recorded: not an event, and not an error.
-                    return Promise.resolve({ ok: true, status: 200, json: async () => s.body() });
+                    // Already recorded: not an event, and not an error — but
+                    // NOT silent either. The real endpoint answers 200 with
+                    // `warning: 'Already recorded.'` (score.php), which is the
+                    // only way a phone can tell "delivered" from "declined
+                    // because somebody else got there first".
+                    return Promise.resolve({ ok: true, status: 200,
+                        json: async () => Object.assign(s.body(), { warning: 'Already recorded.' }) });
                 }
                 if (num !== next) {
                     return Promise.resolve({ ok: false, status: 409,

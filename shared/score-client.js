@@ -78,6 +78,41 @@
          * should still be able to keep score.
          */
         var STORE_KEY = 'uo-score-outbox-' + game;
+        /**
+         * The last thing the server said, kept on the device.
+         *
+         * The outbox alone is not a score. It holds what has NOT been sent, and
+         * an item is dropped the moment it lands — so a phone that syncs a few
+         * points, loses signal and is then reloaded would come back with the
+         * server's answer gone (it lived in memory) and only the unsent tail in
+         * hand. The score would jump backwards, on the surface whose entire
+         * promise is that what you entered is what you see.
+         *
+         * That is the difference between "survives a reload" and "works
+         * offline", and it is why this snapshot exists: restored at startup,
+         * the screen opens on the last known score with the unsent presses
+         * applied on top, whether or not anything can be reached.
+         *
+         * The server still wins whenever it answers. This is a cache of its
+         * last answer, never an authority — see the note at the top.
+         */
+        var SERVER_KEY = 'uo-score-server-' + game;
+        /**
+         * Presses that left the queue WITHOUT being recorded.
+         *
+         * Three paths empty the outbox and only one of them is success: a
+         * conflict (the point was already recorded by somebody else) and any
+         * other refusal both drop the message, because leaving it would block
+         * every good press behind it forever.
+         *
+         * Without this, both of those look exactly like delivery from the
+         * outside — the queue is empty, so the phone says "Sent" — and the only
+         * evidence is a live notice that dies with the page. A scorekeeper
+         * asking "did it all get through" in a car park deserves the real
+         * answer, so what was dropped is written down and counted separately.
+         */
+        var DECLINED_KEY = 'uo-score-declined-' + game;
+        var MAX_DECLINED = 50;
         var store = opts.storage !== undefined
             ? opts.storage
             : (typeof localStorage !== 'undefined' ? localStorage : null);
@@ -100,8 +135,87 @@
             } catch (e) { /* full, or blocked; the queue still works in memory */ }
         }
 
+        function restoreServer() {
+            if (!store) { return null; }
+            try {
+                var raw = store.getItem(SERVER_KEY);
+                var parsed = raw ? JSON.parse(raw) : null;
+
+                return parsed && typeof parsed === 'object' ? parsed : null;
+            } catch (e) { return null; }
+        }
+
+        function persistServer() {
+            if (!store) { return; }
+            try {
+                store.setItem(SERVER_KEY, JSON.stringify(server));
+            } catch (e) { /* full, or blocked; the page still works in memory */ }
+        }
+
         var outbox = restore();
+
+        /**
+         * Opened cold, possibly with nothing reachable.
+         *
+         * The last known answer beats zeroes, and `refresh()` replaces it the
+         * instant the server can be reached — including `canWrite`, so a phone
+         * that held the code yesterday can go on keeping score today and find
+         * out whether it still may when it next has signal. Field by field
+         * rather than wholesale, so a snapshot written by an older version
+         * cannot introduce a key this one does not know.
+         */
+        function restoreDeclined() {
+            if (!store) { return []; }
+            try {
+                var raw = store.getItem(DECLINED_KEY);
+                var parsed = raw ? JSON.parse(raw) : [];
+
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) { return []; }
+        }
+
+        /** Record a press that will never land, with why. */
+        function decline(item, why) {
+            declined.push({
+                kind: item.kind,
+                home: Boolean(item.home),
+                at: item.at || 0,
+                num: (item.body && item.body.goal && item.body.goal.num) || null,
+                why: why
+            });
+            // Oldest first: a game that somehow produced fifty of these has a
+            // bigger problem than the fifty-first.
+            while (declined.length > MAX_DECLINED) { declined.shift(); }
+            if (!store) { return; }
+            try { store.setItem(DECLINED_KEY, JSON.stringify(declined)); }
+            catch (e) { /* full or blocked; the count still holds in memory */ }
+        }
+
+        var declined = restoreDeclined();
+        var cached = restoreServer();
+        if (cached) {
+            Object.keys(server).forEach(function (k) {
+                if (cached[k] !== undefined) { server[k] = cached[k]; }
+            });
+        }
+
         var error = null;
+        /**
+         * Somebody else's score won.
+         *
+         * Distinct from `error`, which means "this did not get through". A
+         * notice means the opposite: it got through and was **declined**,
+         * because the point it names was already recorded by another
+         * scorekeeper — or because this phone was out of step and the server's
+         * answer replaced it.
+         *
+         * It has to be said out loud. Without it a queue simply empties, the
+         * score changes underneath somebody who pressed the buttons, and the
+         * only visible evidence is a number they did not expect. That is the
+         * quietest way this system can be wrong, and the person best placed to
+         * sort it out is the one holding the phone.
+         */
+        var notice = null;
         var listeners = [];
         var draining = false;
 
@@ -165,7 +279,11 @@
                 half_at: halfAt,
                 running: Boolean(timerStart) && !pauseStart,
                 pending: outbox.length,
-                error: error
+                // Delivered and declined are different answers, and only one of
+                // them is "Sent".
+                declined: declined.length,
+                error: error,
+                notice: notice
             };
         }
 
@@ -237,8 +355,14 @@
                     // would invent a second goal for a point the other
                     // scorekeeper may already have recorded.
                     if (res.r.status === 409) {
+                        decline(item, 'another scorekeeper recorded that point');
                         outbox.shift();
                         error = null;
+                        // The one case where a press is dropped on purpose:
+                        // this phone's numbering no longer matches the store,
+                        // which can only mean somebody else wrote.
+                        notice = 'Another scorekeeper is writing to this game — '
+                            + 'their score is the one being used.';
                         persist();
 
                         return refresh();
@@ -257,6 +381,13 @@
                     outbox.shift();
                     absorb(res.body);
                     error = null;
+                    // "Already recorded" is a success as far as delivery goes,
+                    // and a conflict as far as the scorekeeper is concerned.
+                    if (res.body && res.body.warning) {
+                        decline(item, 'already recorded by another scorekeeper');
+                        notice = 'Another scorekeeper had already recorded that '
+                            + 'point — their score is the one being used.';
+                    }
                     announce();
                 })
                 .catch(function (e) {
@@ -284,6 +415,12 @@
             view: view,
             onChange: function (fn) { listeners.push(fn); },
             refresh: refresh,
+
+            /** Acknowledge a conflict notice, once somebody has read it. */
+            clearNotice: function () { notice = null; announce(); },
+
+            /** What was dropped, and why. Read by the list of games. */
+            declined: function () { return declined.slice(); },
 
             /**
              * Record a goal.

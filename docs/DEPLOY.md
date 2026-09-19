@@ -82,6 +82,23 @@ The first real deployment ran straight into this. `Overlays\Auth` decides hosted
 
 The old test was "is there a `vendor/autoload.php` up there", which matched it, and would have `require`d a stranger's autoloader into this process on every auth check. Now the standalone front controller says so itself (`OVERLAYS_STANDALONE`), and the fallback wants Live!'s entry point beside its autoloader before executing anything. `tests/standalone-setup.js` plants a decoy that throws if it is ever loaded, so the suite fails loudly if this comes back.
 
+### Which version is live
+
+`deploy.sh` writes `version.json` into the tree it sends, so the installation can be asked directly:
+
+```
+curl -s https://ultimate-broadcast.org/version.json
+```
+
+```json
+{ "commit": "…", "short": "f1d7204", "subject": "…", "branch": "main",
+  "dirty": false, "deployed": "2026-09-19T09:12:04+00:00" }
+```
+
+It is generated rather than committed — a checkout has none until it is deployed from — and gitignored. **`dirty` is the field that matters**: a deploy from a tree with uncommitted changes is not the commit it names, and this is the only place that would ever say so.
+
+The service worker is explicitly forbidden from caching it. It matches the extension list that is otherwise served cache-first, and a file that answers "is my fix live" from a cache written by the version being questioned would agree with itself forever.
+
 ## 6. Checking it worked
 
 In this order, because each rules out a different layer:
@@ -96,6 +113,7 @@ In this order, because each rules out a different layer:
 | `/conf/notes/ANY.json` | **404** — this is the one that matters |
 | `/install/make-config.php` | **404** |
 | `/commentator.php` | **404** — a page is only ever reached through the front controller |
+| `/version.json` | the commit this installation was deployed from |
 
 The short URLs answering with a redirect rather than rendering directly is correct: the pages read their parameters with `filter_input(INPUT_GET, ...)`, which reads the original request, so an internal rewrite would arrive with the game id invisible. `app.php` says so at length. It costs one round trip on a URL that is typed once and then lives in a browser source.
 

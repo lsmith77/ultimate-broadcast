@@ -1815,6 +1815,29 @@ test.describe('a phone with no signal at all', () => {
     await context.setOffline(false);
   });
 
+  test('the deployed version is readable, and never from a cache', async ({ page, request }) => {
+    /**
+     * `version.json` answers "is my fix live", which a page grep cannot: a
+     * stale worker cache, a half-finished deploy and the wrong host in
+     * deploy.env all look the same from outside. It is written by deploy.sh, so
+     * a checkout does not have one — what is asserted here is the part that
+     * would quietly break it: the worker must never answer for it, because it
+     * matches the extension list that is served cache-first.
+     */
+    const worker = await (await request.get('/sw.js')).text();
+    expect(worker, 'the worker refuses to cache it').toMatch(/version\\.json/);
+
+    // And if one has been generated, it is served and parses.
+    const res = await request.get('/version.json');
+    if (res.status() === 200) {
+      const body = await res.json();
+      expect(typeof body.short).toBe('string');
+      expect(typeof body.dirty).toBe('boolean');
+    }
+    await page.goto('/k/');
+    await expect(page.locator('#games, #pick')).not.toHaveCount(0);
+  });
+
   test('the phone offers signing in, for whoever is also the operator', async ({ browser }) => {
     // An administrator may write any game without a code, and on a one-person
     // rig the operator and the scorekeeper are the same person typing a code

@@ -78,8 +78,18 @@ function isAsset(url) {
     return /\.(?:css|js|png|svg|webmanifest|woff2?)$/.test(url.pathname);
 }
 
-/** The live stores. Always the network: a cached score is not the score. */
+/**
+ * The live stores, and the one file that says what is deployed.
+ *
+ * Always the network. A cached score is not the score — and `version.json`
+ * exists precisely to answer "is my fix live", so serving it from a cache
+ * written by the version being questioned would make it agree with itself
+ * forever. It matches `isAsset()`'s extension list, which is what would have
+ * done it.
+ */
 function isStore(url) {
+    if (/\/version\.json$/.test(url.pathname)) { return true; }
+
     return url.search.indexOf('view=score') !== -1
         || url.search.indexOf('view=possession') !== -1
         || url.search.indexOf('view=live/overlays/score') !== -1

@@ -53,6 +53,52 @@ REMOTE="${REMOTE%/}/"
 echo "==> $REMOTE"
 
 # ---------------------------------------------------------------------------
+# What is about to be deployed, written down where it can be read back.
+#
+# "Is my fix live?" was being answered by fetching a page and grepping it for a
+# string that ought to be there, which works until the answer is no for a
+# reason nobody guessed — a stale worker cache, a deploy that half ran, the
+# wrong host in deploy.env. One file with the commit in it answers it directly:
+#
+#   curl -s https://<site>/version.json
+#
+# Generated rather than committed, because it describes an act rather than the
+# code: it is gitignored, and a checkout has no version.json until it is
+# deployed from. `dirty` is the flag that matters most — a deploy from a tree
+# with uncommitted changes is not the commit it names, and saying so here is
+# the only place that would ever be noticed.
+# ---------------------------------------------------------------------------
+VERSION_FILE="$SCRIPT_DIR/version.json"
+
+if command -v git >/dev/null 2>&1 && git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    COMMIT="$(git -C "$SCRIPT_DIR" rev-parse HEAD)"
+    SHORT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)"
+    COMMITTED="$(git -C "$SCRIPT_DIR" log -1 --format=%cI)"
+    SUBJECT="$(git -C "$SCRIPT_DIR" log -1 --format=%s)"
+    BRANCH="$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD)"
+    if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then DIRTY=true; else DIRTY=false; fi
+else
+    COMMIT=""; SHORT="unknown"; COMMITTED=""; SUBJECT=""; BRANCH=""; DIRTY=false
+fi
+
+python3 - "$VERSION_FILE" "$COMMIT" "$SHORT" "$COMMITTED" "$SUBJECT" "$BRANCH" "$DIRTY" <<'PYEOF' ||     printf '{"commit":"%s","short":"%s","dirty":%s}\n' "$COMMIT" "$SHORT" "$DIRTY" > "$VERSION_FILE"
+import json, sys, datetime
+path, commit, short, committed, subject, branch, dirty = sys.argv[1:8]
+json.dump({
+    'commit': commit,
+    'short': short,
+    'committed': committed,
+    'subject': subject,
+    'branch': branch,
+    'dirty': dirty == 'true',
+    'deployed': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+}, open(path, 'w'), indent=2)
+open(path, 'a').write('\n')
+PYEOF
+
+echo "==> deploying ${SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCOMMITTED CHANGES)')"
+
+# ---------------------------------------------------------------------------
 # The rules, first and by themselves.
 # ---------------------------------------------------------------------------
 "$RSYNC" --verbose "$@" \
@@ -138,3 +184,5 @@ Deployed. On a FIRST deployment, over SSH on the host:
 
 Then open / and check the Studio lists games — see docs/DEPLOY.md.
 DONE
+
+echo "==> live version: curl -s https://<site>/version.json"

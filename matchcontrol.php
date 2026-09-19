@@ -191,8 +191,19 @@ $swScope = $base . '/k/';
         border: 1px solid var(--line); border-radius: 10px; background: transparent;
         color: var(--ink-mute); }
     .games .drop:disabled { opacity: .35; }
-    .signin { display: inline-block; color: var(--ink-mute); font-size: .85rem; }
-    .signin.hide { display: none; }
+    /* Both ways in look like ways in.
+       The sign-in link was grey 0.85rem text between the code box and a large
+       button, under a message that said "ask the operator" — so the person who
+       WAS the operator read past it and reported there was no way to sign in.
+       It is a button now, and the message names it. */
+    .setup .setupbtn { display: block; width: 100%; padding: .85rem; font: inherit;
+        font-weight: 700; text-align: center; text-decoration: none;
+        border-radius: 10px; border: 1px solid var(--line);
+        background: var(--panel); color: var(--ink); }
+    .setup .signin { background: transparent; }
+    .setup .setupor { margin: .6rem 0; text-align: center; color: var(--ink-mute);
+        font-size: .8rem; }
+    .setup .hide { display: none; }
     /* The row must shrink, or a long fixture name pushes the score and the
        Remove button off the side of a phone — which is what it did, and which
        a screenshot caught and a passing test did not. `min-width: 0` on both
@@ -320,8 +331,9 @@ $swScope = $base . '/k/';
     <p id="setupWhy">Enter the code the operator gave you for this game.</p>
     <input id="code" inputmode="latin" autocapitalize="characters" autocomplete="off"
         maxlength="<?= (int) Score::CODE_LENGTH ?>" aria-label="Scorekeeping code">
-    <p><a class="signin hide" id="signin">Running this yourself? Sign in instead &mdash; no code needed.</a></p>
-    <button class="bar" id="useCode" type="button" style="padding:.85rem;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)">Use this code</button>
+    <button class="bar setupbtn" id="useCode" type="button">Use this code</button>
+    <p class="setupor hide" id="signinRow">or</p>
+    <a class="bar setupbtn signin hide" id="signin">Sign in as the operator</a>
 </div>
 
 <main class="teams hide" id="teams">
@@ -1029,7 +1041,8 @@ $swScope = $base . '/k/';
         if (!s.canWrite) {
             if (s.nominated === false) {
                 el('setupWhy').textContent =
-                    'No code has been set for this game yet. Ask the operator to set one.';
+                    'No code has been set for this game yet. Sign in if you are running '
+                    + 'this yourself, or ask the operator to set one.';
             } else if (s.error) {
                 el('setupWhy').textContent =
                     'No signal, so a code cannot be checked here. This phone has to be '
@@ -1049,9 +1062,11 @@ $swScope = $base . '/k/';
              * themselves minutes earlier. Offered rather than assumed: it is a
              * link, and anybody who is not the operator cannot use it.
              */
+            // Hidden only with no signal, where signing in cannot work either.
             var signin = el('signin');
             signin.href = CONFIG.loginUrl;
             signin.classList.toggle('hide', Boolean(s.error));
+            el('signinRow').classList.toggle('hide', Boolean(s.error));
         }
     }
 

@@ -39,6 +39,9 @@ const NOT_OURS = new Set([
   'debug', // an example of an arbitrary query surviving a redirect (app.php)
   'view', // the front controller's own, read everywhere
   'utm_source', // in a URL somebody pasted
+  // Added by whoever shared the link, and the reason the front page pattern in
+  // tools/visitors.php cannot anchor `/` at end of string.
+  'fbclid',
 ]);
 
 const docs = [

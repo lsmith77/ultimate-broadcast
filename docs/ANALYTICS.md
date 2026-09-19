@@ -24,6 +24,10 @@ tools/stats.sh
 
 [`../tools/stats.sh`](../tools/stats.sh) finds the access log on the host, streams it here, and reads it — one command and one SSH connection. **Nothing is written on the server and no log is stored here**: it is piped straight through, so the only thing that lands on this machine is the counts.
 
+**Where the log actually is, on cPanel-style hosting.** `$HOME/access-logs` is a symlink to the server's own domlogs directory and holds the current log for every domain on the account — readable over SSH with nothing to switch on. The files are named after the domain with its dots and hyphens removed (`ultimate-broadcast.org` becomes `addon-ultimatebroadcastorg.<account>.tld`), and the `-ssl_log` sibling carries the HTTPS requests, which on a site that forces HTTPS is all of the real traffic. Both are read.
+
+That is worth knowing because the panel offers a *"archive raw logs on my webspace"* setting, and it is not what makes SSH access work. It keeps rotated copies after the host would otherwise discard them, and those copies count against the account's quota. Leave it off unless you want history older than the current rotation, and if you do, prefer pulling `--json` periodically: an archived raw log is a file of IP addresses sitting on the webspace, and this project's whole position on analytics is that it does not keep those.
+
 It takes the host from `deploy.env`, which already names it for `deploy.sh`. The alternative was a second setting holding the same hostname, and two places to change when it moves is how one of them ends up wrong. `deploy.env` is gitignored, so no hostname enters the repository this way either.
 
 ```
@@ -83,6 +87,28 @@ Two parsing details the tool handles, both of which would otherwise inflate the 
 
 - **A short URL is two log lines.** `/s/702` answers `302` and the `/app.php?view=scoreboard&game=702` it points at answers `200`. Only the `200` is counted. `app.php` explains at length why the redirect cannot be an internal rewrite.
 - **The payload fetch is an asset.** Counting the JSON would double every demo run.
+
+### What is not a page view
+
+A page polls. The scoreboard asks for possession and the score about once a
+second, the stage asks for show state on the same channel, the desk asks for
+lines every two seconds and notes every fifteen, and every surface follows the
+game payload on the API's cache life. Those requests come from a page that was
+already counted when somebody opened it, so counting them again as views does
+not inflate the figure so much as replace it: one stage left open overnight
+produced 27,782 possession polls against about ninety real page loads.
+
+They are excluded and counted on the summary line, beside the bots and the
+assets, so the figure can be checked rather than trusted.
+
+**A view that matches no surface is reported too.** `tests/visitors.mjs`
+asserts that the per-surface rows add up to the total, but only against the
+fixture, and the gap it describes appears in real logs where no test runs — a
+route added to `app.php` and not to `SURFACES` shows up in the total and in no
+row, which reads as "nobody visited the new page". The reader now prints an
+**Unclassified views** line and says which file needs the route. That is how
+every front page reached from a shared link was found sitting in the gap:
+`/?fbclid=…` did not match a pattern anchored on `/` at end of string.
 
 ## 4. What the numbers are worth
 

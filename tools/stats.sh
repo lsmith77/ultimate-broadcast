@@ -128,8 +128,23 @@ set -eu
 if [ -n "${FORCED:-}" ]; then
     DIRS="$FORCED"
 else
-    DIRS="$HOME/logs/$DOMAIN $HOME/logs $HOME/log/$DOMAIN $HOME/log $HOME/var/log"
+    # $HOME/access-logs first: on cPanel-style hosting — cyon among them — it is
+    # a symlink to the server's own domlogs directory, which holds the CURRENT
+    # log for every domain on the account. It is readable over SSH without
+    # turning anything on. The panel's "archive raw logs on my webspace" setting
+    # is about keeping ROTATED copies afterwards, and costs quota; it is not
+    # needed to read today's traffic.
+    DIRS="$HOME/access-logs $HOME/logs/$DOMAIN $HOME/logs $HOME/log/$DOMAIN $HOME/log $HOME/var/log"
 fi
+
+# The same domain with its dots and hyphens removed.
+#
+# Those directories name a file after the domain, but not as anybody writes it:
+# ultimate-broadcast.org arrives as addon-ultimatebroadcastorg.<account>.tld,
+# with a -ssl_log sibling carrying the HTTPS requests — which on a site that
+# forces HTTPS is all of the real traffic. Matching only the literal domain
+# found the directory and rejected every file in it.
+SQUASHED="$(printf %s "$DOMAIN" | tr -d '.-')"
 
 FOUND=""
 for d in $DIRS; do
@@ -139,10 +154,15 @@ for d in $DIRS; do
         case "$f" in
             *error*|*.conf|*.pid) continue ;;
         esac
-        # Where a directory holds several domains' logs, take only this one's.
+        # Where a directory holds several domains' logs, take only this one's,
+        # by either spelling.
         case "$d" in
             */"$DOMAIN") ;;
-            *) case "$f" in *"$DOMAIN"*) ;; *) continue ;; esac ;;
+            *) case "$f" in
+                   *"$DOMAIN"*) ;;
+                   *"$SQUASHED"*) ;;
+                   *) continue ;;
+               esac ;;
         esac
         FOUND="$FOUND $f"
     done
@@ -153,7 +173,11 @@ if [ -z "$FOUND" ]; then
     echo "stats: found no access log for $DOMAIN on this host." >&2
     echo "stats: looked in: $DIRS" >&2
     echo "stats: pass --log-dir <path> once you know where it is. To look:" >&2
-    echo "       find \$HOME -maxdepth 3 -iname '*access*' -type f" >&2
+    # -name rather than -iname, and no .htaccess: the obvious search returns a
+    # screenful of those and nothing else, which is how the real directory was
+    # missed the first time.
+    echo "       ls -la \$HOME/access-logs/ 2>/dev/null" >&2
+    echo "       find \$HOME -maxdepth 3 -name '*access*' -type f ! -name '.htaccess*'" >&2
     exit 3
 fi
 

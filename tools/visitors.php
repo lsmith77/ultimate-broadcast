@@ -70,7 +70,11 @@ const ASSET = '#\.(css|js|mjs|map|json|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot
  * are here for a deployment that rewrites internally instead.
  */
 const SURFACES = [
-    'Studio' => '#^/(?:$|s/?$|app\.php\?view=index)#',
+    // `/` and `/s/` with ANY query string, because that is how a shared link
+    // arrives: a front page reached from Facebook is `/?fbclid=…`, and the
+    // end-of-string anchor sent every one of those to no surface at all — the
+    // exact traffic this tool exists to notice.
+    'Studio' => '#^/(?:$|\?|s/?(?:$|\?)|app\.php\?view=index)#',
     'Scoreboard' => '#^/(?:s/[0-9]+(?:/[0-9a-f]{6}|/green|/blue|/magenta|/black)?/?$|app\.php\?view=scoreboard)#i',
     'Stage' => '#^/(?:s/[0-9]+/overlay|s/field/[^/]+/overlay|app\.php\?view=stage)#',
     // Anchored on purpose. An unanchored `c/?[0-9]*` also matches `/conf/...`,
@@ -82,6 +86,26 @@ const SURFACES = [
     'Imprint' => '#^/(?:s/imprint|app\.php\?view=imprint)#',
     'Self-test' => '#view=(?:live/overlays/)?tests/selftest#',
 ];
+
+/**
+ * The stores, which surfaces poll rather than people visiting.
+ *
+ * Every one of these is a page this project already counted asking a question
+ * on a timer: possession and the score about once a second, show state the
+ * same, lines every two, notes every fifteen, the game payload on the API's
+ * own cache life. They are requests from a page that was already counted when
+ * somebody opened it.
+ *
+ * Counting them as page views does not merely inflate the number, it swamps
+ * it. A single stage left open overnight produced 27,782 possession polls
+ * against about ninety real page loads, and the resulting "27,908 page views"
+ * looked like a busy week rather than like one browser on a desk.
+ *
+ * They are excluded rather than reported per endpoint: this tool answers how
+ * many people looked at something, and a poll says nothing about that. The
+ * count is printed with the other exclusions so the figure can be checked.
+ */
+const POLLS = '#[?&]view=(?:live/overlays/)?(?:possession|score|show|colors|lines|notes|roster|live/api)(?:&|$)#';
 
 /**
  * Crawlers, scanners and monitors.
@@ -152,6 +176,7 @@ $botLines = 0;
 $assetLines = 0;
 $otherLines = 0;         // redirects, errors, and anything not a page
 $unparsed = 0;
+$pollLines = 0;
 $total = 0;
 
 $handles = [];
@@ -279,6 +304,12 @@ foreach ($handles as [, $handle]) {
             continue;
         }
 
+        if (preg_match(POLLS, $url) === 1) {
+            ++$pollLines;
+
+            continue;
+        }
+
         /*
          * Only a 200 is a page somebody looked at. This is what stops a short
          * URL being counted twice: standalone, `/s/702` answers 302 and the
@@ -342,6 +373,7 @@ if ($asJson) {
             'bot_requests' => $botLines,
             'assets' => $assetLines,
             'redirects_and_errors' => $otherLines,
+            'polls' => $pollLines,
             'unparsed' => $unparsed,
             'lines_read' => $total,
         ],
@@ -369,6 +401,29 @@ if ($asJson) {
     exit(0);
 }
 
+/**
+ * Nothing read is not nobody visiting.
+ *
+ * An empty input produced a full report of zeroes — "0 visitors, 0 page views"
+ * over a blank date range — which reads exactly like a quiet week and is in
+ * fact a missing file, an unreadable one, or a wrapper whose remote half found
+ * no log. That is the failure this project refuses everywhere else: a surface
+ * stating something it does not know.
+ *
+ * So a run that read no lines says so and stops. The JSON path above is
+ * deliberately left alone: a caller asking for JSON is a program that can see
+ * `lines_read: 0` for itself, and zeroed fields are the honest answer in a
+ * data format.
+ */
+if ($total === 0) {
+    fwrite(STDERR, "\nvisitors: read no log lines, so there is nothing to report.\n"
+        . "visitors: an empty report would say \"no visitors\", which is a different\n"
+        . "          claim from \"no data\". Check the file, or the path given to\n"
+        . "          tools/stats.sh with --log-dir.\n");
+
+    exit(3);
+}
+
 $n = static fn (int $v): string => number_format($v);
 
 printf("\n  %s to %s   (%d %s with traffic)\n\n", $first, $last, count($days), count($days) === 1 ? 'day' : 'days');
@@ -376,6 +431,12 @@ printf("  %-34s %7s\n", 'Visitors', $n(count($people)));
 printf("  %-34s %7s\n", '  ... who ran the demo', $n(count($demoPeople)));
 printf("  %-34s %7s\n", 'Page views', $n($views));
 printf("  %-34s %7s\n", '  ... of the demo', $n($demoViews));
+
+$classified = 0;
+
+foreach ($perSurface as $s) {
+    $classified += $s['views'];
+}
 
 if ($perSurface !== []) {
     printf("\n  %-34s %7s %7s\n", 'By surface', 'people', 'views');
@@ -385,6 +446,25 @@ if ($perSurface !== []) {
             printf("  %-34s %7s %7s\n", '  ' . $name, $n(count($perSurface[$name]['people'])), $n($perSurface[$name]['views']));
         }
     }
+}
+
+/**
+ * Views that matched no surface, said out loud.
+ *
+ * `tests/visitors.mjs` asserts the rows add up to the total, but only against
+ * the fixture — and the gap this is for appears in real logs, where no test
+ * runs. A route added to app.php and not to SURFACES showed up in the total and
+ * in no row, which reads as "nobody visited the new page" rather than as a
+ * reader that does not know about it. Every front page reached from a shared
+ * link sat in that gap, because the pattern anchored `/` at end of string.
+ *
+ * Outside the table on purpose: a log whose views ALL matched nothing would
+ * otherwise print no table and no warning, which is the worst version of it.
+ */
+if ($views > $classified) {
+    printf("\n  %-34s %7s %7s\n", 'Unclassified views', '', $n($views - $classified));
+    fwrite(STDERR, "\n  NOTE: " . $n($views - $classified) . " page views matched no surface.\n"
+        . "        A route is missing from SURFACES in tools/visitors.php.\n");
 }
 
 if (count($perDay) > 1) {
@@ -398,10 +478,12 @@ if (count($perDay) > 1) {
 }
 
 printf(
-    "\n  Read %s lines: excluded %s bot, %s asset, %s redirect or error, %s unparsed.\n",
+    "\n  Read %s lines: excluded %s bot, %s asset, %s poll, %s redirect or error,\n"
+    . "  %s unparsed.\n",
     $n($total),
     $n($botLines),
     $n($assetLines),
+    $n($pollLines),
     $n($otherLines),
     $n($unparsed)
 );

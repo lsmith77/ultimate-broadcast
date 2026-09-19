@@ -46,12 +46,12 @@ const EXPECTED = {
   from: '2026-09-07',
   to: '2026-09-08',
   days: 2,
-  visitors: 4,
+  visitors: 5,
   demo_visitors: 3,
-  page_views: 11,
+  page_views: 12,
   demo_views: 3,
   surfaces: {
-    Studio: { visitors: 3, views: 4 },
+    Studio: { visitors: 4, views: 5 },
     Scoreboard: { visitors: 1, views: 2 },
     Stage: { visitors: 2, views: 2 },
     'Commentary desk': { visitors: 1, views: 1 },
@@ -61,9 +61,13 @@ const EXPECTED = {
   excluded: {
     bot_requests: 3,
     assets: 1,
+    // The one-second channel: possession twice, score, show state, a squad.
+    // They are requests from pages that were already counted when they opened,
+    // and counting them as views swamped the number they were added to.
+    polls: 5,
     redirects_and_errors: 2,
     unparsed: 1,
-    lines_read: 18,
+    lines_read: 24,
   },
 };
 
@@ -129,6 +133,28 @@ const classified = Object.values(report.surfaces).reduce((sum, s) => sum + s.vie
 
 if (classified !== report.page_views) {
   fail(`${report.page_views - classified} page views matched no surface — a route is missing from SURFACES`);
+}
+
+/*
+ * A view that matches no surface is REPORTED, not dropped.
+ *
+ * The assertion above only runs against this fixture; the gap it describes
+ * turns up in real logs, where no test runs. So the reader has to say so
+ * itself, and this is the check that it does — including when nothing matched
+ * a surface at all, which prints no table and used to print no warning either.
+ */
+{
+  const stray = join(tmpdir(), `visitors-stray-${process.pid}.log`);
+  writeFileSync(stray,
+    '203.0.113.9 - - [09/Sep/2026:10:00:00 +0200] "GET /app.php?view=nosuchpage HTTP/1.1"'
+    + ' 200 10 "-" "Mozilla/5.0 (X11; Linux x86_64) Chrome/130"\n');
+
+  try {
+    const shown = execFileSync('php', [TOOL, stray], { encoding: 'utf8' });
+    is('an unclassified view is shown', /Unclassified views\s+1/.test(shown), true);
+  } finally {
+    rmSync(stray, { force: true });
+  }
 }
 
 /*
@@ -207,6 +233,40 @@ try {
   is('a gzipped log counts the same views', viaGzip.page_views, EXPECTED.page_views);
 } finally {
   rmSync(gz, { force: true });
+}
+
+/*
+ * An empty log is not a quiet week.
+ *
+ * Reading nothing used to produce a full report of zeroes — "0 visitors, 0
+ * page views" over a blank date range — which is indistinguishable from a real
+ * week with no traffic. It appeared in practice underneath the wrapper's own
+ * "found no access log" message, which is the worst version: the error is on
+ * the screen and the table below it quietly contradicts it.
+ *
+ * The human report must refuse. The JSON must not, because a caller asking for
+ * JSON is a program that can read `lines_read: 0` for itself.
+ */
+const empty = join(tmpdir(), `visitors-empty-${process.pid}.log`);
+writeFileSync(empty, '');
+
+try {
+  let printed = null;
+  let status = 0;
+  try {
+    printed = execFileSync('php', [TOOL, empty], { encoding: 'utf8', stdio: 'pipe' });
+  } catch (error) {
+    status = error.status;
+    printed = error.stdout ?? '';
+  }
+  is('an empty log is refused rather than reported', status, 3);
+  is('and prints no table of zeroes', printed.trim(), '');
+
+  const json = JSON.parse(execFileSync('php', [TOOL, '--json', empty], { encoding: 'utf8' }));
+  is('but JSON still answers, with the count that says why', json.excluded.lines_read, 0);
+  is('and no visitors in it', json.visitors, 0);
+} finally {
+  rmSync(empty, { force: true });
 }
 
 if (failed === 0) {

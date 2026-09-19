@@ -271,6 +271,48 @@ So the rule that actually holds is not "same key, same action". It is *same key,
 - **Two surfaces have no undo.** Prepared notes fall back to the browser's own textarea undo; line selection has none, because re-clicking a player toggles them off, which covers most of it and is not the same thing.
 - **Nothing shares an undo implementation**, so a future fourth surface will invent a fourth one.
 
+## 10a. Where this could go: detailed stats, or somebody else's app
+
+**A direction, nothing built.** Two large presses on a phone are the floor, not the ceiling. The same surface with more inputs is a stats collection tool, for one team or both, serving the commentary desk during the game and a coach afterwards — and coaches are the audience that pays for this kind of software.
+
+**What the ground already supports.** The store is an append-only log of events, each naming the thing it describes rather than a delta, which is what makes it safe offline. Turns, throws, drops and blocks are the same shape with a bigger alphabet. The line history the commentary desk records ([`PLAN.md`](PLAN.md) §4c) is the other half a coach wants: who was on for what.
+
+**What it would cost.** Not storage, though the data volume does cross the line where `localStorage` and a JSON file stop being adequate ([`RELAY.md`](RELAY.md) §7a). The cost is **attention at the pitch**. Every surface here is shaped by whose job it is, and per-throw capture is a full-time job for somebody doing nothing else — the spotter argument in [`COMMENTATOR.md`](COMMENTATOR.md) §6a, one level harder. A tool that needs a person nobody rostered produces sparse data, and sparse data presented as statistics is the failure this project guards against.
+
+### A bookmark button, which is the cheap half of it
+
+**Also unbuilt, and much smaller than the tool above.** One button on the phone that marks the moment, with a tag and an optional line of text. Standard tags — *great point*, *injury*, *questionable call*, *coaching note*, *highlight* — plus whatever an event adds.
+
+It belongs beside the stats idea because it is the same input surface at the opposite cost. Per-throw capture needs somebody whose whole job it is; a bookmark is one press by whoever is already holding the phone, at a moment when something has just happened. One needs staffing, the other rides along.
+
+Three audiences, from one press:
+
+- **Post-production.** A mark carries the game clock, which is the anchor [`POSTPRODUCTION.md`](POSTPRODUCTION.md) needs and cannot derive — "goal 9 is at this position in the video".
+- **Replays.** [`REPLAY.md`](REPLAY.md) designs the operator's side: marks stored, tags derived, an interval for an injury rather than a clip. It assumes somebody at a switcher. A phone at the sideline is a second source of the same marks, from the person closest to the play.
+- **Coaches.** For them a tagged note against a timestamp is most of what a stats tool would have given.
+
+Three rules it inherits:
+
+- A mark names the moment it describes rather than a delta, so it is safe in the same outbox as everything else.
+- Free text becomes personal data as soon as it names a player. That is the boundary [`COMMENTATOR.md`](COMMENTATOR.md) §5a draws around the notes store.
+- Tags are language-neutral values rendered through a label, not strings typed twice.
+
+### Calls and how they resolved
+
+**An idea, noted rather than designed.** Record the call as well as the moment: *foul*, *travel*, *pick*, *strip*, and then how it ended — contested or uncontested, and what happened to the disc.
+
+Why it is a separate note from the bookmark above: a bookmark says something happened here, while a call has a small fixed vocabulary and an outcome, so it can be counted rather than only read. Ultimate is self-officiated, so calls and their resolutions are the game's own record of how it was played, and nothing records them today — not UltiOrganizer, which has timeouts and caps and spirit scores but no calls, and not this project.
+
+Three things to settle before it is worth building:
+
+- **Who presses it.** Cheaper than per-throw capture, because a game has a handful of calls rather than hundreds of throws, but more than a bookmark: somebody has to hear the call and see how it resolved. That is a person watching the game closely, not a scorekeeper watching the score.
+- **Whether any of it reaches air.** Probably not by name. A running count of one team's fouls, or a named player attached to a contested call, is an accusation on a broadcast, and it would change how people call. Spirit scores are already the sport's channel for this and they are deliberate, mutual and after the fact.
+- **How it relates to spirit scoring.** A tally of contested calls is not a spirit score and must not be presented as one. The most defensible use is the desk and the coach, where the audience is the team itself.
+
+It shares the bookmark's shape — a mark with a tag, stored where possession already is — so if both are built, they are one feature with a richer tag set rather than two.
+
+**So the first question is whether to build it at all.** Established apps already do this — Statto among them — with the input design worked out and users trained. A collaboration, or an import of their export, would get a coach's numbers onto a broadcast without this project growing a second product to staff. Either way the piece to build is the **join**: whatever collects the data, these overlays are where a number reaches air, and those rules are already written — a denominator travels with every rate, an untracked point is unknown rather than zero, and anything the data cannot support is not said.
+
 ## 11. Open questions
 
 - **Does the keeper also hold the ratio and line size?** They already exist as declared values and are currently the desk's. The person with the paper scoresheet is the one who can actually see the circled ratio, which argues for moving them — but the desk is who needs them. Probably both, since they are already capability-gated declared values and reconcile cleanly.

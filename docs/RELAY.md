@@ -165,6 +165,22 @@ It does not have to. **ES modules plus vendored dependencies keep both**: `impor
 
 **And the line inside `shared/`.** Several modules there — `ratio.js`, `stoppage.js`, `possession.js`, `timeouts.js`, `provider.js` — are loaded by both tiers. Those stay dependency-free and conservative, because a dependency added for the commentary desk that arrives on the scoreboard has quietly moved the floor on the device nobody can debug. If a desk-only module needs a library, it is a desk-only module, and `shared/` is not where it goes.
 
+## 7a. Why not PouchDB, CouchDB, or a sync engine — asked and answered
+
+The question comes up whenever offline work is discussed, and on the face of it this is what CouchDB replication is for.
+
+**What it would buy.** IndexedDB instead of `localStorage`: megabytes rather than five, asynchronous and structured. A replication protocol somebody else has debugged. Revision trees, so two devices editing one document produce a detectable conflict rather than a silent overwrite. A prebuilt browser bundle exists, so the no-build-step rule is not the obstacle.
+
+**What stops it, in order:**
+
+1. **There is nothing to replicate to.** PouchDB syncs to a CouchDB-compatible endpoint. This project's server side is PHP writing JSON files on shared hosting — standalone mode's claim is no database and no Composer — and hosted it must not touch Live!'s. Adopting it means running a CouchDB, which is the server process being avoided, or implementing `_changes`, `_revs_diff` and `_bulk_docs` in PHP to replace a POST that already exists and is idempotent.
+2. **The merge semantics are the ones this project rejected.** A revision tree preserves both sides of a conflict and asks the application to choose. `MATCHCONTROL.md` states the opposite rule: the server wins, because two people keeping divergent scores is worse than one being corrected. Conflict machinery would make that policy harder to state.
+3. **The hard part is solved by the data shape.** A goal is written as the point it completes, so replay is safe, order is recoverable, and a double send is not a double count — which is what replication is usually adopted to get. The rest is a persisted snapshot of the last server answer and an index of games on the device: a few dozen lines each, in `shared/score-client.js` and `shared/score-archive.js`.
+
+**When to revisit.** The decision point is not offline work; it is many writers producing many documents that have to merge. Two things would cross it: per-throw stats collection ([`REPLAY.md`](REPLAY.md) and §5 here), which is two orders of magnitude more data and several collectors at once, and device-to-device sync with no server in the middle, which is what this document is about. At that point IndexedDB is the floor and a replication protocol pays for itself. The two-tier rule (§7) says where it may live: the phone and the desk, never the scoreboard or the stage.
+
+**If only size becomes a problem**, the same log moves to IndexedDB behind the same module boundary, with a wrapper of a few kilobytes or none. Storage and replication are separable, and only one of them is expensive here.
+
 ## 8. What it would cost in code, and what it would cost strategically
 
 Two objections that arrive together, and the second is the serious one.

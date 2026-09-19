@@ -46,28 +46,33 @@ const EXPECTED = {
   from: '2026-09-07',
   to: '2026-09-08',
   days: 2,
-  visitors: 5,
+  visitors: 6,
   demo_visitors: 3,
-  page_views: 12,
+  page_views: 14,
   demo_views: 3,
   surfaces: {
     Studio: { visitors: 4, views: 5 },
     Scoreboard: { visitors: 1, views: 2 },
     Stage: { visitors: 2, views: 2 },
     'Commentary desk': { visitors: 1, views: 1 },
-    'Match control': { visitors: 1, views: 1 },
+    'Match control': { visitors: 2, views: 2 },
     Imprint: { visitors: 1, views: 1 },
+    // Where a login lands. Counting it as nothing made the rows disagree with
+    // the total, which is the gap the unclassified line exists to show.
+    'Sign in': { visitors: 1, views: 1 },
   },
   excluded: {
     bot_requests: 3,
-    assets: 1,
+    // The manifest is one of these: a browser fetches it when a page is added
+    // to a home screen, and it has no extension for the asset rule to catch.
+    assets: 2,
     // The one-second channel: possession twice, score, show state, a squad.
     // They are requests from pages that were already counted when they opened,
     // and counting them as views swamped the number they were added to.
     polls: 5,
     redirects_and_errors: 2,
     unparsed: 1,
-    lines_read: 24,
+    lines_read: 27,
   },
 };
 

@@ -81,10 +81,17 @@ const SURFACES = [
     // because every part after the `c` is optional — the kind of quietly wrong
     // pattern AGENTS.md warns about, found by checking rather than by reading.
     'Commentary desk' => '#^/(?:c(?:/[0-9]+)?/?$|app\.php\?view=commentator)#',
-    'Match control' => '#^/(?:k/[0-9]+|app\.php\?view=matchcontrol)#',
+    // `/k/` with no game is the list of games on a phone, which is a page
+    // somebody opened — and the one a home-screen icon lands on, so it is the
+    // most-visited match control URL there is.
+    'Match control' => '#^/(?:k(?:/[0-9]+)?/?(?:$|\?)|app\.php\?view=matchcontrol)#',
     'Event editor' => '#^/(?:s/event|app\.php\?view=event)#',
     'Imprint' => '#^/(?:s/imprint|app\.php\?view=imprint)#',
     'Self-test' => '#view=(?:live/overlays/)?tests/selftest#',
+    // Not a surface anybody chose to look at, but a page all the same: it is
+    // where a login lands, and counting it as nothing made the rows disagree
+    // with the total.
+    'Sign in' => '#view=(?:live/overlays/)?login#',
 ];
 
 /**
@@ -105,6 +112,15 @@ const SURFACES = [
  * many people looked at something, and a poll says nothing about that. The
  * count is printed with the other exclusions so the figure can be checked.
  */
+/**
+ * The web app manifest, which a browser fetches rather than a person opening.
+ *
+ * It has no extension to be caught by ASSET — it is a routed view — so it
+ * arrived as a page view thirteen times from one phone being added to a home
+ * screen. Counted with the assets, where it belongs.
+ */
+const MANIFEST = '#[?&]view=(?:live/overlays/)?manifest(?:&|$)#';
+
 const POLLS = '#[?&]view=(?:live/overlays/)?(?:possession|score|show|colors|lines|notes|roster|live/api)(?:&|$)#';
 
 /**
@@ -298,7 +314,8 @@ foreach ($handles as [, $handle]) {
             continue;
         }
 
-        if (preg_match(ASSET, (string) parse_url($url, PHP_URL_PATH)) === 1) {
+        if (preg_match(ASSET, (string) parse_url($url, PHP_URL_PATH)) === 1
+            || preg_match(MANIFEST, $url) === 1) {
             ++$assetLines;
 
             continue;

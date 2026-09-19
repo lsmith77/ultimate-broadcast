@@ -248,6 +248,11 @@ $swScope = $base . '/k/';
         border: 1px solid rgba(255, 255, 255, .35); background: rgba(0, 0, 0, .18);
         color: var(--ink); }
     .offairdo.hide { display: none; }
+    /* The one destructive control on the page. It asks twice: the first press
+       says what it is about to do, the second does it, and it goes back to
+       asking if nobody answers. A phone in a pocket presses things. */
+    .opt.danger { border-color: var(--bad); }
+    .opt.danger.armed { background: var(--bad); color: #fff; }
     .offairx { float: right; margin: -.2rem -.2rem 0 .4rem; padding: 0 .45rem;
         font: inherit; font-size: 1.1rem; line-height: 1.4; border: 0;
         border-radius: 6px; background: transparent; color: inherit; opacity: .7; }
@@ -412,6 +417,16 @@ $swScope = $base . '/k/';
                 Clears itself at the next point.</p>
             <div class="row">
                 <button class="opt" id="stopBtn" type="button">Stopped</button>
+            </div>
+        </section>
+
+        <section>
+            <h2>Clock</h2>
+            <p class="why">Starting a running clock does not restart it, on purpose —
+                a second press is somebody checking. This is how a clock started by
+                mistake, or on the wrong game, goes back to nothing.</p>
+            <div class="row">
+                <button class="opt danger" id="clockReset" type="button">Reset clock</button>
             </div>
         </section>
 
@@ -922,7 +937,7 @@ $swScope = $base . '/k/';
         if (el('sizeSel').value !== (poss.size === null ? '' : String(poss.size))) {
             el('sizeSel').value = poss.size === null ? '' : String(poss.size);
         }
-        ['stopBtn', 'ratioSel', 'sizeSel', 'toHome', 'toAway'].forEach(function (id) {
+        ['stopBtn', 'ratioSel', 'sizeSel', 'toHome', 'toAway', 'clockReset'].forEach(function (id) {
             el(id).disabled = !s.canWrite;
         });
     }
@@ -1023,6 +1038,8 @@ $swScope = $base . '/k/';
         if (s.notice) { el('clashText').textContent = s.notice; }
 
         el('startBtn').textContent = s.running ? 'Pause' : (s.timer_start ? 'Resume' : 'Start');
+        // Nothing to reset, nothing to confirm.
+        if (!s.timer_start && resetArmed) { disarmReset(); }
         el('halfBtn').textContent = s.half_at ? 'Half ✓' : 'Half';
         el('undoBtn').disabled = s.home + s.away === 0;
         [el('homeBtn'), el('awayBtn')].forEach(function (b) { b.disabled = !s.canWrite; });
@@ -1232,6 +1249,35 @@ $swScope = $base . '/k/';
     el('offairHide').addEventListener('click', function () {
         rememberOffairDismissed(true);
         paint();
+    });
+
+    /**
+     * Reset the clock, on the second press.
+     *
+     * A confirmation rather than a dialog: a modal on a phone at a pitch is
+     * something to dismiss while a point is being played, and the two presses
+     * are half a second apart for somebody who means it. It disarms itself
+     * after a few seconds so a forgotten first press cannot be completed by an
+     * unrelated one later.
+     */
+    var resetArmed = null;
+
+    function disarmReset() {
+        if (resetArmed) { clearTimeout(resetArmed); resetArmed = null; }
+        el('clockReset').classList.remove('armed');
+        el('clockReset').textContent = 'Reset clock';
+    }
+
+    el('clockReset').addEventListener('click', function () {
+        if (!resetArmed) {
+            el('clockReset').classList.add('armed');
+            el('clockReset').textContent = 'Tap again to reset';
+            resetArmed = setTimeout(disarmReset, 5000);
+
+            return;
+        }
+        disarmReset();
+        keeper.clock('reset');
     });
 
     el('clashOk').addEventListener('click', function () { keeper.clearNotice(); });

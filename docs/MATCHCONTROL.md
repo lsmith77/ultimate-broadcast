@@ -10,7 +10,7 @@ Built, and in use as of this document's last revision. §§1–9 were written be
 | `score.php` | the endpoint. Reads are open; writes need the administrator session or the code an operator nominated |
 | `shared/score-client.js` | the outbox: every press applied locally first, queued, retried |
 | `matchcontrol.php`, at **`/k/<game>`** | the phone surface — two presses, the score, a clock, an undo, a sync state |
-| The **More** panel on that phone | possession, timeouts, an injury stoppage and the first point's ratio — behind a toggle, because they are not the job |
+| The **More** panel on that phone | possession, timeouts, an injury stoppage, the first point's ratio and a clock reset — behind a toggle, because they are not the job |
 | `shared/score-source.js` | puts a locally kept score into the payload every renderer already reads |
 | The Studio's **Match control** bar | the scorekeeping code — nominate, generate, revoke — beside the **Score from** switch (`upstream` ⇄ `match control`), per game, administrator only |
 
@@ -27,6 +27,8 @@ Timeouts are recorded here now, and were recorded nowhere before. UltiOrganizer 
 Possession is offence and defence, not home and away. The store records which SIDE has the disc relative to the point being played, and whose offence it is changes at every goal without anybody re-declaring it. Naming the teams there would have asked the scorekeeper for the wrong fact — and did, in the first version of this panel.
 
 **The panel is behind a toggle.** The two big buttons are the job; eight more controls in front of them is how somebody presses the wrong one at 13-12. Whoever wants it opens it once and the phone remembers.
+
+**The clock can be reset, and that is the one destructive control on the page.** Start on a running clock does nothing on purpose — a second press is somebody checking, not somebody asking for the game to begin again — so until now a clock started by mistake, or started on the wrong game, could be paused but never returned to nothing. Reset writes `clock: 'reset'`, which clears `timer_start` and both pause fields, and it is idempotent in the same sense as a goal: resetting twice leaves the same state, so a retry over a bad connection is harmless. It sits in the **More** panel and asks twice — the first press arms it and says what it will do, and the arming lapses after five seconds, because the failure it guards against is a thumb on a phone at a sideline.
 
 The phone says when it is not the source. A banner across the top, shown whether or not that phone may write. The failure it prevents is somebody keeping a whole game's score carefully into a store nothing reads, which looks exactly like working until somebody watches the broadcast.
 

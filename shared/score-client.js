@@ -234,6 +234,7 @@
             var timeouts = (server.timeouts || []).slice();
             var timerStart = server.timer_start;
             var pauseStart = server.timer_pause_start;
+            var paused = server.timer_paused_duration;
             var halfAt = server.half_at;
 
             outbox.forEach(function (item) {
@@ -260,6 +261,13 @@
                         pauseStart = item.at;
                     } else if (item.action === 'half') {
                         halfAt = halfAt ? null : item.at;
+                    } else if (item.action === 'reset') {
+                        // Applied here as well as sent, like every other press:
+                        // a clock that keeps running until the network agrees
+                        // is the one thing this surface promises not to do.
+                        timerStart = null;
+                        pauseStart = 0;
+                        paused = 0;
                     }
                 }
             });
@@ -275,7 +283,7 @@
                 nominated: server.nominated,
                 enabled: server.enabled,
                 timer_start: timerStart,
-                timer_paused_duration: server.timer_paused_duration,
+                timer_paused_duration: paused,
                 timer_pause_start: pauseStart,
                 half_at: halfAt,
                 running: Boolean(timerStart) && !pauseStart,

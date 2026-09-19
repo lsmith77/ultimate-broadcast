@@ -80,6 +80,13 @@ function server() {
             } else if (sent.clock === 'pause') {
                 state.timer_pause_start = 2000;
                 state.rev += 1;
+            } else if (sent.clock === 'reset') {
+                // The real store clears all three (shared/score.php). A stub
+                // that forgot one would let a bug through as a pass.
+                state.timer_start = null;
+                state.timer_paused_duration = 0;
+                state.timer_pause_start = 0;
+                state.rev += 1;
             }
             return Promise.resolve({ ok: true, status: 200, json: async () => s.body() });
         },
@@ -404,6 +411,36 @@ test.describe('a phone that goes home, is closed, and comes back', () => {
       fetch: s.fetch, poll: 0, retry: 0, storage: hostile });
     await phone.goal(true);
     expect(phone.view()).toMatchObject({ home: 1, pending: 1 });
+  });
+});
+
+test.describe('resetting the clock', () => {
+  test('clears it on screen before the server has heard', async () => {
+    // Every other press is applied here first; a clock that keeps running
+    // until the network agrees is the one thing this surface promises not to.
+    const s = server();
+    const c = client(s);
+    await c.clock('start');
+    expect(c.view().timer_start).toBeTruthy();
+
+    s.online = false;
+    await c.clock('reset');
+    expect(c.view().timer_start, 'stopped here, queued for there').toBeNull();
+    expect(c.view().running).toBe(false);
+    expect(c.view().pending).toBe(1);
+  });
+
+  test('and the server agrees once it lands', async () => {
+    const s = server();
+    const c = client(s);
+    await c.clock('start');
+    s.online = false;
+    await c.clock('reset');
+
+    s.online = true;
+    await c._drain();
+    expect(c.view().timer_start).toBeNull();
+    expect(s.state().timer_start, 'the store too').toBeNull();
   });
 });
 

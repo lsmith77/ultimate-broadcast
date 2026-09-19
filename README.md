@@ -139,7 +139,7 @@ Everything below works in **both modes** unless a row says otherwise.
 |---|---|
 | The job | Two large presses, the score, a clock and an undo. Nothing else on the page, because everything added competes with the one thing it exists to do |
 | Offline | Each press is applied on the screen first, queued, and retried until it lands. A press carries the time it was *pressed*, not the time it arrived — `timer_start` is absolute, so a start delivered after a five-minute outage would otherwise run the rest of the game five minutes short, on air. The queue survives a reload |
-| The **More** panel | Possession, timeouts, an injury stoppage and the first point's ratio — behind a toggle, because they are not the job, and the phone remembers whoever opened it |
+| The **More** panel | Possession, timeouts, an injury stoppage, the first point's ratio and a clock reset — behind a toggle, because they are not the job, and the phone remembers whoever opened it. The reset asks twice, being the one destructive control there |
 | **Add to home screen** | `/k/<game>` installs as an app — its own icon, no browser chrome, and it opens with no network at all. Open each game once while you have signal, then keep score all day dark. [`docs/OFFLINE.md`](docs/OFFLINE.md) |
 | **Finding a game** | `/k/` lists the event's games, live ones first, so a phone alone can set itself up with nothing typed and no laptop at the pitch. Whoever is running the whole thing can sign in on the phone and skip scorekeeping codes altogether |
 | **Games on this phone** | `/k/` lists every game the device is carrying: what the server has confirmed, what is still queued, and what was refused. Opening it sends everything outstanding, and a game can be removed once it owes nothing |

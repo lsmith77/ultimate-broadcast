@@ -2426,6 +2426,45 @@ test.describe('the operator on a phone', () => {
   });
 });
 
+test.describe('resetting the clock', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('takes two presses, and the first one only asks', async ({ page }) => {
+    /**
+     * The store has always had `clock: reset`; nothing exposed it, so a clock
+     * started by mistake or on the wrong game could be paused and never
+     * cleared. It is the one destructive control on the page, so it asks
+     * first — and a dialog is the wrong way to ask on a phone at a pitch.
+     */
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login&next=%2Fk%2F703');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await expect(page.locator('#homeBtn')).toBeVisible();
+
+    await page.locator('#startBtn').click();
+    await expect(page.locator('#startBtn')).toHaveText('Pause');
+
+    await page.locator('#moreBtn').click();
+    const reset = page.locator('#clockReset');
+    await expect(reset).toBeVisible();
+
+    // One press asks; the clock is untouched.
+    await reset.click();
+    await expect(reset).toHaveText(/Tap again/i);
+    await expect(page.locator('#startBtn'), 'still running').toHaveText('Pause');
+
+    // The second does it.
+    await reset.click();
+    await expect(reset).toHaveText('Reset clock');
+    await expect(page.locator('#startBtn')).toHaveText('Start');
+    await expect(page.locator('#clock')).toHaveText('--:--');
+
+    const state = await (await page.request.get('/app.php?view=score&game=703')).json();
+    expect(state.timer_start, 'the store agrees').toBeNull();
+  });
+});
+
 test.describe('signing in is a detour, not a destination', () => {
   const { ADMIN_PASSWORD } = require('../standalone-setup.js');
 

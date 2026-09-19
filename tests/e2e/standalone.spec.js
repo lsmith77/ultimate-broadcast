@@ -1556,6 +1556,275 @@ test.describe('the statistic strip', () => {
   });
 });
 
+test.describe('the line a point was played with', () => {
+  // The room keeps a history now, and playing time is derived from it. What
+  // makes it trustworthy is what it REFUSES to record: the desk's line carries
+  // over between points, so a point nobody confirmed must not inherit the
+  // previous one and read afterwards as seven players who were on.
+  const ROOM = { game: 970, code: 'K7QM4', team: 300 };
+
+  const save = (request, over) => request.post('/app.php?view=lines', {
+    data: Object.assign({}, ROOM, over),
+  });
+  const read = async (request) => (await request.get(
+    `/app.php?view=lines&game=${ROOM.game}&code=${ROOM.code}&history=1`,
+  )).json();
+
+  test('a line sent WITH a point is recorded under it', async ({ request }) => {
+    await save(request, { players: [3, 7, 12], score: '0-0' });
+    const state = await read(request);
+    expect(state.points[String(ROOM.team)]['0-0']).toEqual([3, 7, 12]);
+    // And it is still the current line, which is what the desk reads back.
+    expect(state.teams[String(ROOM.team)]).toEqual([3, 7, 12]);
+  });
+
+  test('a line sent WITHOUT one changes the line and records no point', async ({ request }) => {
+    const before = await read(request);
+    await save(request, { players: [3, 7, 15] });
+    const after = await read(request);
+    expect(after.teams[String(ROOM.team)]).toEqual([3, 7, 15]);
+    expect(Object.keys(after.points[String(ROOM.team)] || {}))
+      .toEqual(Object.keys(before.points[String(ROOM.team)] || {}));
+  });
+
+  test('confirming an UNCHANGED line records the point, rather than being dropped', async ({ request }) => {
+    // The write that "changes nothing" is exactly the one the same-line button
+    // makes, and dropping it would make that button do nothing at all.
+    //
+    // The precondition is set here rather than inherited from the test above:
+    // run alone, this would otherwise be a CHANGED line and would pass without
+    // touching the case it is named for.
+    await save(request, { players: [3, 7, 15] });
+    await save(request, { players: [3, 7, 15], score: '1-0' });
+    const state = await read(request);
+    expect(state.points[String(ROOM.team)]['1-0']).toEqual([3, 7, 15]);
+  });
+
+  test('an empty selection is never a point', async ({ request }) => {
+    // A desk that has not picked yet is not a point where nobody played.
+    await save(request, { players: [], score: '2-0' });
+    const state = await read(request);
+    expect(state.points[String(ROOM.team)]['2-0']).toBeUndefined();
+  });
+
+  test('the fast poll carries the KEYS, not the lines', async ({ request }) => {
+    /**
+     * A bandwidth bug, found by arithmetic rather than by a test failing.
+     *
+     * The desk polls this room every two seconds for its partner's picks. With
+     * the lines of every point riding along, a busy room reaches tens of
+     * kilobytes and is sent thirty times a minute to every desk — a
+     * tournament's wifi spent on data that changes once a point and that the
+     * poll does not read. Both things the poll DOES need — is this point
+     * recorded, how many are — come from the keys.
+     */
+    const fast = await (await request.get(
+      `/app.php?view=lines&game=${ROOM.game}&code=${ROOM.code}`,
+    )).json();
+    expect(fast.points, 'no lines on the fast poll').toBeUndefined();
+    expect(fast.recorded[String(ROOM.team)], 'the keys, which are tiny')
+      .toContain('0-0');
+
+    const full = await (await request.get(
+      `/app.php?view=lines&game=${ROOM.game}&code=${ROOM.code}&history=1`,
+    )).json();
+    expect(full.points[String(ROOM.team)]['0-0'], 'asked for, and there').toEqual([3, 7, 12]);
+  });
+
+  test('a save answers with the keys too, not the whole history', async ({ request }) => {
+    const res = await save(request, { players: [3, 7, 12], score: '5-5' });
+    const body = await res.json();
+    expect(body.points).toBeUndefined();
+    expect(body.recorded[String(ROOM.team)]).toContain('5-5');
+  });
+
+  test('a junk point key is ignored rather than stored', async ({ request }) => {
+    await save(request, { players: [3, 7], score: 'yesterday' });
+    const state = await read(request);
+    expect(state.points[String(ROOM.team)].yesterday).toBeUndefined();
+  });
+});
+
+test.describe('the desk recording who was on', () => {
+  test('picking a line files it under the point being played', async ({ page, request }) => {
+    // The end of the chain the pure specs cover in pieces: a commentator picks
+    // seven, and that becomes the room's record of who played that point —
+    // which is the only place playing time can come from, because nothing
+    // upstream records a line at all.
+    test.setTimeout(60000);
+    const GAME = 702;
+    const CODE = 'QTPT7';
+    await request.post('/app.php?view=lines', {
+      data: { game: GAME, code: CODE, clearPoints: true },
+    });
+
+    await page.addInitScript(({ game, code }) => {
+      localStorage.setItem(`uo-lines-code-${game}`, code);
+      localStorage.setItem('uo-commentator-name', 'Desk');
+    }, { game: GAME, code: CODE });
+    await page.goto(`/app.php?view=commentator&game=${GAME}`);
+    await expect(page.locator('.roster').first()).toBeVisible();
+    await page.locator('#tabPlay').click();
+
+    // The picker sets aside anything that would make the line illegal, so the
+    // first free chip is always a legal pick and this ends when it is full.
+    const panel = page.locator('.cols .panel').nth(0);
+    const free = panel.locator('.nums button:not(.on):not(.out)');
+    while (await free.count()) { await free.first().click(); }
+    await page.locator('#steps .tbtn.primary').click();
+    await expect(page.locator('.onfield .p').first()).toBeVisible();
+
+    // The room now holds that line under the score the point started at, which
+    // is the same key the possession store uses for the same point.
+    // &history=1: the fast poll carries the keys only, and this asserts on the
+    // lines themselves.
+    const state = await (await request.get(
+      `/app.php?view=lines&game=${GAME}&code=${CODE}&history=1`,
+    )).json();
+    const teamId = Object.keys(state.teams)[0];
+    const recorded = Object.keys(state.points[teamId] || {});
+    expect(recorded.length, 'the point was recorded').toBeGreaterThan(0);
+    expect(recorded[0], 'keyed by the score the point started at')
+      .toMatch(/^\d{1,3}-\d{1,3}$/);
+    expect(state.points[teamId][recorded[0]].length)
+      .toBe(state.teams[teamId].length);
+
+    // And the panel says so, rather than offering to record it again.
+    await expect(page.locator('.onfield .confirmline').first())
+      .toHaveText('Point recorded');
+    await expect(page.locator('.onfield .linepoint').first())
+      .toContainText(/of \d+ points recorded/);
+
+    await request.post('/app.php?view=lines', {
+      data: { game: GAME, code: CODE, clearPoints: true },
+    });
+  });
+});
+
+test.describe('the desk reads the split correctly', () => {
+  test('the point badge works from the fast poll alone', async ({ page, request }) => {
+    // The badge is repainted on every render and must be current, so it reads
+    // the keys the two-second poll carries — not the history, which now arrives
+    // on a twenty-second timer and would leave a freshly recorded point looking
+    // unrecorded for up to twenty seconds. That button would get pressed again.
+    test.setTimeout(60000);
+    const GAME = 702;
+    const CODE = 'FASTP';
+    await request.post('/app.php?view=lines', {
+      data: { game: GAME, code: CODE, clearPoints: true },
+    });
+    await page.addInitScript(({ game, code }) => {
+      localStorage.setItem(`uo-lines-code-${game}`, code);
+      localStorage.setItem('uo-commentator-name', 'Desk');
+    }, { game: GAME, code: CODE });
+    await page.goto(`/app.php?view=commentator&game=${GAME}`);
+    await expect(page.locator('.roster').first()).toBeVisible();
+    await page.locator('#tabPlay').click();
+
+    const panel = page.locator('.cols .panel').nth(0);
+    const free = panel.locator('.nums button:not(.on):not(.out)');
+    while (await free.count()) { await free.first().click(); }
+    await page.locator('#steps .tbtn.primary').click();
+
+    // Immediately, without waiting for any slow poll.
+    await expect(page.locator('.onfield .confirmline').first()).toHaveText('Point recorded');
+    await expect(page.locator('.onfield .linepoint').first())
+      .toContainText(/1 of \d+ points recorded/);
+
+    await request.post('/app.php?view=lines', {
+      data: { game: GAME, code: CODE, clearPoints: true },
+    });
+  });
+});
+
+test.describe('the desk under match control', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('a line is filed under the point EVERYBODY ELSE means', async ({ page, browser }) => {
+    /**
+     * The desk reads Live!, and standalone that is a capture whose score never
+     * moves. So every point would be filed under one key, each overwriting the
+     * last, and a whole game of line-keeping would come back as one recorded
+     * point — a feature that looks like it is working and silently is not.
+     *
+     * The fix is narrow on purpose: the page still DISPLAYS the upstream game,
+     * and reads the match-control score for one thing only, which is which
+     * point a line belongs to.
+     */
+    test.setTimeout(60000);
+    const GAME = 703;
+    const CODE = 'MCPT9';
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    const score = (d) => page.request.post('/app.php?view=score', { data: d });
+    const lines = (d) => page.request.post('/app.php?view=lines', { data: d });
+
+    await lines({ game: GAME, code: CODE, clearPoints: true });
+    await score({ game: GAME, code: 'ABCDE' });
+    await clearLocalScore(page.request, GAME);
+    await score({ game: GAME, enabled: true });
+
+    const desk = await browser.newContext();
+    const d = await desk.newPage();
+    try {
+      await d.addInitScript(({ game, code }) => {
+        localStorage.setItem(`uo-lines-code-${game}`, code);
+        localStorage.setItem('uo-commentator-name', 'Desk');
+      }, { game: GAME, code: CODE });
+      await d.goto(`${base}/app.php?view=commentator&game=${GAME}`);
+      await expect(d.locator('.roster').first()).toBeVisible();
+      await d.locator('#tabPlay').click();
+
+      const fill = async () => {
+        const panel = d.locator('.cols .panel').nth(0);
+        const free = panel.locator('.nums button:not(.on):not(.out)');
+        while (await free.count()) { await free.first().click(); }
+      };
+      await fill();
+      await d.locator('#steps .tbtn.primary').click();
+      await expect(d.locator('.onfield .p').first()).toBeVisible();
+
+      // A goal is scored in match control, so the next line belongs to a
+      // DIFFERENT point. Upstream's score does not move at all here.
+      await score({ game: GAME, code: 'ABCDE', goal: { home: true, num: 1 } });
+      // The desk's score poll is on its own loop; give it a turn.
+      await d.waitForTimeout(6000);
+      await d.locator('#steps .tbtn', { hasText: 'Change line' }).click();
+      const panel = d.locator('.cols .panel').nth(0);
+      const on = panel.locator('.nums button.on');
+      await on.first().click();
+      const free = panel.locator('.nums button:not(.on):not(.out)');
+      await free.first().click();
+
+      const state = await (await page.request.get(
+        `/app.php?view=lines&game=${GAME}&code=${CODE}&history=1`,
+      )).json();
+      const teamId = Object.keys(state.points)[0];
+      const keys = Object.keys(state.points[teamId]);
+      expect(keys.length, 'two points, not one overwritten twice').toBe(2);
+      expect(keys.sort()).toEqual(['0-0', '1-0']);
+    } finally {
+      await score({ game: GAME, enabled: false });
+      await clearLocalScore(page.request, GAME);
+      await lines({ game: GAME, code: CODE, clearPoints: true });
+      await desk.close();
+    }
+  });
+});
+
+async function clearLocalScore(request, game) {
+  for (let i = 0; i < 64; i += 1) {
+    const state = await (await request.get(`/app.php?view=score&game=${game}`)).json();
+    const count = (state.goals || []).length;
+    if (count === 0) { return; }
+    await request.post('/app.php?view=score', { data: { game, undo: { num: count } } });
+  }
+  throw new Error(`could not empty the score store for game ${game}`);
+}
+
 test.describe('admin gating without Live!', () => {
   test('this really is a hostless tree', async ({ request }) => {
     // The assertion that gives the rest of this block its meaning. If an

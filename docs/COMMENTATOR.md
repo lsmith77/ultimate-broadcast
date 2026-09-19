@@ -58,6 +58,8 @@ Broadcast statistics providers supply commentary teams with a "spotter" or "comm
 
 The important lesson is what commentators actually use. **They do not read tables on air.** They need *talking points*: a streak, a milestone, a first meeting since a notable game, a run of play. A page that answers "what is interesting right now?" beats one that answers "what are all the numbers?" — and the second is much easier to build by accident.
 
+That principle has since been built, on the broadcast side first. `shared/facts.js` ranks what is true about a game now, and the scoreboard's statistic strip puts the top one on air ([`PLAN.md`](PLAN.md) §4b). It is the derived half of this section; §5a, the prepared talking points, is the typed half. **This page does not use it yet** — the same ranked list belongs on the desk, where it can say more than a graphic may, because nothing here reaches a viewer. The spotter (§6a) and the auto-surfacing behaviour are unbuilt with it.
+
 ## 4. What is derivable today, without any upstream change
 
 All of the following come from the goal list, `entity=teams` and `entity=reference`, all already reachable:
@@ -377,9 +379,21 @@ The workflow makes it tractable. A commentary duo naturally splits — one per t
            "301": [1, 4, 9, 11, 15, 20, 27] } }
 ```
 
-Two commentators who have divided the teams then touch disjoint data and cannot conflict at all. That is worth more than any locking scheme, and it falls out of how they were going to work anyway.
+Two commentators who have divided the teams then touch disjoint data and cannot conflict. That beats any locking scheme, and it falls out of how they were going to work anyway.
 
 Where they *do* overlap — both editing one team — take last-write-wins and show it: a brief "changed by someone else" note beats a rejected write, because a commentator cannot stop to resolve a conflict mid-point. This is the opposite call from the Studio's `rev` check (`STUDIO.md` §2.4), and deliberately so: there, a silent overwrite changes what is on air; here it changes a private reference panel.
+
+#### The room also records which line played which point
+
+The selection above is the present: one line per team, replaced as the desk edits it. The room also keeps a history, keyed by the score each point started at — the same key the possession store uses, so the two can be joined without being a point out.
+
+That history is the only place playing time can come from. Nothing upstream records a line ([`UPSTREAM.md`](UPSTREAM.md)); this desk has always known it and was discarding it.
+
+**A point is recorded only where somebody said it was this point's line.** The line carries over between points — `resetFor('point')` clears the injury prompt at a goal, not the line, because substitutions are edited incrementally rather than by re-picking seven players. A snapshot at every goal would therefore copy the previous point's line into points nobody was watching, and playing time built on that over-counts the players who were on earlier. Two things count as saying so: an edit during the point, which happens automatically, and the **Same line again** button, for the settled O-line an edit-only rule would drop.
+
+What it feeds, on the quick card and the on-field panel: points on the field with their denominator, how much of the game the desk recorded, and crossovers between the O and D units. [`PLAN.md`](PLAN.md) §4c has the rules each of those refuses on.
+
+**The privacy consequence is larger than the line panel's.** A guessed room code used to expose one line-up; it now exposes a whole game's playing time per named player. Same mechanism, bigger consequence — still smaller than the notes store (§5a), which holds what a desk wrote about people, and on the same footing otherwise: `conf/` is default-closed, rooms expire, and nothing here reaches a viewer. `POST {"clearPoints": true}` forgets a room's history, for a desk that recorded the wrong game.
 
 #### How two commentators find each other: a shared code, not a login
 

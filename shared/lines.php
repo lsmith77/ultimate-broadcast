@@ -48,6 +48,16 @@ final class Lines
      */
     private const MAX_TEAMS_PER_ROOM = 8;
 
+    /**
+     * Points of line history kept per team.
+     *
+     * A game is forty points at the outside, so this is slack rather than a
+     * limit anybody meets — and it exists for the same reason every other cap
+     * in this file does: writes here are UNAUTHENTICATED, so anything that
+     * grows has to stop growing somewhere. The oldest point goes first.
+     */
+    private const MAX_POINTS_PER_TEAM = 60;
+
     /** Rooms kept per game before the least recently touched are dropped. */
     private const MAX_ROOMS_PER_GAME = 40;
 
@@ -95,11 +105,11 @@ final class Lines
     }
 
     /**
-     * @return array{teams: array<string,int[]>, touched: int}
+     * @return array{teams: array<string,int[]>, points: array<string,array<string,int[]>>, touched: int}
      */
     public function load(int $gameId, string $code): array
     {
-        $empty = ['teams' => (object) [], 'touched' => 0];
+        $empty = ['teams' => (object) [], 'points' => (object) [], 'touched' => 0];
         $path = $this->pathFor($gameId, $code);
         if ($path === null || !is_readable($path)) {
             return $empty;
@@ -110,6 +120,7 @@ final class Lines
         }
         return [
             'teams' => self::cleanTeams($decoded['teams'] ?? []),
+            'points' => self::cleanPoints($decoded['points'] ?? []),
             'touched' => (int) ($decoded['touched'] ?? 0),
         ];
     }
@@ -122,11 +133,32 @@ final class Lines
      * overlap the last write wins — a commentator cannot stop to resolve a
      * conflict mid-point, and the thing at stake is a private reference panel.
      *
+     * WITH A SCORE, IT ALSO RECORDS THE POINT.
+     *
+     * `$score` is the score the point started at — the same key the possession
+     * store files its events under, so the two agree about what a point is.
+     * Given one, this line is filed under it as well as replacing the current
+     * selection, which is what makes playing time derivable afterwards.
+     *
+     * The desk's line deliberately CARRIES OVER between points (`resetFor()` in
+     * commentator.php clears the injury prompt at a goal, not the line), because
+     * substitutions are edited incrementally rather than seven players being
+     * re-picked every point. So a point is recorded only where somebody said it
+     * was this point's line — an edit during it, or the desk confirming the same
+     * seven again. A snapshot taken at every goal regardless would copy the
+     * previous point's line into points nobody was watching, and playing time
+     * built on that over-counts exactly the players who were on earlier.
+     *
      * @param  int[] $players
      * @return array{ok: bool, error: ?string, state: array}
      */
-    public function saveTeam(int $gameId, string $code, int $teamId, array $players): array
-    {
+    public function saveTeam(
+        int $gameId,
+        string $code,
+        int $teamId,
+        array $players,
+        ?string $score = null,
+    ): array {
         $path = $this->pathFor($gameId, $code);
         if ($path === null || $gameId <= 0 || $teamId <= 0) {
             return ['ok' => false, 'error' => 'Bad room.', 'state' => $this->load($gameId, $code)];
@@ -134,7 +166,13 @@ final class Lines
 
         $state = $this->load($gameId, $code);
         $teams = (array) $state['teams'];
+        $points = (array) $state['points'];
         $clean = self::cleanPlayers($players);
+
+        // An EMPTY line is not a point where nobody played -- it is a desk that
+        // has not picked yet. Recorded, it would read as seven absences.
+        $key = ($score !== null && $clean !== [] && self::isScoreKey($score)) ? $score : null;
+        $mine = isset($points[(string) $teamId]) ? (array) $points[(string) $teamId] : [];
 
         /**
          * Skip a write that would change nothing, rather than one that arrives
@@ -160,13 +198,33 @@ final class Lines
          * echoing a line back unchanged -- and never loses one that would have
          * changed anything.
          */
-        if (isset($teams[(string) $teamId]) && $teams[(string) $teamId] === $clean) {
+        // The history is part of "would this change anything": confirming an
+        // unchanged line IS the write, and dropping it would make the desk's
+        // "same line again" button do nothing at all.
+        $sameLine = isset($teams[(string) $teamId]) && $teams[(string) $teamId] === $clean;
+        $samePoint = $key === null || (isset($mine[$key]) && $mine[$key] === $clean);
+        if ($sameLine && $samePoint) {
             return ['ok' => true, 'error' => null, 'state' => $state];
         }
 
         $teams[(string) $teamId] = $clean;
 
-        $next = ['teams' => self::cleanTeams($teams), 'touched' => time()];
+        if ($key !== null) {
+            $mine[$key] = $clean;
+            // Oldest first, which for an append-in-play-order map is insertion
+            // order. A game cannot reach this, so it only bites a caller
+            // inventing score keys -- which is the caller this cap is for.
+            while (count($mine) > self::MAX_POINTS_PER_TEAM) {
+                array_shift($mine);
+            }
+            $points[(string) $teamId] = $mine;
+        }
+
+        $next = [
+            'teams' => self::cleanTeams($teams),
+            'points' => self::cleanPoints($points),
+            'touched' => time(),
+        ];
 
         $this->prune($gameId);
         if (!$this->write($path, $next)) {
@@ -178,6 +236,43 @@ final class Lines
     public function isWritable(): bool
     {
         return is_dir($this->dir) ? is_writable($this->dir) : is_writable(dirname($this->dir));
+    }
+
+    /**
+     * Drop the recorded points for a room, keeping the current lines.
+     *
+     * Two callers, and the second is the reason it is not merely nice to have.
+     * A desk that recorded a game badly — wrong room, wrong game, half a match
+     * of points confirmed by somebody leaning on a button — wants the playing
+     * time gone rather than shown with a denominator that lies about it. And
+     * the committed screenshots have to regenerate byte-identically, which
+     * means the recipe must be able to put a room back exactly as it found it;
+     * saves here are additive, so without this each run would render its own
+     * history on top of the last one's.
+     *
+     * @return array{ok: bool, error: ?string, state: array}
+     */
+    public function clearPoints(int $gameId, string $code): array
+    {
+        $path = $this->pathFor($gameId, $code);
+        if ($path === null) {
+            return ['ok' => false, 'error' => 'Bad room.', 'state' => $this->load($gameId, $code)];
+        }
+        $state = $this->load($gameId, $code);
+        // `(array)` first: an empty history loads as an empty OBJECT so that it
+        // encodes as `{}` rather than `[]`, and `===` against a fresh object
+        // compares identity, which is never true. It would have written the
+        // file on every call -- harmless, and exactly the kind of "unchanged
+        // write" the rest of this store goes out of its way to avoid.
+        if ((array) $state['points'] === []) {
+            return ['ok' => true, 'error' => null, 'state' => $state];
+        }
+
+        $next = ['teams' => $state['teams'], 'points' => [], 'touched' => time()];
+        if (!$this->write($path, $next)) {
+            return ['ok' => false, 'error' => 'Could not write the room.', 'state' => $state];
+        }
+        return ['ok' => true, 'error' => null, 'state' => $next];
     }
 
     // -- internals ----------------------------------------------------------
@@ -205,6 +300,87 @@ final class Lines
                 continue;
             }
             $clean[(string) $id] = self::cleanPlayers($players);
+            if (count($clean) >= self::MAX_TEAMS_PER_ROOM) {
+                break;
+            }
+        }
+        return $clean;
+    }
+
+    /**
+     * Which points each team has a recorded line for, without the lines.
+     *
+     * The cheap half of the history, for the poll that runs every two seconds.
+     * Everything a desk needs at that cadence — is this point recorded, how
+     * many are — is answerable from the keys, and the keys are a hundredth of
+     * the size.
+     *
+     * @param  array<string,array<string,int[]>> $points
+     * @return array<string,string[]>
+     */
+    public static function recordedKeys(mixed $points): array
+    {
+        $out = [];
+        foreach ((array) $points as $teamId => $byScore) {
+            $keys = array_keys((array) $byScore);
+            if ($keys !== []) {
+                $out[(string) $teamId] = $keys;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * A point key: the score the point started at, as "9-6".
+     *
+     * The same shape the possession store validates, and deliberately the same
+     * convention — a point is identified by the score it began at, in both
+     * stores, so a reader joining them cannot be off by one point.
+     */
+    public static function isScoreKey(string $value): bool
+    {
+        return preg_match('/^\d{1,3}-\d{1,3}$/', $value) === 1;
+    }
+
+    /**
+     * The per-point history, validated on the way in and out.
+     *
+     * Read back through the same cleaner it is written through, because this
+     * file is written by unauthenticated requests: a document edited by hand,
+     * or written by an older version of this class, must not be able to put a
+     * shape into a reader that the reader does not expect.
+     *
+     * @return array<string,array<string,int[]>>
+     */
+    private static function cleanPoints(mixed $raw): array
+    {
+        if (!is_array($raw) && !is_object($raw)) {
+            return [];
+        }
+        $clean = [];
+        foreach ((array) $raw as $teamId => $byScore) {
+            $id = (int) $teamId;
+            if ($id <= 0 || (!is_array($byScore) && !is_object($byScore))) {
+                continue;
+            }
+            $points = [];
+            foreach ((array) $byScore as $score => $players) {
+                if (!is_string($score) || !self::isScoreKey($score) || !is_array($players)) {
+                    continue;
+                }
+                $line = self::cleanPlayers($players);
+                if ($line === []) {
+                    continue;
+                }
+                $points[$score] = $line;
+                if (count($points) >= self::MAX_POINTS_PER_TEAM) {
+                    break;
+                }
+            }
+            if ($points !== []) {
+                $clean[(string) $id] = $points;
+            }
             if (count($clean) >= self::MAX_TEAMS_PER_ROOM) {
                 break;
             }

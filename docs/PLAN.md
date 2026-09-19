@@ -313,6 +313,31 @@ Every number derived from that record carries the denominator it was measured ov
 
 **A room can be reset.** `POST {"clearPoints": true}` forgets the recorded points and keeps the current lines: for a desk that recorded the wrong game, and for the screenshot recipe, which has to leave a room as it found it or the committed shots differ on every run.
 
+### 4c. Who was on the field, and what follows from it
+
+Nothing upstream records a line: no table, no payload, and `UPSTREAM.md` carries the ask. The commentary desk knows it anyway, because picking the line every point is what that surface is for. What was missing was the record, not the knowledge — `shared/lines.php` kept one current selection per team and overwrote it on every change.
+
+It now keeps a per-point history, keyed by the score the point started at — the same key the possession store uses, so the two can be joined without being a point out. `shared/playingtime.js` derives from it, tested in `tests/e2e/playingtime.spec.js`.
+
+**What makes it trustworthy is when a point is not recorded.** The desk's line carries over between points (`resetFor()` clears the injury prompt at a goal, not the line), because substitutions are edited incrementally rather than by re-picking seven players. A snapshot at every goal would therefore copy the previous point's line into every point nobody was watching, and playing time built on that over-counts the players who were on earlier. So a point is recorded only where somebody said it was this point's line:
+
+- **an edit during the point**, which happens automatically while a desk is substituting, and
+- **a "Same line again" tap**, for the case an edit-only rule loses: a settled O-line going out unchanged.
+
+Every number derived from that record carries the denominator it was measured over:
+
+| fact | where it is |
+|---|---|
+| **Playing time** — "on for 9 of 11 points" | the quick card, above the season line. Never a percentage: the denominator is the points the desk confirmed, not the points played, and a share that hides the difference is the number on that card most likely to be wrong while looking right |
+| **Coverage** — "8 of 14 points recorded" | under each on-field panel, so a desk that has stopped keeping up sees it at the time rather than later, in a figure that looked complete |
+| **Units and crossovers** — "Crossed from the O line at 2-3" | the quick card. A team's O points are the ones they received, so a player's unit is inferred from where they have played, and a crossover is an established O-line player taking a D point. It happens late in close games and around half |
+
+**Crossovers refuse more than they claim.** A player has a unit only after a run of points in one unit and none in the other, so their first appearance in the other one is a real crossing rather than a rotation. For teams that do not split O and D, nothing is shown at all. Once a player has crossed, their unit is no longer clear and they stop being reported, because the fact is the crossing rather than a label. A point whose receiver is unknown counts towards neither unit.
+
+**Still open: none of this reaches the scoreboard.** The obstacle is not the derivation. The line history lives in a commentary room addressed by a code that is a namespace rather than a credential, and the board cannot read one. Publishing that code into the per-game store the scoreboard polls would put it in a world-readable file, and the same code addresses the notes room, which holds what a desk wrote about named people. Two routes to weigh when it is built: the desk writing a derived summary into the possession store it may already write to, or the operator holding the code in the Studio and publishing the summary from there. Either way the number reaching air is computed at a desk, like declared possession, and has to be labelled as recorded rather than played.
+
+**A room can be reset.** `POST {"clearPoints": true}` forgets the recorded points and keeps the current lines: for a desk that recorded the wrong game, and for the screenshot recipe, which has to leave a room as it found it or the committed shots differ on every run.
+
 ### Scoreboard feature reference
 
 | feature | notes |

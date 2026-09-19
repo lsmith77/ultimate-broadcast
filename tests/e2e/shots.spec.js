@@ -115,6 +115,7 @@ test('commentator, play by play', async ({ page, request }) => {
   // anything a person would be handed.
   const CODE = 'ZSNAP';
   const NOTES = '/index.php?view=live/overlays/notes';
+  const LINES = '/index.php?view=live/overlays/lines';
   const GAME_ID = MIXED_GAME;
   await page.addInitScript(({ game, code }) => {
     localStorage.setItem(`uo-lines-code-${game}`, code);
@@ -240,6 +241,12 @@ test('commentator, play by play', async ({ page, request }) => {
         },
       });
     }
+    // The line room keeps a POINT HISTORY now, and every chip toggled above
+    // files the line under the point being played. That is additive, so
+    // without this each run renders one more "N of M points recorded" than the
+    // last and the committed shot differs for a reason that is not a change to
+    // the page.
+    await request.post(LINES, { data: { game: GAME_ID, code: CODE, clearPoints: true } });
   }
 });
 

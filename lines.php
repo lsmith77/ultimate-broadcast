@@ -3,10 +3,19 @@
  * Shared line-selection endpoint for the commentary position.
  *
  *   GET  ?view=live/overlays/lines&game=702&code=K7QM4
- *        -> {"teams":{"300":[...]},"touched":N,"writable":bool}
+ *        -> {"teams":{"300":[...]},"recorded":{"300":["0-0","1-0"]},
+ *            "touched":N,"writable":bool}
  *
- *   POST {"game":702,"code":"K7QM4","team":300,"players":[3,7,12]}
- *        -> replace one team's line
+ *   GET  ... &history=1
+ *        -> the same, plus "points": the line each of those points was played
+ *           with. Asked for separately because it is large and slow-moving
+ *
+ *   POST {"game":702,"code":"K7QM4","team":300,"players":[3,7,12],"score":"9-6"}
+ *        -> replace one team's line, and with a score, record it as that
+ *           point's line so playing time is derivable afterwards
+ *
+ *   POST {"game":702,"code":"K7QM4","clearPoints":true}
+ *        -> forget the recorded points, keeping the current lines
  *
  * **Unauthenticated on purpose, and the only such write in this project.** The
  * code is a namespace rather than a credential; requiring the Live! admin
@@ -82,10 +91,42 @@ if (!Lines::isCode($code)) {
 
 if (!$isPost) {
     $state = $store->load($gameId, $code);
-    echo json_encode([
+    $body = [
         'teams' => (object) $state['teams'],
+        // WHICH points have been recorded, without the lines themselves.
+        //
+        // The desk polls this every two seconds for its partner's picks, and it
+        // only needs two things from the history at that cadence: whether the
+        // point being played has been recorded, and how many points have. Both
+        // come from the keys. The lines are the bulk -- a busy room reaches tens
+        // of kilobytes -- and they change once a point, so shipping them thirty
+        // times a minute to every desk is a tournament's wifi spent on data
+        // nobody read.
+        'recorded' => (object) Lines::recordedKeys($state['points']),
         'touched' => $state['touched'],
         'writable' => $store->isWritable(),
+    ];
+    // The lines themselves, for playing time and crossovers. Asked for on a
+    // slow timer rather than ridden along with the fast one.
+    if (filter_input(INPUT_GET, 'history') === '1') {
+        $body['points'] = (object) $state['points'];
+    }
+    echo json_encode($body);
+    exit;
+}
+
+// Forgetting the recorded points, which is additive and therefore needs a way
+// back. Handled before `team`, because it is about the room rather than a side.
+if (!empty($payload['clearPoints'])) {
+    $cleared = $store->clearPoints($gameId, $code);
+    if (!$cleared['ok']) {
+        fail(500, (string) $cleared['error']);
+    }
+    echo json_encode([
+        'teams' => (object) $cleared['state']['teams'],
+        'recorded' => (object) Lines::recordedKeys($cleared['state']['points']),
+        'touched' => $cleared['state']['touched'],
+        'writable' => true,
     ]);
     exit;
 }
@@ -98,13 +139,18 @@ if (!is_array($payload['players'] ?? null)) {
     fail(400, 'Expected {"players": [...]}.');
 }
 
-$result = $store->saveTeam($gameId, $code, $teamId, $payload['players']);
+// Absent, or not a score key, means "just update the current line" -- every
+// caller written before the history existed keeps working unchanged.
+$score = is_string($payload['score'] ?? null) ? trim($payload['score']) : null;
+
+$result = $store->saveTeam($gameId, $code, $teamId, $payload['players'], $score);
 if (!$result['ok']) {
     fail(500, (string) $result['error']);
 }
 
 echo json_encode([
     'teams' => (object) $result['state']['teams'],
+    'recorded' => (object) Lines::recordedKeys($result['state']['points']),
     'touched' => $result['state']['touched'],
     'writable' => true,
 ]);

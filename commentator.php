@@ -454,6 +454,10 @@ try {
        has to be unmissable when it is. */
     .injflag { font-size: .8rem; font-weight: 700; color: var(--bad);
         margin: .15rem 0 .35rem; }
+    /* A crossover is notable, not alarming: it reads like the injury flag
+       without borrowing the colour that means somebody is hurt. */
+    .crossflag { font-size: .8rem; font-weight: 700; color: var(--accent);
+        margin: .15rem 0 .35rem; }
 
     /* Off injured, on a chip in either view. Three cues, none of them colour:
        the word INJ, a rule through the number, and a dashed edge — so this
@@ -477,6 +481,16 @@ try {
     .onfield .offlabel { font-size: .66rem; text-transform: uppercase;
         letter-spacing: .08em; color: var(--ink-mute); font-weight: 700;
         margin-right: .2rem; }
+    /* Recording this point's line. Quiet: it is a housekeeping control beside
+       the names, and it disappears into a stated fact once the point is in. */
+    .onfield .linepoint { display: flex; align-items: baseline; gap: .5rem;
+        margin-top: .5rem; padding-top: .4rem; border-top: 1px solid var(--line); }
+    .onfield .confirmline { font: inherit; font-size: .78rem; padding: .2rem .55rem;
+        border: 1px solid var(--line); border-radius: .35rem;
+        background: var(--panel-alt); color: var(--ink); cursor: pointer; }
+    .onfield .confirmline.done { background: transparent; color: var(--ink-mute);
+        border-style: dashed; cursor: default; }
+    .onfield .linepoint .muted { font-size: .72rem; }
     .nums button.fmp { background: var(--fmp-bg); color: var(--fmp-ink); }
     .nums button.fmp small { color: var(--fmp-ink); }
     .nums button.mmp { background: var(--mmp-bg); color: var(--mmp-ink); }
@@ -755,6 +769,9 @@ prepared notes and the shared line cannot be saved.</div>
 <script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/lineup.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/playingtime.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/declared.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/timeouts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
@@ -785,6 +802,12 @@ prepared notes and the shared line cannot be saved.</div>
         linesUrl: <?= $json(\Overlays\Mode::viewUrl('lines', $base)) ?>,
         notesUrl: <?= $json(\Overlays\Mode::viewUrl('notes', $base)) ?>,
         possessionUrl: <?= $json(\Overlays\Mode::viewUrl('possession', $base)) ?>,
+        // The match-control score, read as the static file every other surface
+        // polls. This desk does not display it -- Live! is still where the
+        // score on this page comes from -- but the POINT a line belongs to has
+        // to be the point everybody else means, and under match control the
+        // upstream payload is not moving.
+        scoreBase: <?= $json(\Overlays\Mode::assetBase($base)) ?>,
         suggestedCode: <?= $json($suggestedCode) ?>,
         codeLength: <?= (int) Lines::CODE_LENGTH ?>,
         noteMax: <?= (int) Notes::MAX_TEXT ?>,
@@ -871,6 +894,21 @@ prepared notes and the shared line cannot be saved.</div>
         // only thing on this page that is shared rather than declared — which
         // is why the injury state below, which annotates it, is the odd one out.
         line: {},
+        // Who was on for each POINT, per team, as the room has recorded it:
+        // {"300": {"9-6": [3,7,12]}}. Shared like the line above and read-only
+        // here -- `pushLine()` writes it as a side effect of confirming a line.
+        // It is the game's history rather than its present, so unlike `line` it
+        // is never cleared at a point boundary; `resetFor('room')` drops it,
+        // because it belongs to the room it was recorded in.
+        //
+        // Fetched on a SLOW timer: it is tens of kilobytes in a busy room and
+        // changes once a point, so it has no business on the two-second poll
+        // that carries the partner's picks.
+        linePoints: {},
+        // The keys of the above, which DO ride the fast poll -- "is this point
+        // recorded" and "how many are" are both answerable from them, and they
+        // are a hundredth of the size.
+        lineRecorded: {},
         // A pending injury substitution, per team: {out, name, matching}. Local
         // to this screen and deliberately not shared — it is a ten-second
         // prompt about who to click next, not a fact about the game. The other
@@ -3435,18 +3473,144 @@ prepared notes and the shared line cannot be saved.</div>
         rememberCode(syncCode);
     }
 
+    /**
+     * The match-control score, where that is the score of record.
+     *
+     * This page reads Live! and nothing else, which is right for everything it
+     * DISPLAYS. It is wrong for one thing: the key a recorded line is filed
+     * under. Under match control the upstream payload does not move — standalone
+     * it is a capture and never moves at all — so every point would be filed
+     * under one key and a whole game's lines would overwrite each other. The
+     * denominator would then read "1 of 14 points recorded", which is not a lie
+     * but is a feature that silently does nothing.
+     *
+     * So the score is read from the same static file the board polls, through
+     * the same `ScoreSource` the board uses to decide whether it counts.
+     */
+    var localScore = null;
+
+    /**
+     * Poll fast while there is a match-control score, slowly while there is not.
+     *
+     * Most games have none: hosted, the score comes from UltiOrganizer's own
+     * Scorekeeper and `conf/score-<game>.json` does not exist, so a flat
+     * five-second poll is a 404 every five seconds for the length of a
+     * tournament, per desk. The file appearing is the only thing that changes,
+     * and twenty seconds to notice it is the cost — paid on a value that
+     * matters only at the moment a line is saved.
+     */
+    var SCORE_POLL_LIVE = 5000;
+    var SCORE_POLL_IDLE = 20000;
+
+    function pollScore() {
+        if (!CONFIG.gameId) { return; }
+        fetch(CONFIG.scoreBase + '/conf/score-' + CONFIG.gameId + '.json?_=' + Date.now(),
+            { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (s) {
+                localScore = s;
+                setTimeout(pollScore, s ? SCORE_POLL_LIVE : SCORE_POLL_IDLE);
+            });
+    }
+
+    /**
+     * The point being played, as the score it started at.
+     *
+     * The same key the possession store uses, so the two stores agree about
+     * what a point is. Sending it with a line files that line as this point's,
+     * which is what makes playing time derivable later — the line itself
+     * carries over between points, so without the key nothing could tell a
+     * confirmed line from yesterday's selection still sitting on screen.
+     */
+    function pointKey() {
+        var r = (state.payload && state.payload.game_result) || {};
+        var home = Number(r.homescore) || 0;
+        var away = Number(r.visitorscore) || 0;
+        if (window.ScoreSource && window.ScoreSource.active(localScore)) {
+            var merged = window.ScoreSource.merge({ game_result: r }, localScore);
+            home = Number(merged.game_result.homescore) || 0;
+            away = Number(merged.game_result.visitorscore) || 0;
+        }
+        return home + '-' + away;
+    }
+
     function pushLine(teamId, players) {
         if (!teamId) { return; }
         lastLocalWrite = Date.now();
+
+        /**
+         * Record it here as well as sending it.
+         *
+         * The history now arrives on a twenty-second timer, and a desk that
+         * confirms a line must not wait up to twenty seconds to see the point
+         * marked as recorded — the button would look broken and get pressed
+         * again. This is the same value the store will keep, written by the
+         * same rule (an empty line is not a point), so the two cannot disagree
+         * for longer than it takes the next poll to confirm it.
+         */
+        var key = pointKey();
+        if (players.length) {
+            state.linePoints[String(teamId)] = state.linePoints[String(teamId)] || {};
+            state.linePoints[String(teamId)][key] = players.slice();
+            state.lineRecorded[String(teamId)] = state.lineRecorded[String(teamId)] || [];
+            if (state.lineRecorded[String(teamId)].indexOf(key) === -1) {
+                state.lineRecorded[String(teamId)].push(key);
+            }
+        }
         fetch(CONFIG.linesUrl, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 game: CONFIG.gameId, code: syncCode,
-                team: teamId, players: players
+                team: teamId, players: players,
+                // An edit IS the confirmation that this is the line for this
+                // point. The store ignores the key for an empty selection,
+                // which is a desk that has not picked rather than a point
+                // nobody played.
+                score: pointKey()
             })
         }).catch(function () { /* sharing is best-effort; the local pick still stands */ });
+    }
+
+    /**
+     * Confirm that the same seven are on again.
+     *
+     * The line carries over between points on purpose, so a point where nobody
+     * touched the picker is indistinguishable from a point nobody was watching
+     * — and it must stay that way, because guessing turns "the desk looked
+     * away" into "these seven played". This is how a desk says the unchanged
+     * line is deliberate: one tap, and that point is recorded.
+     *
+     * It is the difference between a settled O-line being counted and being
+     * silently dropped, which is exactly the case an edit-only rule loses.
+     */
+    function confirmLine(teamId) {
+        var players = (state.line[teamId] || []).slice();
+        if (!teamId || players.length === 0) { return; }
+        pushLine(teamId, players);
+    }
+
+    /**
+     * The lines each point was played with — the slow half.
+     *
+     * Twenty seconds rather than two. Playing time and crossovers are read off
+     * a quick card somebody has just opened, and a value up to twenty seconds
+     * old is indistinguishable from a current one for both; the partner's
+     * picks, which DO need the fast poll, arrive on the summary instead.
+     */
+    function pullHistory() {
+        if (!CONFIG.gameId || !syncCode) { return; }
+        fetch(CONFIG.linesUrl + '&game=' + encodeURIComponent(CONFIG.gameId)
+            + '&code=' + encodeURIComponent(syncCode) + '&history=1',
+            { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (b) {
+                if (!b || !b.points) { return; }
+                state.linePoints = b.points;
+            });
     }
 
     function pullLines() {
@@ -3462,6 +3626,14 @@ prepared notes and the shared line cannot be saved.</div>
             .then(function (b) {
                 if (!b || !b.teams) { return; }
                 var changed = false;
+                // WHICH points are recorded, which is all this poll carries:
+                // the lines themselves are large, slow-moving, and fetched on
+                // their own timer below.
+                var incoming = JSON.stringify(b.recorded || {});
+                if (incoming !== JSON.stringify(state.lineRecorded)) {
+                    state.lineRecorded = b.recorded || {};
+                    changed = true;
+                }
                 Object.keys(b.teams).forEach(function (teamId) {
                     var incoming = b.teams[teamId] || [];
                     var mine = state.line[teamId] || [];
@@ -3845,7 +4017,117 @@ prepared notes and the shared line cannot be saved.</div>
             off.forEach(function (p) { offRow.append(fieldChip(p)); });
             wrap.append(offRow);
         }
+
+        /**
+         * Whether this point has been recorded, and the way to record it.
+         *
+         * Every edit files the line under the point it was made in, so a desk
+         * that is substituting never touches this. It exists for the point
+         * where the same seven go out again: the line carries over, nothing is
+         * pressed, and without a word from somebody that point is
+         * indistinguishable from one nobody was watching.
+         *
+         * Stated rather than silent, because the thing at stake is a
+         * denominator. A commentator who can see "8 points recorded" knows what
+         * the playing-time numbers beside it are a share OF — and a desk that
+         * stopped keeping up can see that too, instead of finding out later
+         * from a figure that looked complete.
+         */
+        var already = pointRecorded(side.team.team_id);
+        var confirm = el('div', 'linepoint');
+        var btn = el('button', 'confirmline' + (already ? ' done' : ''));
+        btn.type = 'button';
+        btn.textContent = already ? 'Point recorded' : 'Same line again';
+        btn.disabled = already || !lineFor(side).length;
+        btn.title = already
+            ? 'This point is in the room’s record for playing time.'
+            : 'The line carried over from the last point. Tap to record it as '
+                + 'this point’s line too — an edit does it automatically.';
+        btn.setAttribute('aria-pressed', already ? 'true' : 'false');
+        btn.addEventListener('click', function () {
+            confirmLine(side.team.team_id);
+            renderPlay();
+        });
+        confirm.append(btn);
+        var have = recordedCount(side.team.team_id);
+        if (have > 0) {
+            confirm.append(el('span', 'muted',
+                have + ' of ' + pointsPlayed() + ' points recorded'));
+        }
+        wrap.append(confirm);
+
         return wrap;
+    }
+
+    /**
+     * Which points this side RECEIVED, keyed by the score they started at.
+     *
+     * Their O points are the ones they received; the rest are their D points.
+     * The walk itself is `Facts.points()` rather than a fourth copy of "whoever
+     * concedes receives next" — this only turns its answer into the shape the
+     * line history is keyed by, so the two can be joined.
+     *
+     * A point whose receiver is unknown is simply absent, which is what makes
+     * `PlayingTime.units()` refuse to count it either way.
+     */
+    function receivedMap(side) {
+        if (!window.Facts) { return {}; }
+        var payload = state.payload || {};
+        var walked = window.Facts.points({
+            goals: payload.goals || [],
+            startingOffence: startingOffenceSide()
+        });
+        var out = {};
+        walked.forEach(function (p) {
+            if (p.receiving === null) { return; }
+            out[p.home + '-' + p.visitor] = (p.receiving === 'home') === side.isHome;
+        });
+        return out;
+    }
+
+    /**
+     * Who received the pull, where a scorekeeper recorded it.
+     *
+     * The canonical reader is `startingOffence()` in shared/overlay-client.js,
+     * which this page does not load — it is the scoreboard's data client, and
+     * pulling it in for five lines would bring a whole polling client with it.
+     * Same event, same rule; if either changes, both change.
+     */
+    function startingOffenceSide() {
+        var events = (state.payload && state.payload.gameevents) || [];
+        if (!Array.isArray(events)) { return null; }
+        for (var i = 0; i < events.length; i += 1) {
+            if (events[i] && events[i].type === 'offence') {
+                return Number(events[i].ishome) === 1 ? 'home' : 'visitor';
+            }
+        }
+        return null;
+    }
+
+    /** One team's recorded points, as the room holds them. */
+    function pointsFor(teamId) {
+        return (state.linePoints && state.linePoints[String(teamId)]) || {};
+    }
+
+    /**
+     * Has anybody said what this team's line is for the point being played?
+     *
+     * From the summary rather than the history: this is asked on every render
+     * and must be current, and the summary is what the fast poll carries.
+     */
+    function pointRecorded(teamId) {
+        var keys = (state.lineRecorded && state.lineRecorded[String(teamId)]) || [];
+        return keys.indexOf(pointKey()) !== -1;
+    }
+
+    /** How many points this team has a recorded line for. */
+    function recordedCount(teamId) {
+        return ((state.lineRecorded && state.lineRecorded[String(teamId)]) || []).length;
+    }
+
+    /** Points played so far, which is the denominator coverage is measured on. */
+    function pointsPlayed() {
+        return ((state.payload && state.payload.goals) || []).length;
     }
 
     /* ---------------------------------------------------------------
@@ -4019,6 +4301,42 @@ prepared notes and the shared line cannot be saved.</div>
             'Tournament  ' + (p.tGoals || 0) + ' G · ' + (p.tAssists || 0) + ' A · '
             + (p.tTotal || 0) + ' Pts'
             + (blocks ? ' · ' + (p.tBlocks || 0) + ' Blk' : '')));
+        /**
+         * Points on the field, where the room recorded enough to say.
+         *
+         * Always "9 of 11 points" and never a percentage: the denominator is
+         * the points this desk CONFIRMED, not the points played, and a share
+         * that hides which one it is over is the one number on this card that
+         * could be badly wrong while looking right. Absent below a handful of
+         * recorded points, because a share of three points says nothing.
+         */
+        var onFor = window.PlayingTime
+            && window.PlayingTime.label(pointsFor(side.team.team_id), p.id, 4);
+        if (onFor) {
+            var cov = window.PlayingTime.coverage(pointsFor(side.team.team_id), pointsPlayed());
+            card.append(el('div', 'qline', 'On the field  ' + onFor
+                + (cov.complete ? '' : ' recorded')));
+        }
+
+        /**
+         * Crossing over, which is the thing a commentator wants told to them.
+         *
+         * Late in a close game and around half, a team puts its best seven out
+         * regardless of which unit they belong to — an O-line player taking a D
+         * point is a decision somebody made, and it is worth naming. Inferred
+         * from where this player has actually played (`PlayingTime.units()`),
+         * so it stays silent for the many squads that rotate everybody and have
+         * no units to cross between.
+         */
+        var crossed = window.PlayingTime
+            && window.PlayingTime.crossovers(pointsFor(side.team.team_id), receivedMap(side))
+                .filter(function (c) { return c.id === p.id; })[0];
+        if (crossed) {
+            card.append(el('div', 'crossflag',
+                'Crossed from the ' + (crossed.from === 'o' ? 'O' : 'D')
+                + ' line at ' + crossed.at));
+        }
+
         var season = (p.games || 0) + (p.games === 1 ? ' game' : ' games');
         if (p.games) { season += ' · ' + p.avg.toFixed(1) + ' Pts/game'; }
         if (p.tCallahan) {
@@ -4038,10 +4356,12 @@ prepared notes and the shared line cannot be saved.</div>
      * lettered where this player took the goal (G) or the assist (A) — "what
      * have they done today", readable mid-point without opening anything.
      *
-     * Points PLAYED are absent deliberately, not forgotten: no line history
-     * exists (a selection is kept only for the current point), and blocks are
-     * in no per-game payload (`STUDIO.md` §3.4) — and absence must never read
-     * as "did nothing".
+     * Blocks are absent deliberately, not forgotten: there is no per-game block
+     * list in any payload (`STUDIO.md` §3.4), and absence must never read as
+     * "did nothing". Points PLAYED used to be absent for the same kind of
+     * reason and no longer are — the room now records a line per point, so the
+     * card carries an "On the field" line above whenever the desk recorded
+     * enough of the game for it to mean something.
      */
     function pointStrip(side, p) {
         var goals = ((state.payload && state.payload.goals) || []).slice()
@@ -4699,6 +5019,8 @@ prepared notes and the shared line cannot be saved.</div>
         }
         if (scope === 'room') {
             state.line = {};
+            state.linePoints = {};
+            state.lineRecorded = {};
             notes = {};
             teamNotes = {};
             state.injury = {};
@@ -4804,6 +5126,12 @@ prepared notes and the shared line cannot be saved.</div>
         // a line changes far more often than a score.
         pullLines();
         setInterval(pullLines, 2000);
+        pullHistory();
+        setInterval(pullHistory, 20000);
+        // Not displayed anywhere on this page: it decides which POINT a
+        // recorded line belongs to, and nothing else. Its own loop, because it
+        // has to be current at the moment a line is picked.
+        pollScore();
         // Prepared notes change while two people split the squads before a game
         // and essentially never once it starts, so this is the slowest poll on
         // the page. Nothing here is time-critical: a note arriving fifteen

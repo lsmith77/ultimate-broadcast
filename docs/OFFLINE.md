@@ -18,7 +18,7 @@ The Studio's games table has a **Match control ↗** link per game, which is the
 
 One person filming their own club's game is operator, scorekeeper and camera at once, and for them the handover above is paperwork addressed to themselves. Two things make it shorter:
 
-- **Sign in on the phone and skip codes entirely.** An administrator may write any game without one, so a code you would nominate and then type back into your own phone is a step with no second person in it. The setup screen offers the link.
+- **Sign in on the phone and skip codes entirely.** An administrator may write any game without one, so a code you would nominate and then type back into your own phone is a step with no second person in it. The setup screen offers the button, and signing in returns you to the game you came from rather than to a page whose largest control signs you out again.
 - **Open `/k/` on the phone and pick the game there.** It lists the event's games — live ones first — so nothing has to be typed and no laptop has to be open at the pitch. Tapping one sets that game up on the phone, after which it appears under *Games on this phone* and works with no network.
 
 ## 2. What a scorekeeper does

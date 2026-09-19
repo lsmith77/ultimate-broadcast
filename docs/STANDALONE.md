@@ -27,6 +27,7 @@ A tournament scored on paper. A club streaming a friendly. A showcase game outsi
 | **Knowing where it lives** | `shared/mode.php` — asset and endpoint URLs, rather than `/live/overlays/` written into every page |
 | **Configuring an installation** | `install/make-config.php` — prompts for a password, hashes it, writes `conf/local-config.php`. CLI only |
 | **Putting it on a domain** | `install/standalone.htaccess` and `deploy.sh`, both covered by [`DEPLOY.md`](DEPLOY.md) |
+| **Signing in** | `login.php` takes a `next` path and returns there afterwards, so a login started from a phone ends at the game it started from. Validated against this site — a single leading slash, no scheme, no `//` — because a redirect target from a URL is an open redirect otherwise |
 | **Creating an event** | `event.php` at `/s/event` — teams, games and the pool's rules, in a browser. `install/make-event.php` does the same from a shell, and `shared/event.php` is the one implementation both call |
 | **Squads** | `shared/roster.php`, written from the commentary desk — typed in, or imported from the team's own sheet. **Standalone only**: hosted, a squad belongs to UltiOrganizer |
 | **Demonstrating it publicly** | `'demo' => true` closes the two stores that take unauthenticated writes; `?demo=1` drives the scoreboard and the stage through a whole game from one real payload, writing nothing and needing no sign-in; and the Studio carries an introduction with direct links into it |

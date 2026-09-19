@@ -1848,7 +1848,7 @@ test.describe('a phone with no signal at all', () => {
       await q.goto('/k/703');
       await expect(q.locator('#setup')).toBeVisible();
       await expect(q.locator('#signin')).toBeVisible();
-      await expect(q.locator('#signin')).toHaveAttribute('href', /login/);
+      await expect(q.locator('#signin')).toHaveAttribute('href', /login.*next=%2Fk%2F703/);
     } finally {
       await phone.close();
     }
@@ -2320,6 +2320,70 @@ test.describe('the statistic strip', () => {
     const after = await (await page.request.get('/app.php?view=possession&game=914')).json();
     expect(after.statline, 'the code holder did not change what is on air').toBe(false);
     await phone.close();
+  });
+});
+
+test.describe('signing in is a detour, not a destination', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('it returns to the page that sent you', async ({ browser }) => {
+    // Somebody who signed in from a game landed on a page whose largest control
+    // signed them out, and pressed it.
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await page.goto('/app.php?view=login&next=%2Fk%2F703');
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+      expect(new URL(page.url()).pathname, 'back at the game').toBe('/k/703');
+      // And signed in, so the code prompt is gone.
+      await expect(page.locator('#homeBtn')).toBeVisible();
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test('a next that leaves this site is ignored', async ({ browser }) => {
+    // A redirect target from a URL is an open redirect unless it is pinned to
+    // this site, and a bad one is somebody probing rather than a person to help.
+    for (const bad of ['https://example.org/', '//example.org/', '/\\example.org']) {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      try {
+        await page.goto(`/app.php?view=login&next=${encodeURIComponent(bad)}`);
+        await page.locator('#password').fill(ADMIN_PASSWORD);
+        await page.locator('button[type=submit]').click();
+        await page.waitForLoadState('networkidle');
+        // The rejected target is still in the address bar, because the form
+        // posts to the same URL — what matters is that nothing navigated away
+        // from this origin, and that the login page is still the one shown.
+        expect(new URL(page.url()).origin, bad).toBe(BASE);
+        await expect(page.locator('.onward'), bad).toBeVisible();
+      } finally {
+        await ctx.close();
+      }
+    }
+  });
+
+  test('the way onward is the button, and signing out is not', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await page.goto('/app.php?view=login');
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await expect(page.locator('.onward')).toBeVisible();
+      await expect(page.locator('button.quiet')).toHaveText(/Sign out/);
+      // Measured: the onward control is the wider of the two.
+      const sizes = await page.evaluate(() => ({
+        onward: document.querySelector('.onward').getBoundingClientRect().width,
+        out: document.querySelector('button.quiet').getBoundingClientRect().width,
+      }));
+      expect(sizes.onward).toBeGreaterThanOrEqual(sizes.out);
+    } finally {
+      await ctx.close();
+    }
   });
 });
 

@@ -1063,8 +1063,14 @@ $swScope = $base . '/k/';
              * link, and anybody who is not the operator cannot use it.
              */
             // Hidden only with no signal, where signing in cannot work either.
+            /**
+             * Back here afterwards, not to a page whose loudest button signs
+             * you out. Hosted, the login belongs to Live! and ignores this.
+             */
             var signin = el('signin');
-            signin.href = CONFIG.loginUrl;
+            signin.href = CONFIG.loginUrl
+                + (CONFIG.loginUrl.indexOf('?') === -1 ? '?' : '&')
+                + 'next=' + encodeURIComponent(window.location.pathname);
             signin.classList.toggle('hide', Boolean(s.error));
             el('signinRow').classList.toggle('hide', Boolean(s.error));
         }

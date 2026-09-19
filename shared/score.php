@@ -55,6 +55,9 @@
 
 namespace Overlays;
 
+// For the demonstration fallback in loadCode(); harmless everywhere else.
+require_once __DIR__ . '/mode.php';
+
 final class Score
 {
     /** Matches the line store, because a desk types one code for everything. */
@@ -441,7 +444,20 @@ final class Score
     private function loadCode(): ?string
     {
         if (!is_file($this->codePath)) {
-            return null;
+            /*
+             * A demonstration publishes one, so the phone can be pressed.
+             *
+             * Match control is the surface a visitor most wants to try and the
+             * only one they could not: with no code nominated it says "ask the
+             * operator to set one", which on a public demonstration is advice
+             * addressed to nobody. The score there is invented data about a
+             * recorded game, every press is undoable, and the alternative is a
+             * flagship surface that demonstrates a locked door.
+             *
+             * An event that nominates a real code overrides this, because the
+             * stored file is read first.
+             */
+            return Mode::isDemo() ? Mode::DEMO_CODE : null;
         }
         $decoded = json_decode((string) file_get_contents($this->codePath), true);
         $code = is_array($decoded) ? ($decoded['code'] ?? null) : null;

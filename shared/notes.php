@@ -62,6 +62,7 @@
 namespace Overlays;
 
 require_once __DIR__ . '/lines.php';
+require_once __DIR__ . '/mode.php';
 
 final class Notes
 {
@@ -178,6 +179,47 @@ final class Notes
     /**
      * @return array{players: array<string,array<string,mixed>>, touched: int}
      */
+    /**
+     * The prepared room a demonstration serves, when nothing has been written.
+     *
+     * A visitor arriving at the commentary desk found a mixed game whose every
+     * player had no matching — so the bands, the quota counts and the grouped
+     * line picker, which are the most distinctive work on that page, showed
+     * nothing at all. The data they need is declared at a desk and cannot be
+     * derived: Live!'s API exposes no gender, and inferring a matching from
+     * `uo_player_profile.gender` is ruled out on purpose (see FIELDS).
+     *
+     * So a demonstration ships one. It lives in the repository rather than in
+     * `conf/`, which settles three things at once: a deployment installs it by
+     * existing, nothing has to be seeded over SSH, and it cannot age out of a
+     * store whose whole point is that it forgets — because nothing is ever
+     * written to it. Demo mode already refuses writes from strangers, so the
+     * room stays exactly as shipped.
+     *
+     * Invented people, invented matchings. Real personal data never goes near
+     * a committed file.
+     */
+    private function demoRoom(string $code): ?array
+    {
+        if (!Mode::isDemo() || strtoupper(trim($code)) !== Mode::DEMO_CODE) {
+            return null;
+        }
+        $file = __DIR__ . '/../fixtures/demo-desk.json';
+        if (!is_readable($file)) {
+            return null;
+        }
+        $decoded = json_decode((string) file_get_contents($file), true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        return [
+            'players' => self::cleanPlayers($decoded['players'] ?? []),
+            'teams' => self::cleanTeams($decoded['teams'] ?? []),
+            'touched' => 0,
+        ];
+    }
+
     public function load(string $code): array
     {
         // Expiry is enforced here rather than only on write, so a tournament that
@@ -188,7 +230,7 @@ final class Notes
         $empty = ['players' => [], 'teams' => [], 'touched' => 0];
         $path = $this->pathFor($code);
         if ($path === null || !is_readable($path)) {
-            return $empty;
+            return $this->demoRoom($code) ?? $empty;
         }
         $decoded = json_decode((string) file_get_contents($path), true);
         if (!is_array($decoded)) {

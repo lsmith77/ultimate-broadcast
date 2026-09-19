@@ -208,6 +208,18 @@ It changes one thing, and it is not cosmetic. `notes.php` and `lines.php` take *
 
 An administrator still writes normally, so the person running the demonstration can still set it up.
 
+**It also changes what a visitor arrives to, which is the other half of the same idea.** Every store here takes a five-character code that a crew agrees on at an event. A visitor has no crew, so each of those codes was a locked door: the commentary desk opened in a room of its own with no matchings in it, and match control said *"no code has been set for this game — ask the operator to set one"* to somebody with no operator. On a demonstration there is exactly one code, `TRYME`, and the surfaces fill it in themselves:
+
+| store | what the published code buys | why it is safe |
+|---|---|---|
+| prepared notes | the desk opens in a room that already has FMP/MMP for both mixed squads, so the bands, the quota counts and the grouped picker have something to show | demo mode refuses writes from strangers, so the room stays exactly as shipped |
+| possession | the desk is linked without an operator to type the code into the Studio, so injury, possession and the ratio controls are live | invented data about a recorded game |
+| scorekeeping | match control can actually be pressed, and the sync state and undo demonstrate themselves | same, and every press has an undo |
+
+The prepared room is [`../fixtures/demo-desk.json`](../fixtures/demo-desk.json) — invented people, invented matchings — and it ships with the installation rather than being seeded into `conf/`. That settles three things at once: a deployment installs it by existing, nothing has to be written over SSH, and it cannot age out of a store whose whole purpose is to forget, because nothing is ever written to it.
+
+**None of this exists off a demonstration.** Every fallback is gated on `Overlays\Mode::isDemo()`, and a test asserts the other side of that gate — a real installation where the published code writes nothing is the case worth failing loudly.
+
 ### The guided tour
 
 `?demo=1` on the scoreboard or the stage plays a whole game through — hold, break, timeout, cap, halftime, a running clock — from **one real payload**, mutating copies of it in the browser. Nothing is written anywhere, so it is the one showcase that is safe to hand a stranger, and it is the only way to see a moving clock without a game in progress. The Studio links it beside each stage URL.

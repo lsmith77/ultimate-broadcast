@@ -1,0 +1,138 @@
+{
+  "_": "Prepared desk data for a demonstration installation. Invented people, invented matchings: it exists so the mixed features have something to show, and it is served read-only. See docs/COMMENTATOR.md.",
+  "players": {
+    "908": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "901": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "909": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "910": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "911": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "912": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "913": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "914": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "915": {
+      "matching": "MMP",
+      "pronouns": "she/her",
+      "pronunciation": "HAH-na LAY-ner",
+      "pronounsok": true,
+      "text": ""
+    },
+    "916": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "917": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "902": {
+      "matching": "FMP",
+      "pronouns": "they/them",
+      "pronunciation": "NEE-ko",
+      "pronounsok": true,
+      "nickname": "Wings",
+      "text": ""
+    },
+    "900": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "903": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "904": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "905": {
+      "matching": "FMP",
+      "pronouns": "he/him",
+      "pronunciation": "KY RYE-ter",
+      "pronounsok": true,
+      "text": ""
+    },
+    "906": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "907": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "920": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "921": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "922": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "923": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "924": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "925": {
+      "matching": "FMP",
+      "pronouns": "she/they",
+      "pronunciation": "sky TAH-ler",
+      "pronounsok": true,
+      "text": ""
+    },
+    "926": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "927": {
+      "matching": "FMP",
+      "text": ""
+    },
+    "928": {
+      "matching": "MMP",
+      "text": ""
+    },
+    "929": {
+      "matching": "FMP",
+      "text": ""
+    }
+  },
+  "teams": {
+    "304": {
+      "text": "Won the pool on point difference. Zone look off the pull."
+    },
+    "305": {
+      "text": "Deep game through the middle; two handlers back."
+    }
+  }
+}

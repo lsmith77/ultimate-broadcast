@@ -144,6 +144,14 @@ function build() {
   if (existsSync(CAPTURE)) {
     mkdirSync(path.join(root, 'fixtures', 'payloads'), { recursive: true });
     cpSync(CAPTURE, path.join(root, 'fixtures', 'payloads', 'dev'), { recursive: true });
+    // The prepared desk room a demonstration serves. Copied, unlike anything
+    // else under fixtures/, because it is invented people rather than a
+    // recording — and because a deployment ships it, so a tree without it
+    // tests an installation nobody has.
+    const desk = path.join(SOURCE, 'fixtures', 'demo-desk.json');
+    if (existsSync(desk)) {
+      cpSync(desk, path.join(root, 'fixtures', 'demo-desk.json'));
+    }
     writeFileSync(
       path.join(root, 'conf', 'local-config.php'),
       `<?php\n\nreturn [\n  'capture' => 'fixtures/payloads/dev',\n`

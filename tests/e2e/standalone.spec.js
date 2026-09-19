@@ -706,6 +706,75 @@ test.describe('a public demonstration', () => {
     await setDemo(request, false);
   });
 
+  test('a visitor meets a prepared squad, not an empty form',
+    async ({ page, request }) => {
+      /**
+       * The report that started this: a mixed game whose every player had no
+       * matching, so the bands, the quota counts and the grouped line picker —
+       * the desk's most distinctive work — showed nothing at all.
+       *
+       * It cannot be derived. Live!'s API exposes no gender, and inferring a
+       * matching from `uo_player_profile.gender` is ruled out on purpose. So a
+       * demonstration ships a prepared room and opens in it, with nothing for
+       * the visitor to type or upload.
+       */
+      await setDemo(request, true);
+      try {
+        await page.goto('/app.php?view=commentator&game=703&mode=prep');
+        await expect(page.locator('.mt').first()).toBeVisible();
+        // Both squads, every player: a half-filled roster would read as a
+        // broken import rather than as a prepared one.
+        expect(await page.locator('.mt').count()).toBe(28);
+
+        // And the desk is linked to itself, because there is nobody to ask.
+        // "not linked — give the operator your code" is advice addressed to a
+        // crew that does not exist on a public demonstration.
+        await expect(page.locator('#tracking')).not.toContainText(/give the operator/i);
+      } finally {
+        await setDemo(request, false);
+      }
+    });
+
+  test('match control can be pressed, which is the whole of that surface',
+    async ({ page, request }) => {
+      // It was the one dead end: "No code has been set for this game yet. Ask
+      // the operator to set one" — on a site with no operator.
+      await setDemo(request, true);
+      try {
+        await page.goto('/app.php?view=matchcontrol&game=962');
+        await expect(page.locator('#setupWhy')).toContainText(/Demonstration/i);
+        await expect(page.locator('#code')).toHaveValue('TRYME');
+
+        await page.locator('#useCode').click();
+        await expect(page.locator('#homeBtn')).toBeVisible();
+        const before = Number(await page.locator('#homeScore').innerText());
+        await page.locator('#homeBtn').click();
+        await expect(page.locator('#homeScore')).toHaveText(String(before + 1));
+      } finally {
+        await setDemo(request, false);
+      }
+    });
+
+  test('and a real installation gets none of it', async ({ page, request }) => {
+    /**
+     * The test that matters most here. Every published-code fallback is gated
+     * on `isDemo()`, and a gate that is never checked from the other side is a
+     * gate that gets widened by accident — a tournament whose scores anybody
+     * could write, because a demo convenience leaked into the default.
+     */
+    await setDemo(request, false);
+
+    const room = await (await request.get('/app.php?view=notes&code=TRYME')).json();
+    expect(room.players, 'no prepared room off a demonstration').toEqual({});
+
+    await page.goto('/app.php?view=matchcontrol&game=963');
+    await expect(page.locator('#setupWhy')).not.toContainText(/Demonstration/i);
+    await expect(page.locator('#code')).toHaveValue('');
+
+    const poss = await (await request.get('/app.php?view=possession&game=963&code=TRYME')).json();
+    expect(poss.canTrack, 'and the published code tracks nothing').toBe(false);
+  });
+
   test('an administrator still writes, or nobody could set the demo up',
     async ({ page, request }) => {
       await setDemo(request, true);

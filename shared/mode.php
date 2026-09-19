@@ -149,6 +149,25 @@ final class Mode
      * An administrator still writes normally, so the person running the demo
      * can still set it up.
      */
+    /**
+     * The one code a demonstration publishes, for every store that takes one.
+     *
+     * A sync code and a scorekeeping code are a namespace and a lock a crew
+     * agrees on at an event. A visitor has no crew, and every surface asking
+     * them to invent or be given one is a demonstration that shows a locked
+     * door. So on a demonstration there is exactly one, it is printed on the
+     * screen that wants it, and it is already filled in.
+     *
+     * Safe precisely because `isDemo()` closes those stores to strangers: a
+     * shared room nobody can write to cannot be scribbled in. The score store
+     * is the deliberate exception — see `Score::loadCode()` — because a
+     * scorekeeper's phone that cannot be pressed demonstrates nothing.
+     *
+     * Five characters from `Lines::ALPHABET`, which excludes I, L, O, U, 0
+     * and 1: TRYME survives that, and says what to do with it.
+     */
+    public const DEMO_CODE = 'TRYME';
+
     public static function isDemo(): bool
     {
         if (!is_file(self::LOCAL_CONFIG)) {

@@ -39,6 +39,7 @@
 namespace Overlays;
 
 require_once __DIR__ . '/lines.php';
+require_once __DIR__ . '/mode.php';
 
 final class Possession
 {
@@ -209,7 +210,13 @@ final class Possession
     public function load(): array
     {
         if (!is_readable($this->path)) {
-            return self::defaults();
+            // Nothing stored for this game at all. The code still comes from
+            // loadCode(), which is where a demonstration's published one lives:
+            // defaults() is a plain shape and has no business knowing about it.
+            $state = self::defaults();
+            $state['code'] = $this->loadCode();
+
+            return $state;
         }
         $decoded = json_decode((string) file_get_contents($this->path), true);
         if (!is_array($decoded)) {
@@ -555,7 +562,21 @@ final class Possession
     private function loadPrivate(): array
     {
         if (!is_readable($this->codePath)) {
-            return ['code' => null, 'seen' => []];
+            /*
+             * A demonstration links itself.
+             *
+             * This code is what lets a commentary desk track possession, and it
+             * is set by an operator in the Studio — a control a visitor cannot
+             * reach and would have nobody to ask about. Without it the desk
+             * reads "not linked — give the operator your code" at somebody who
+             * has no operator, and the tracking features it gates are the ones
+             * worth showing.
+             *
+             * The published demo code fills that gap, and only while nothing
+             * real has been stored: an operator who nominates a code writes the
+             * file, and the file wins from then on.
+             */
+            return ['code' => Mode::isDemo() ? Mode::DEMO_CODE : null, 'seen' => []];
         }
         $decoded = json_decode((string) file_get_contents($this->codePath), true);
         if (!is_array($decoded)) {

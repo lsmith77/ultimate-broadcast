@@ -476,6 +476,10 @@ $swScope = $base . '/k/';
         // Where somebody signs in. An operator keeping their own score needs no
         // code at all — the store lets an administrator write any game — and on
         // a one-person rig the operator and the scorekeeper are one person.
+        // Published, and prefilled, only on a demonstration: there is nobody to
+        // ask for a code, and a scorekeeper's phone that cannot be pressed
+        // demonstrates nothing. See Overlays\Mode::DEMO_CODE.
+        demoCode: <?= $json(\Overlays\Mode::isDemo() && !\Overlays\Auth::isAdmin() ? \Overlays\Mode::DEMO_CODE : null) ?>,
         loginUrl: <?= $json(Mode::loginUrl($base)) ?>,
         // A link to one game, with the id to be filled in. From Mode rather
         // than written here: `/k/702` is a rewrite that only exists where the
@@ -1107,7 +1111,20 @@ $swScope = $base . '/k/';
          * more than saying it in the documentation alone.
          */
         if (!s.canWrite) {
-            if (s.nominated === false) {
+            if (CONFIG.demoCode) {
+                /*
+                 * A demonstration has no operator to ask and no crew to be
+                 * given a code by. This is the surface a visitor most wants to
+                 * press, so it publishes the code and fills it in — the score
+                 * is invented data about a recorded game, and every press has
+                 * an undo.
+                 */
+                el('setupWhy').textContent =
+                    'Demonstration — the code is ' + CONFIG.demoCode + ', already filled '
+                    + 'in. Press Use this code and keep score; the scoreboard follows. '
+                    + 'At a real event an operator nominates this per game.';
+                if (!el('code').value) { el('code').value = CONFIG.demoCode; }
+            } else if (s.nominated === false) {
                 el('setupWhy').textContent =
                     'No code has been set for this game yet. Sign in if you are running '
                     + 'this yourself, or ask the operator to set one.';

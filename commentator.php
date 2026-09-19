@@ -56,7 +56,18 @@ $gameId = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['m
  * Random by default removes that; the field stays editable so the second person
  * can type whatever the first one reads out.
  */
-$suggestedCode = (new Lines())->generate();
+/**
+ * The code this desk starts with.
+ *
+ * Normally a fresh random one, because carrying notes between games should be
+ * a deliberate act — you type the code you used before. On a DEMONSTRATION
+ * that reasoning inverts: there is no crew to agree a code with, a random one
+ * per browser lands every visitor in an empty room, and the prepared squad
+ * they came to look at is in exactly one. See `Overlays\Mode::DEMO_CODE`.
+ */
+$suggestedCode = \Overlays\Mode::isDemo()
+    ? \Overlays\Mode::DEMO_CODE
+    : (new Lines())->generate();
 $mode = filter_input(INPUT_GET, 'mode') === 'play' ? 'play' : 'prep';
 
 $base = rtrim(defined('UO_URL_PREFIX') ? UO_URL_PREFIX : '/', '/');
@@ -809,6 +820,8 @@ prepared notes and the shared line cannot be saved.</div>
         // upstream payload is not moving.
         scoreBase: <?= $json(\Overlays\Mode::assetBase($base)) ?>,
         suggestedCode: <?= $json($suggestedCode) ?>,
+        // Set only on a demonstration: the one room every visitor starts in.
+        demoRoom: <?= $json(\Overlays\Mode::isDemo() ? \Overlays\Mode::DEMO_CODE : null) ?>,
         codeLength: <?= (int) Lines::CODE_LENGTH ?>,
         noteMax: <?= (int) Notes::MAX_TEXT ?>,
         fieldMax: <?= (int) Notes::MAX_FIELD ?>,
@@ -3470,6 +3483,16 @@ prepared notes and the shared line cannot be saved.</div>
     var syncCode = storedCode();
     if (!syncCode) {
         syncCode = CONFIG.suggestedCode;
+        rememberCode(syncCode);
+    }
+    /*
+     * A demonstration always opens in the prepared room, even for somebody who
+     * was here yesterday and has a random code remembered from before this
+     * existed. Typing another code still works and still shows an empty room —
+     * a reload simply comes back to the one with something in it.
+     */
+    if (CONFIG.demoRoom && syncCode !== CONFIG.demoRoom) {
+        syncCode = CONFIG.demoRoom;
         rememberCode(syncCode);
     }
 

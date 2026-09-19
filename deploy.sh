@@ -67,6 +67,11 @@ echo "==> $REMOTE"
 # deployed from. `dirty` is the flag that matters most — a deploy from a tree
 # with uncommitted changes is not the commit it names, and saying so here is
 # the only place that would ever be noticed.
+#
+# `release` is `git describe`: a deploy from a tagged commit reads v0.7.0 and
+# one from three commits later reads v0.7.0-3-g9eca010. The suffix is the point
+# — most deployments are not releases, and this says so rather than rounding
+# down to the last tag. See docs/RELEASES.md.
 # ---------------------------------------------------------------------------
 VERSION_FILE="$SCRIPT_DIR/version.json"
 
@@ -76,17 +81,20 @@ if command -v git >/dev/null 2>&1 && git -C "$SCRIPT_DIR" rev-parse --git-dir >/
     COMMITTED="$(git -C "$SCRIPT_DIR" log -1 --format=%cI)"
     SUBJECT="$(git -C "$SCRIPT_DIR" log -1 --format=%s)"
     BRANCH="$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD)"
+    # --always so a checkout with no tags at all still says something.
+    RELEASE="$(git -C "$SCRIPT_DIR" describe --tags --always 2>/dev/null || echo '')"
     if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then DIRTY=true; else DIRTY=false; fi
 else
-    COMMIT=""; SHORT="unknown"; COMMITTED=""; SUBJECT=""; BRANCH=""; DIRTY=false
+    COMMIT=""; SHORT="unknown"; COMMITTED=""; SUBJECT=""; BRANCH=""; RELEASE=""; DIRTY=false
 fi
 
-python3 - "$VERSION_FILE" "$COMMIT" "$SHORT" "$COMMITTED" "$SUBJECT" "$BRANCH" "$DIRTY" <<'PYEOF' ||     printf '{"commit":"%s","short":"%s","dirty":%s}\n' "$COMMIT" "$SHORT" "$DIRTY" > "$VERSION_FILE"
+python3 - "$VERSION_FILE" "$COMMIT" "$SHORT" "$COMMITTED" "$SUBJECT" "$BRANCH" "$DIRTY" "$RELEASE" <<'PYEOF' ||     printf '{"commit":"%s","short":"%s","dirty":%s}\n' "$COMMIT" "$SHORT" "$DIRTY" > "$VERSION_FILE"
 import json, sys, datetime
-path, commit, short, committed, subject, branch, dirty = sys.argv[1:8]
+path, commit, short, committed, subject, branch, dirty, release = sys.argv[1:9]
 json.dump({
     'commit': commit,
     'short': short,
+    'release': release,
     'committed': committed,
     'subject': subject,
     'branch': branch,
@@ -96,7 +104,7 @@ json.dump({
 open(path, 'a').write('\n')
 PYEOF
 
-echo "==> deploying ${SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCOMMITTED CHANGES)')"
+echo "==> deploying ${RELEASE:-$SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCOMMITTED CHANGES)')"
 
 # ---------------------------------------------------------------------------
 # The rules, first and by themselves.

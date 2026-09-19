@@ -91,11 +91,13 @@ curl -s https://ultimate-broadcast.org/version.json
 ```
 
 ```json
-{ "commit": "…", "short": "f1d7204", "subject": "…", "branch": "main",
-  "dirty": false, "deployed": "2026-09-19T09:12:04+00:00" }
+{ "commit": "…", "short": "f1d7204", "release": "v0.7.0-3-g9eca010", "subject": "…",
+  "branch": "main", "dirty": false, "deployed": "2026-09-19T09:12:04+00:00" }
 ```
 
 It is generated rather than committed — a checkout has none until it is deployed from — and gitignored. **`dirty` is the field that matters**: a deploy from a tree with uncommitted changes is not the commit it names, and this is the only place that would ever say so.
+
+`release` is `git describe`, so a deploy from a tagged commit reads `v0.7.0` and one from three commits later carries the count and the hash. Most deployments are not releases and this says so rather than rounding down to the last tag. [`RELEASES.md`](RELEASES.md).
 
 The service worker is explicitly forbidden from caching it. It matches the extension list that is otherwise served cache-first, and a file that answers "is my fix live" from a cache written by the version being questioned would agree with itself forever.
 

@@ -17,6 +17,8 @@ There are **two ways to run it, and both are real deployments.**
 
 The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/provider.js) knows which mode it is in — one renderer, one payload shape, two providers — which is why the modes have not drifted apart.
 
+**Following along:** [`CHANGELOG.md`](CHANGELOG.md) is what each release contains, and [releases](https://github.com/lsmith77/ultimate-broadcast/releases) are the same entries with a downloadable archive. There is no build step, so the archive of a release *is* the installation. [`docs/RELEASES.md`](docs/RELEASES.md) explains the numbering and what 1.0 would have to promise.
+
 ## Try it without installing anything
 
 [ultimate-broadcast.org](https://ultimate-broadcast.org) is a fully deployed standalone installation on ordinary shared hosting: no UltiOrganizer, no Live!, no database. Every surface renders, match control keeps a real score, and `?demo=1` on any scoreboard or stage URL plays a whole game through — holds, breaks, a timeout, the cap, a running clock. Nothing needs a sign-in and nothing a visitor does is written.

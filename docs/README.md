@@ -200,6 +200,12 @@ It is also candid about what a standalone installation can and cannot be today. 
 
 **Go here for:** the deploy script, the one-time bootstrap, what to check afterwards, and what a visitor to a public installation is able to change.
 
+### [`RELEASES.md`](RELEASES.md) — cutting a version, and what a version means
+
+**Built.** Releases are git tags with a changelog entry, and the archive GitHub builds from a tag is the installation, because there is nothing to compile. The procedure is short; the part worth reading is the numbering, which says what 1.0 would have to promise — stable URLs and stable stored formats — and why the project cannot promise it yet.
+
+**Go here for:** the steps to cut one, and the `release` field in `version.json` that names what an installation is running. [`../CHANGELOG.md`](../CHANGELOG.md) is the releases themselves.
+
 ### [`ANALYTICS.md`](ANALYTICS.md) — counting visitors without collecting anything
 
 Built, and it adds nothing to the software. How to tell how many people open a public installation and how many run the demo, by reading the web server's access log rather than putting a tracker on pages that reach air.

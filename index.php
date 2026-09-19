@@ -2623,6 +2623,28 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
             desk.rel = 'noopener';
             box.append(desk);
         }
+
+        /*
+         * And the phone, on a demonstration only.
+         *
+         * The introduction above spends a whole paragraph on keeping score
+         * from the sideline, and offered no way to try it: match control needs
+         * a code, and a visitor asking the operator for one has no operator.
+         * A demonstration publishes one and fills it in, so the link goes
+         * somewhere — and off a demonstration it is left out rather than
+         * pointing at a prompt nobody can answer.
+         */
+        if (IS_DEMO && (open || mixed)) {
+            var k = mixed || open;
+            var keep = el('a', null, 'keep score on a phone');
+            keep.prepend(mark('score', 16));
+            keep.href = origin + '/k/' + k.game_id;
+            keep.target = '_blank';
+            keep.rel = 'noopener';
+            keep.title = 'Match control for ' + (k.gamename || ('game ' + k.game_id))
+                + ' — the code is filled in for you on a demonstration';
+            box.append(keep);
+        }
     }
 
     function renderAll() {

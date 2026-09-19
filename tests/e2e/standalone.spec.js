@@ -735,6 +735,30 @@ test.describe('a public demonstration', () => {
       }
     });
 
+  test('the welcome message offers the phone, because it can now be pressed',
+    async ({ page, request }) => {
+      /*
+       * The introduction spends a paragraph on keeping score from the sideline
+       * and offered no way to try it. It is offered on a demonstration, where
+       * the code is published, and left out everywhere else rather than
+       * pointing a visitor at a prompt they cannot answer.
+       */
+      await setDemo(request, true);
+      try {
+        await page.goto('/app.php?view=index');
+        const keep = page.locator('#introDemo a', { hasText: /keep score/i });
+        await expect(keep).toBeVisible();
+        await expect(keep).toHaveAttribute('href', /\/k\/\d+$/);
+      } finally {
+        await setDemo(request, false);
+      }
+
+      await page.goto('/app.php?view=index');
+      await expect(page.locator('#introDemo a').first()).toBeVisible();
+      await expect(page.locator('#introDemo a', { hasText: /keep score/i }),
+        'not offered where the code would be a dead end').toHaveCount(0);
+    });
+
   test('an administrator editing the prepared room does not empty it',
     async ({ page, request }, testInfo) => {
       const { ADMIN_PASSWORD } = require('../standalone-setup.js');

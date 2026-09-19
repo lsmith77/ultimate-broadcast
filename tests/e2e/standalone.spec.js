@@ -2323,6 +2323,109 @@ test.describe('the statistic strip', () => {
   });
 });
 
+test.describe('the operator on a phone', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('is offered the switch, not told to go and find themselves', async ({ browser }) => {
+    /**
+     * "Not on the scoreboard — ask the operator to switch it" is right for a
+     * scorekeeper and absurd for the operator, who on a one-person rig is the
+     * person reading it, signed in, with no way to act on their own
+     * instruction. Switching the source is administrator-only server-side, so
+     * the button appears for exactly the people who can use it.
+     */
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    try {
+      await page.goto('/app.php?view=login&next=%2Fk%2F703');
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await expect(page.locator('#homeBtn')).toBeVisible();
+
+      // Signed in, so the code is irrelevant: an administrator may write any
+      // game without one, and the prompt for it is not shown at all.
+      await expect(page.locator('#setup')).toBeHidden();
+
+      // Reading upstream, so the banner is up — with a button rather than an
+      // instruction to fetch somebody.
+      await expect(page.locator('#offair')).toBeVisible();
+      await expect(page.locator('#offairWhy')).not.toContainText(/Ask the operator/i);
+      await expect(page.locator('#offairDo')).toBeVisible();
+
+      await page.locator('#offairDo').click();
+      await expect(page.locator('#offair'), 'and the banner goes').toBeHidden({ timeout: 10000 });
+
+      const state = await (await page.request.get('/app.php?view=score&game=703')).json();
+      expect(state.enabled, 'the board now reads this score').toBe(true);
+      await page.request.post('/app.php?view=score', { data: { game: 703, enabled: false } });
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test('the notice can be put away, and comes back when the situation changes', async ({ page, browser }) => {
+    /**
+     * It exists to stop somebody keeping a whole game into a store nothing
+     * reads, which is worth saying — but a notice that cannot be dismissed is
+     * one people learn to read past, including on the day it matters. So it
+     * hides per game, and going on air and coming off again is a new situation
+     * rather than the one that was waved away.
+     */
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    const source = (on) => page.request.post('/app.php?view=score',
+      { data: { game: 702, enabled: on } });
+    await source(false);
+
+    const phone = await browser.newContext();
+    const q = await phone.newPage();
+    try {
+      await q.goto(`${base}/k/702`);
+      await expect(q.locator('#offair')).toBeVisible();
+      await q.locator('#offairHide').click();
+      await expect(q.locator('#offair')).toBeHidden();
+
+      // Still gone after a reload: a dismissal that forgets itself is not one.
+      await q.reload();
+      await expect(q.locator('#homeBtn, #setup')).not.toHaveCount(0);
+      await expect(q.locator('#offair')).toBeHidden();
+
+      // On air, then off again — which is a new situation, so it speaks up.
+      await source(true);
+      await q.waitForTimeout(6000);
+      await source(false);
+      await expect(q.locator('#offair')).toBeVisible({ timeout: 15000 });
+    } finally {
+      await source(false);
+      await phone.close();
+    }
+  });
+
+  test('a scorekeeper with only a code is still told to ask', async ({ page, browser }) => {
+    // The switch decides what a viewer sees, and a code grants nothing upward.
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    await page.request.post('/app.php?view=score', { data: { game: 703, code: 'ABCDE' } });
+
+    const phone = await browser.newContext();
+    await phone.addInitScript(() => localStorage.setItem('uo-score-code-703', 'ABCDE'));
+    const q = await phone.newPage();
+    try {
+      await q.goto(new URL(page.url()).origin + '/k/703');
+      await expect(q.locator('#homeBtn')).toBeVisible();
+      await expect(q.locator('#offairWhy')).toContainText(/Ask the operator/i);
+      await expect(q.locator('#offairDo')).toBeHidden();
+    } finally {
+      await phone.close();
+    }
+  });
+});
+
 test.describe('signing in is a detour, not a destination', () => {
   const { ADMIN_PASSWORD } = require('../standalone-setup.js');
 

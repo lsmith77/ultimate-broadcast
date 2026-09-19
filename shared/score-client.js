@@ -56,7 +56,7 @@
         function now() { return Math.floor(nowFn() / 1000); }
 
         var server = { rev: 0, goals: [], home: 0, away: 0, canWrite: false,
-            nominated: null, enabled: null, timer_start: null,
+            admin: false, nominated: null, enabled: null, timer_start: null,
             timer_paused_duration: 0, timer_pause_start: 0, half_at: null };
         /**
          * The queue, and why it outlives the page.
@@ -271,6 +271,7 @@
                 timeouts: timeouts,
                 rev: server.rev,
                 canWrite: server.canWrite,
+                admin: server.admin,
                 nominated: server.nominated,
                 enabled: server.enabled,
                 timer_start: timerStart,
@@ -295,6 +296,11 @@
                 home: Number(body.home) || 0,
                 away: Number(body.away) || 0,
                 canWrite: Boolean(body.canWrite),
+                // Whether this browser is the OPERATOR, as opposed to somebody
+                // holding a code. Only they may choose what reaches air, so it
+                // is the difference between a surface that can offer the switch
+                // and one that can only describe it.
+                admin: Boolean(body.admin),
                 nominated: body.nominated === undefined ? null : Boolean(body.nominated),
                 // null until the server has answered once, so the page can tell
                 // "not the source" from "not asked yet" and not flash a warning
@@ -421,6 +427,30 @@
 
             /** What was dropped, and why. Read by the list of games. */
             declined: function () { return declined.slice(); },
+
+            /**
+             * Point the scoreboard at this score, or back at upstream.
+             *
+             * Administrator only, server-side: it decides what reaches a
+             * viewer. Not queued either — an outbox exists so a press at a
+             * pitch survives a bad connection, and a decision about what is on
+             * air should not be applied minutes later from a queue.
+             */
+            source: function (on) {
+                return fetchImpl(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game: game, enabled: Boolean(on) })
+                }).then(function (r) { return r.json(); })
+                    .then(function (body) {
+                        if (body && body.error) { throw new Error(body.error); }
+                        absorb(body);
+                        announce();
+
+                        return true;
+                    });
+            },
 
             /**
              * Record a goal.

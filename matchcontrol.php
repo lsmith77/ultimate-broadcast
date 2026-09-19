@@ -243,6 +243,14 @@ $swScope = $base . '/k/';
                     border-radius: 8px; border: 1px solid var(--line);
                     background: var(--panel); color: var(--ink); }
     .state.bad { background: var(--bad); }
+    .offairdo { display: block; width: 100%; margin-top: .5rem; padding: .6rem;
+        font: inherit; font-weight: 700; border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, .35); background: rgba(0, 0, 0, .18);
+        color: var(--ink); }
+    .offairdo.hide { display: none; }
+    .offairx { float: right; margin: -.2rem -.2rem 0 .4rem; padding: 0 .45rem;
+        font: inherit; font-size: 1.1rem; line-height: 1.4; border: 0;
+        border-radius: 6px; background: transparent; color: inherit; opacity: .7; }
 
     /* The two presses. Everything else on the page is smaller than these. */
     .teams { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
@@ -307,9 +315,13 @@ $swScope = $base . '/k/';
 </div>
 
 <div class="offair hide" id="offair">
+    <button class="offairx" id="offairHide" type="button" aria-label="Hide this notice">&times;</button>
     Not on the scoreboard
     <span id="offairWhy">The overlay is still showing the score from upstream. Ask the
         operator to switch the scoreboard to this game's match control.</span>
+    <!-- Shown to the operator, who is the person who can act on the sentence
+         above rather than pass it on. -->
+    <button class="offairdo hide" id="offairDo" type="button">Show this score on the scoreboard</button>
 </div>
 
 <section class="games hide" id="pick">
@@ -1015,10 +1027,38 @@ $swScope = $base . '/k/';
         el('undoBtn').disabled = s.home + s.away === 0;
         [el('homeBtn'), el('awayBtn')].forEach(function (b) { b.disabled = !s.canWrite; });
 
-        // Said whether or not this phone may write: a scorekeeper who cannot
-        // yet write still wants to know which way the switch is set before
-        // they start, and one who can wants to know the moment it changes.
-        el('offair').classList.toggle('hide', s.enabled !== false);
+        /**
+         * Said whether or not this phone may write: a scorekeeper who cannot
+         * yet write still wants to know which way the switch is set before they
+         * start, and one who can wants to know the moment it changes.
+         *
+         * The wording asks somebody to fetch the operator, which is right for a
+         * scorekeeper and wrong for the operator themselves — and on a
+         * one-person rig, the person reading it is signed in and has no way to
+         * act on their own instruction. So they get the switch instead.
+         */
+        /**
+         * Dismissible, and it comes back.
+         *
+         * The banner exists to stop somebody keeping a whole game's score into
+         * a store nothing reads, which is worth a warning — but there are
+         * reasons to keep the board on upstream deliberately, and a notice that
+         * cannot be put away is one somebody learns to read past, including on
+         * the day it matters.
+         *
+         * So it hides per game on this device, and the dismissal is cleared the
+         * moment the source changes: going on air and coming off again is a new
+         * situation rather than the one that was waved away.
+         */
+        if (s.enabled === true) { rememberOffairDismissed(false); }
+        var hushed = s.enabled === false && offairDismissed();
+
+        el('offair').classList.toggle('hide', s.enabled !== false || hushed);
+        el('offairDo').classList.toggle('hide', !s.admin);
+        el('offairWhy').textContent = s.admin
+            ? 'The overlay is still showing the score from upstream.'
+            : 'The overlay is still showing the score from upstream. Ask the operator '
+                + 'to switch the scoreboard to this game\'s match control.';
 
         el('setup').classList.toggle('hide', s.canWrite);
         ['teams', 'clockRow', 'bar', 'moreWrap'].forEach(function (id) {
@@ -1175,7 +1215,33 @@ $swScope = $base . '/k/';
             .catch(function () { /* names are a luxury; the score is not */ });
     }
 
+    var OFFAIR_KEY = 'uo-score-offair-' + CONFIG.gameId;
+
+    function offairDismissed() {
+        try { return window.localStorage.getItem(OFFAIR_KEY) === '1'; }
+        catch (e) { return false; }
+    }
+
+    function rememberOffairDismissed(yes) {
+        try {
+            if (yes) { window.localStorage.setItem(OFFAIR_KEY, '1'); }
+            else { window.localStorage.removeItem(OFFAIR_KEY); }
+        } catch (e) { /* blocked; it stays visible, which is the safe way round */ }
+    }
+
+    el('offairHide').addEventListener('click', function () {
+        rememberOffairDismissed(true);
+        paint();
+    });
+
     el('clashOk').addEventListener('click', function () { keeper.clearNotice(); });
+
+    el('offairDo').addEventListener('click', function () {
+        el('offairDo').disabled = true;
+        keeper.source(true)
+            .catch(function (e) { alert(e.message); })
+            .then(function () { el('offairDo').disabled = false; });
+    });
 
     keeper.start();
     paint();

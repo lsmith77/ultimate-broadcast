@@ -735,6 +735,72 @@ test.describe('a public demonstration', () => {
       }
     });
 
+  test('an administrator editing the prepared room does not empty it',
+    async ({ page, request }, testInfo) => {
+      const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+      /**
+       * Demo mode still lets an administrator write, and the fallback used to
+       * be all-or-nothing: one note typed into the prepared room created a
+       * file, and a file existing hid all twenty-eight matchings behind that
+       * single entry until the room expired a week later.
+       *
+       * The seed is the floor instead. An edit adds to the squad; it cannot
+       * leave the demonstration worse than it shipped.
+       */
+      await setDemo(request, true);
+      try {
+        await page.goto('/app.php?view=login');
+        // Already signed in from an earlier test? The login page shows the
+        // signed-in view and no password field, and filling it times out.
+        if (await page.locator('#password').count()) {
+          await page.locator('#password').fill(ADMIN_PASSWORD);
+          await page.locator('button[type=submit]').click();
+          await page.waitForLoadState('networkidle');
+        }
+
+        const wrote = await page.request.post('/app.php?view=notes', {
+          data: { code: 'TRYME', player: 908, text: 'Handler; breaks upwind.' },
+        });
+        expect(wrote.ok(), 'an administrator still writes').toBe(true);
+
+        const edited = await (await request.get('/app.php?view=notes&code=TRYME')).json();
+        expect(Object.keys(edited.players).length, 'the squad survives the edit').toBe(28);
+        expect(edited.players['908'].text).toMatch(/upwind/);
+        expect(edited.players['908'].matching).toBe('MMP');
+
+        /*
+         * Now take the entry away again, which is the case the write path
+         * cannot cover for itself: an entry whose every channel is empty is
+         * DELETED, so the stored room comes back one player short. Without the
+         * seed underneath, that player's matching is gone from a mixed squad
+         * until the room expires a week later — a demonstration quietly
+         * degraded by somebody tidying up after themselves.
+         */
+        const cleared = await page.request.post('/app.php?view=notes', {
+          data: {
+            code: 'TRYME', player: 908, text: '',
+            matching: '', nickname: '', pronouns: '', pronunciation: '',
+          },
+        });
+        expect(cleared.ok()).toBe(true);
+
+        const room = await (await request.get('/app.php?view=notes&code=TRYME')).json();
+        expect(Object.keys(room.players).length, 'the squad is still whole').toBe(28);
+        expect(room.players['908'].matching, 'and that player is matched again').toBe('MMP');
+        expect(room.players['908'].text, 'without the note coming back').toBe('');
+      } finally {
+        /*
+         * Take the stored room away again. Writing to it turns the shipped
+         * seed into a real file, and a real file outlives demo mode — which is
+         * correct, and which left the next test finding twenty-eight players
+         * in a room it had asserted was empty off a demonstration.
+         */
+        fs.rmSync(path.join(testInfo.config.metadata.root, 'conf', 'notes', 'TRYME.json'),
+          { force: true });
+        await setDemo(request, false);
+      }
+    });
+
   test('match control can be pressed, which is the whole of that surface',
     async ({ page, request }) => {
       // It was the one dead end: "No code has been set for this game yet. Ask

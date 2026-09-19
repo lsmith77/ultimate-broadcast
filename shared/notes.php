@@ -228,19 +228,41 @@ final class Notes
         $this->maybePrune();
 
         $empty = ['players' => [], 'teams' => [], 'touched' => 0];
+        $seed = $this->demoRoom($code);
         $path = $this->pathFor($code);
         if ($path === null || !is_readable($path)) {
-            return $this->demoRoom($code) ?? $empty;
+            return $seed ?? $empty;
         }
         $decoded = json_decode((string) file_get_contents($path), true);
         if (!is_array($decoded)) {
-            return $empty;
+            return $seed ?? $empty;
         }
-        return [
+        $state = [
             'players' => self::cleanPlayers($decoded['players'] ?? []),
             'teams' => self::cleanTeams($decoded['teams'] ?? []),
             'touched' => (int) ($decoded['touched'] ?? 0),
         ];
+
+        /*
+         * A demonstration's prepared squad is the FLOOR, not an alternative.
+         *
+         * Demo mode still lets an administrator write, so one note typed into
+         * the prepared room creates a real file — and an all-or-nothing
+         * fallback would then hide all twenty-eight matchings behind that one
+         * entry until the room expired a week later and the seed came back.
+         * One edit silently emptying the thing the demonstration exists to
+         * show is not a trade worth having.
+         *
+         * Stored entries win per player, so an edit adds to the squad rather
+         * than replacing it, and a demonstration cannot be left worse than it
+         * shipped.
+         */
+        if ($seed !== null) {
+            $state['players'] += $seed['players'];
+            $state['teams'] += $seed['teams'];
+        }
+
+        return $state;
     }
 
     /**

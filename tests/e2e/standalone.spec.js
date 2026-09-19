@@ -1366,15 +1366,26 @@ test.describe('the scorekeeper on a phone', () => {
  *
  * Undo pops the last goal and names the point it is undoing, so this is safe to
  * repeat and stops of its own accord when the store is already empty.
+ *
+ * **The clock is part of that state**, and was not cleared here for as long as
+ * there was no way to clear it. A test that started 703's clock to get a
+ * broadcast into the branch it is actually in left it running for everything
+ * after it, and the next test to assume a game begins with no clock failed on
+ * a `Resume` button it had no reason to expect. `clock: 'reset'` exists now, so
+ * emptying a game empties all of it.
  */
 async function clearLocalScore(request, game) {
-  for (let i = 0; i < 64; i += 1) {
+  let emptied = false;
+  for (let i = 0; i < 64 && !emptied; i += 1) {
     const state = await (await request.get(`/app.php?view=score&game=${game}`)).json();
     const count = (state.goals || []).length;
-    if (count === 0) { return; }
+    if (count === 0) { emptied = true; break; }
     await request.post('/app.php?view=score', { data: { game, undo: { num: count } } });
   }
-  throw new Error(`could not empty the score store for game ${game}`);
+  if (!emptied) {
+    throw new Error(`could not empty the score store for game ${game}`);
+  }
+  await request.post('/app.php?view=score', { data: { game, clock: 'reset' } });
 }
 
 test.describe('the point that decides it', () => {
@@ -2441,6 +2452,12 @@ test.describe('resetting the clock', () => {
     await page.locator('#password').fill(ADMIN_PASSWORD);
     await page.locator('button[type=submit]').click();
     await expect(page.locator('#homeBtn')).toBeVisible();
+
+    // A clock this test did not start is a clock it cannot reason about: the
+    // first version pressed Start on one another test had left running and
+    // asserted on a button that said Resume. Set the state, then assert on it.
+    await clearLocalScore(page.request, 703);
+    await expect(page.locator('#startBtn')).toHaveText('Start');
 
     await page.locator('#startBtn').click();
     await expect(page.locator('#startBtn')).toHaveText('Pause');

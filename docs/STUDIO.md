@@ -413,7 +413,7 @@ If same-origin styling turns out not to work, `embed` degrades to "show the page
 
 A tournament will often have nobody to run this. Easy mode is not a separate system: it is a show state that nothing writes by hand.
 
-`stage.php?auto=1` (and the default when `show.json` does not exist) runs a rule-based director in the client:
+`stage.php?auto=1` runs a rule-based director in the client, and so does the absence of `show.json`. The switch is the stronger of the two: it ignores the stored state entirely, so a switcher URL set up once cannot be changed by whatever an operator later leaves in that file. The pinned game is still honoured, because that is which match the screen is about rather than what is on it.
 
 - scoreboard always on, `lower-left`
 - its callouts are already automatic — the standing ON DEFENCE tag and the HOLD/BREAK flash need no operator

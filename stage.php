@@ -70,6 +70,20 @@ $background = $backgrounds[$bgParam]
 
 // A game id on the URL overrides the show state's, so one stage can be pinned to
 // a field while another follows the operator.
+/**
+ * Easy mode, forced: ignore whatever the operator left in the show state.
+ *
+ * `STUDIO.md` §8 has documented this URL since before there was a Studio, and
+ * the page never read it — so the behaviour a tournament with no operator was
+ * told to use was in fact "whatever happens to be in `conf/show.json`", which
+ * on a shared installation is whatever the last person to touch it left there.
+ * The default layout was only reached when that file did not exist at all.
+ *
+ * With `?auto=1` the stage runs the default director whatever the file says,
+ * which is what a switcher URL set up once and left alone actually needs.
+ */
+$auto = filter_input(INPUT_GET, 'auto') === '1';
+
 $pinnedGame = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
 // Or pin to a FIELD instead, and follow whatever is being played on it. One
@@ -155,6 +169,8 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         fieldPoll: 30000,
         bg: <?= $json($bgParam) ?>,
         fallback: <?= $json(Show::defaults()) ?>,
+        // Forced easy mode: the stored show state is not read at all.
+        auto: <?= $json($auto) ?>,
         // Team id -> logo URL, same store the scoreboard uses. Live!'s own team
         // photos are the fallback when a team has no logo here.
         teamLogos: <?= $json((object) (new \Overlays\Logos(null, $assetBase . '/logos'))->all()) ?>
@@ -1565,6 +1581,15 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                 // A missing or unreadable file is auto mode, not a failure: a
                 // tournament with no operator must still get a working stage.
                 if (!state || !Array.isArray(state.cards)) { state = CONFIG.fallback; }
+
+                // `?auto=1` says the same thing deliberately rather than by
+                // absence: run the default director, whatever is in the file.
+                // The game the operator pinned is still honoured, because that
+                // is which match this screen is about rather than what is on it.
+                if (CONFIG.auto) {
+                    state = { rev: state.rev, game: state.game, logo: state.logo,
+                        cards: CONFIG.fallback.cards };
+                }
 
                 // An EMPTY stage is a different thing from an unconfigured one,
                 // and normally it is exactly right: an operator who took

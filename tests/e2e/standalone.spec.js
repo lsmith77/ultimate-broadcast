@@ -2118,6 +2118,68 @@ test.describe('a phone with no signal at all', () => {
     });
 });
 
+test.describe('easy mode, forced', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('?auto=1 runs the default director whatever the show state says', async ({ page, browser }) => {
+    /**
+     * `STUDIO.md` §8 has documented this URL since before there was a Studio,
+     * and the page never read it: a tournament with no operator got "whatever
+     * is in conf/show.json", which on a shared installation is whatever the
+     * last person left there. The default layout was reached only when the file
+     * did not exist at all.
+     */
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+
+    const before = await (await page.request.get('/app.php?view=show')).json();
+    try {
+      // An operator leaves the stage with the scoreboard off and a card on.
+      await page.request.post('/app.php?view=show', {
+        data: {
+          rev: before.rev,
+          cards: [
+            { id: 'scoreboard', slot: 'lower-left', visible: false, params: {} },
+            { id: 'progression', slot: 'center', visible: true, params: {} },
+          ],
+        },
+      });
+
+      const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+      const s = await board.newPage();
+      try {
+        /**
+         * Asserted on what is SHOWN, not on what is mounted. A card is armed
+         * and framed while still off air — that is the arm/show rule — so the
+         * scoreboard's iframe exists either way and only the `shown` class says
+         * whether a viewer can see it.
+         */
+        const shownScoreboard = '.shown iframe[src*="scoreboard"]';
+
+        // Without the switch: the stored state, scoreboard off air.
+        await s.goto(`${base}/app.php?view=stage&game=702`);
+        await expect(s.locator('.shown').first()).toBeVisible({ timeout: 15000 });
+        await expect(s.locator(shownScoreboard)).toHaveCount(0);
+
+        // With it: the default director, whatever the file says.
+        await s.goto(`${base}/app.php?view=stage&game=702&auto=1`);
+        await expect(s.locator(shownScoreboard)).toHaveCount(1, { timeout: 15000 });
+      } finally {
+        await board.close();
+      }
+    } finally {
+      const now = await (await page.request.get('/app.php?view=show')).json();
+      await page.request.post('/app.php?view=show', {
+        data: { rev: now.rev, cards: before.cards, logo: before.logo, game: before.game },
+      });
+    }
+  });
+});
+
 test.describe('admin gating without Live!', () => {
   test('this really is a hostless tree', async ({ request }) => {
     // The assertion that gives the rest of this block its meaning. If an

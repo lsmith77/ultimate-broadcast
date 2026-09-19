@@ -82,6 +82,11 @@ function respond(Possession $store, bool $isAdmin, ?string $askedCode = null): v
         'canTrack' => $askedCode !== null && $store->allowsCode($askedCode),
         'connected' => $store->connectedCount(),
         'stoppage' => $state['stoppage'],
+        // The stat strip, for the Studio's switch. Not admin-only in the
+        // RESPONSE — a commentator reading it learns only what a viewer can
+        // already see — while writing it stays the operator's.
+        'statline' => $state['statline'],
+        'statpin' => $state['statpin'],
         'writable' => $store->isWritable(),
         'admin' => $isAdmin,
     ];
@@ -159,9 +164,13 @@ if (!$isAdmin && !$byCode) {
 // are the same kind of fact -- something true about the game that nothing
 // records. Corrections sit with the presses: whoever can record possession can
 // fix what they recorded, and needs to be able to do it in the next second.
+//
+// `statline` and `statpin` are NOT in the code holder's list: they decide what
+// a viewer sees, which is the operator's call and the same line match control
+// draws around switching the scoreboard's source.
 $allowed = $isAdmin
     ? ['enabled', 'game', 'code', 'score', 'defence', 'ratio1', 'size', 'undo',
-        'clearPoint', 'at', 'stoppage']
+        'clearPoint', 'at', 'stoppage', 'statline', 'statpin']
     : ['score', 'defence', 'ratio1', 'size', 'undo', 'clearPoint', 'at', 'stoppage'];
 
 $change = [];

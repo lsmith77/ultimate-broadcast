@@ -125,7 +125,7 @@ final class Possession
     {
         return ['rev' => 0, 'enabled' => false, 'code' => null,
                 'ratio1' => null, 'size' => null, 'events' => [], 'stoppage' => null,
-                'touched' => 0];
+                'touched' => 0, 'statline' => false, 'statpin' => null];
     }
 
     /**
@@ -180,6 +180,26 @@ final class Possession
         return round(microtime(true), 3);
     }
 
+    /**
+     * A pinned statistic's id, or null for "let the ranking choose".
+     *
+     * A whitelist of shape rather than of ids: the fact list in
+     * `shared/facts.js` grows, and a store that had to be edited every time one
+     * was added would eventually reject a fact the page can produce. The reader
+     * yields to the ranking for an id it does not recognise, so an unknown one
+     * is inert rather than dangerous — and a pin that has stopped being true is
+     * dropped on the page, where the truth is known.
+     */
+    public static function cleanPin(mixed $raw): ?string
+    {
+        if (!is_string($raw)) {
+            return null;
+        }
+        $pin = trim($raw);
+
+        return preg_match('/^[a-z]{2,24}$/', $pin) === 1 ? $pin : null;
+    }
+
     /** A score key. Both readers and writers must agree on this exact shape. */
     public static function scoreKey(int $home, int $visitor): string
     {
@@ -206,6 +226,8 @@ final class Possession
             'events' => self::cleanEvents($decoded['events'] ?? []),
             'stoppage' => self::cleanStoppage($decoded['stoppage'] ?? null),
             'touched' => (int) ($decoded['touched'] ?? 0),
+            'statline' => (bool) ($decoded['statline'] ?? false),
+            'statpin' => self::cleanPin($decoded['statpin'] ?? null),
         ];
     }
 
@@ -279,6 +301,29 @@ final class Possession
                 // stoppage are not possession data and survive.
                 $state['events'] = [];
             }
+        }
+
+        /**
+         * The statistic strip on the scoreboard: on or off, and which fact.
+         *
+         * Kept here because it belongs to ONE GAME and this is the per-game
+         * operator store the scoreboard already polls on the ~1s channel — a
+         * new file would be a second poll for a boolean. It is admin-only at
+         * the endpoint, unlike the ratio and the line size beside it: those are
+         * facts about the game that a commentator or a scorekeeper is better
+         * placed to know, while this decides what reaches air, which stays the
+         * operator's (`MATCHCONTROL.md` — the scorekeeping code grants nothing
+         * upward).
+         *
+         * The pin is a preference, not an assertion: the page drops it the
+         * moment that fact stops being true, so a stale pin cannot hold
+         * something untrue on screen.
+         */
+        if (array_key_exists('statline', $change)) {
+            $state['statline'] = (bool) $change['statline'];
+        }
+        if (array_key_exists('statpin', $change)) {
+            $state['statpin'] = self::cleanPin($change['statpin']);
         }
 
         /**

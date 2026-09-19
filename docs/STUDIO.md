@@ -618,13 +618,21 @@ Both live in the bar under the card list, and both exist because the per-card sw
 
   It is disabled when nothing is on air, so it never reads as available when it would do nothing, and it gets the same hover treatment as a displacing click (§2.7): the cards it is about to take off air are flagged before the click, not after.
 
+### 9.2a The statistic strip, which is not a card
+
+A one-line strip above the scoreboard bug carrying one derived fact: a run, a comeback, straight clean O points, the scorer's game so far. Switched on per game from the possession bar, next to possession tracking, because half of what it can say comes from the possession log and it has less to work with when that is off.
+
+It is not a card and takes no slot. It belongs to the scoreboard, so it also works for crews who point a switcher at the bug and never open the stage. The Studio owns the switch because it decides what reaches a viewer; the scorekeeping code does not, which is the line match control already draws.
+
+What it may say, what it refuses to say, and why the thresholds are in `conf/local-config.php` rather than on this page: [`PLAN.md`](PLAN.md) §4b. On the last point: eleven number boxes in front of an operator whose job is directing is eleven more things to get wrong, and the control they would reach for is the on/off switch.
+
 ### 9.3 The three cards that are not about a goal
 
 `pregame`, `halftime` and `postgame` are **one renderer with three framings**, because they are the same question asked at different times: who are these teams, and what has happened so far. Three separate renderers would have meant three places to fix a layout and three chances for them to disagree.
 
 Each shows both sides with crest, seed and record, the score once there is one, and breaks per team. Breaks rather than holds, for the reason in §3.2 — every point is one or the other, so they sum to the score and holds carry no information breaks do not. They come from `classifyPoints()`, the same function the scoreboard uses, so the two can never disagree about what a break was, and `unresolved` is shown whenever it is non-zero rather than quietly counted as a hold.
 
-Card order on the control page is the store's `CARDS` order, and that is load-bearing. The scoreboard and the strips that ride with it share the frame and need positioning relative to each other, so they are grouped at the top where an operator coordinating positions is looking. Everything that takes the middle of the frame or the whole of it sits below, because it has nothing to coordinate with. Reshuffling that list for tidiness would undo the grouping.
+Card order on the control page is the store's `CARDS` order, and that ordering is deliberate. The scoreboard and the strips that ride with it share the frame and need positioning relative to each other, so they are grouped at the top where an operator coordinating positions is looking. Everything that takes the middle of the frame or the whole of it sits below, because it has nothing to coordinate with. Reshuffling that list for tidiness would undo the grouping.
 
 What the deleted pre-game stub wanted, and this does not do yet. `statistics/pregame.php` sat in the tree for months as a 501 returning stub with four hundred lines of markup below the `return`, kept as "the starting point for the Phase 2 port". The port happened by a different route — these cards — so the stub is gone, but it asked for four things the summary cards do not show, and they are worth keeping on the list:
 

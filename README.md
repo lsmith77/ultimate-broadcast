@@ -71,6 +71,7 @@ Everything below works in **both modes** unless a row says otherwise.
 | Game clock | Counts up, or down to the pool's time cap. Derived from `timer_start`, ticks locally between polls, corrected for server skew |
 | Caps | Half cap amber, time cap red, with the new point cap spelled out. Dropped once the game is not running |
 | Universe point | UNIVERSE POINT when both sides are one short of the game total, GALAXY POINT at the half. It follows a called cap rather than the scheduled target, and shows nothing where the tournament never recorded what the game is played to |
+| Stat strip | One fact above the bug — a run, a comeback, straight clean O points, the scorer's game — chosen automatically and switched on per game from the Studio. It shows nothing where the data does not support it, and changes between points rather than during one |
 | Kit colours | Entered in the Studio minutes before the pull. Neutral until both sides are set |
 | Team logos | Per-team files in `logos/`, falling back to Live!'s own team photos where there is a Live! |
 | Context ribbon | Pool, round, field |

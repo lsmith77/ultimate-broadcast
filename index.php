@@ -1667,6 +1667,41 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         mode.addEventListener('click', function () { setPossessionMode(!on); });
         bar.append(mode);
 
+        /**
+         * The statistic strip on the scoreboard.
+         *
+         * One switch and nothing else. What it says is `shared/facts.js`
+         * ranking what is true right now, and how big a run has to be before it
+         * counts is `fact_thresholds` in `conf/local-config.php` — an event's
+         * editorial taste, settled once, rather than eleven number boxes in
+         * front of somebody whose job is directing.
+         *
+         * It sits beside possession tracking because half of what it can say
+         * depends on it: clean O points and turnovers in the point exist only
+         * where somebody is watching the disc, and the strip silently has less
+         * to work with when this is off.
+         */
+        var strip = el('button', 'autobtn' + (possession.statline ? ' on' : ''));
+        strip.type = 'button';
+        strip.disabled = !showCanEdit();
+        strip.textContent = possession.statline ? 'Stat strip: on' : 'Stat strip: off';
+        strip.title = possession.statline
+            ? 'Stop showing a statistic above the scoreboard.'
+            : 'Show one fact about this game above the scoreboard — a run, a '
+                + 'comeback, clean O points — chosen automatically and only where '
+                + 'the data supports it. Changes between points, never during one.';
+        strip.setAttribute('aria-pressed', possession.statline ? 'true' : 'false');
+        strip.addEventListener('click', function () {
+            postPossession({ game: show.game || null, statline: !possession.statline })
+                .then(function (state) {
+                    flash(state.statline
+                        ? 'Stat strip is on.'
+                        : 'Stat strip is off.');
+                })
+                .catch(function (e) { alert(e.message); });
+        });
+        bar.append(strip);
+
         // "Score from:" used to sit here. It moved to scorekeeperBar(), beside
         // the code that decides who may keep that score — the two are one
         // decision and reading them in two places was how the source got

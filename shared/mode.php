@@ -160,6 +160,47 @@ final class Mode
     }
 
     /**
+     * How big a run has to be before the stat strip says so.
+     *
+     * `'fact_thresholds' => ['run' => 4, 'cleanRun' => 5]` in
+     * `conf/local-config.php`, merged over the defaults in
+     * `shared/facts.js`. Only the keys that module knows are honoured, and the
+     * module validates them again on the way in.
+     *
+     * Deliberately a config file rather than a control in the Studio. These are
+     * a tournament's editorial taste — how much of a run is worth a line —
+     * settled once for an event and the same for every game in it. Putting
+     * eleven number boxes in front of an operator whose job is directing would
+     * be eleven more things to get wrong during a broadcast, and the setting
+     * they would actually reach for is the on/off switch, which IS in the
+     * Studio.
+     *
+     * @return array<string,int>
+     */
+    public static function factThresholds(): array
+    {
+        if (!is_file(self::LOCAL_CONFIG)) {
+            return [];
+        }
+        $config = require self::LOCAL_CONFIG;
+        $raw = is_array($config) ? ($config['fact_thresholds'] ?? null) : null;
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $key => $value) {
+            // A threshold of zero makes its fact permanently true, which is a
+            // strip saying something meaningless after every goal.
+            if (is_string($key) && is_numeric($value) && (int) $value >= 1) {
+                $out[$key] = (int) $value;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Who is responsible for this installation.
      *
      * `'imprint' => ['Operator' => 'A Name', 'Address' => "…", 'Email' => '…']`

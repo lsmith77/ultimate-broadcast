@@ -212,6 +212,8 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
             <div class="callout-cell away"><span class="callout hide" id="awayCallout">Break chance</span></div>
         </div>
 
+        <div class="statline hide" id="statline"></div>
+
         <div class="bug">
             <div class="side home">
                 <img class="team-logo" id="homeLogo" alt="" style="display: none;">
@@ -261,6 +263,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 <script src="<?= htmlspecialchars($assetUrl('shared/stoppage.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/timeouts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/target.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/provider.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/overlay-client.js'), ENT_QUOTES) ?>"></script>
@@ -282,6 +285,9 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         size: <?= $json($size) ?>,
         plate: <?= $json($plate) ?>,
         ribbon: <?= $json($ribbon) ?>,
+        // How big a run has to be before the stat strip says so. Config, not a
+        // control: see Overlays\Mode::factThresholds().
+        factThresholds: <?= $json(\Overlays\Mode::factThresholds()) ?>,
         demo: <?= $json($demo) ?>,
         demoStep: <?= (int) $demoStep ?>,
         // Declared possession, read as a static file so it can move at the pace
@@ -303,7 +309,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
 
     var el = {};
     ['connectionStatus', 'connectionIndicator', 'connectionText', 'loadingState',
-     'scoreboard', 'errorDisplay', 'errorMessage', 'ribbon', 'centre', 'clock', 'segment',
+     'scoreboard', 'errorDisplay', 'errorMessage', 'ribbon', 'statline', 'centre', 'clock', 'segment',
      'calloutRow', 'homeCallout', 'awayCallout', 'demoLabel',
      'homeName', 'homeScore', 'homeLogo', 'homeLogoPlaceholder', 'homeSeed',
      'homeBlock', 'homeTimeouts',
@@ -610,7 +616,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
                 var next = (state && Array.isArray(state.events)) ? state : { enabled: false, events: [] };
                 var changed = next.enabled !== declared.enabled || next.rev !== declared.rev;
                 declared = next;
-                if (changed) { paintCallouts(); paintRibbon(); }
+                if (changed) { paintCallouts(); paintRibbon(); paintStatline(); }
             })
             .then(function () { setTimeout(pollDeclared, CONFIG.possessionPoll); });
     }
@@ -635,6 +641,71 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         }
         el.ribbon.textContent = text;
         el.ribbon.className = text ? 'ribbon' : 'ribbon hide';
+    }
+
+    /**
+     * The statistic strip: one fact about this game, or nothing.
+     *
+     * Switched on per game from the Studio and stored beside possession, so it
+     * arrives on the same ~1s channel and costs no extra poll.
+     *
+     * IT CHANGES BETWEEN POINTS, NEVER DURING ONE. A strip that rewrites itself
+     * while the disc is in the air pulls the eye off the play, and the facts it
+     * carries are all about completed points anyway — nothing it could say
+     * mid-point is newer than the last goal. So the chosen fact is held until
+     * the goal count moves, which also keeps it still while the 1s channel
+     * reports possession presses underneath it.
+     *
+     * `Facts` refuses to claim anything it cannot support, so an empty answer
+     * is normal and means the strip hides rather than reaching for filler.
+     */
+    var statShown = null;
+
+    function paintStatline(payload) {
+        payload = payload || lastRendered;
+        if (!el.statline) { return; }
+        /**
+         * Never on a post-production frame.
+         *
+         * `?at=` exists to draw ONE deterministic frame: the same arguments
+         * must produce the same picture every time, which is what makes a
+         * burnt-in overlay reproducible. The strip cannot promise that — it is
+         * switched on by an operator in the present, and arrives on a poll that
+         * may land before or after the frame is captured, so the same command
+         * would sometimes carry a statistic and sometimes not. The score, the
+         * clock and the caps are all functions of the truncated payload; this
+         * is the one thing on the bug that is not.
+         */
+        if (!payload || CONFIG.offline || !declared || !declared.statline || !window.Facts) {
+            el.statline.className = 'statline hide';
+            el.statline.textContent = '';
+            statShown = null;
+            return;
+        }
+
+        var goals = (payload.goals || []).length;
+        var pin = declared.statpin || null;
+        // Held between points: same point, same pin, same strip.
+        if (statShown && statShown.goals === goals && statShown.pin === pin) { return; }
+
+        var info = payload.game_info || {};
+        var teams = payload.teams || {};
+        var fact = window.Facts.best({
+            goals: payload.goals || [],
+            gameevents: payload.gameevents || [],
+            pool: payload.poolinfo || {},
+            declared: declared,
+            startingOffence: startingOffence(payload.gameevents || []),
+            thresholds: CONFIG.factThresholds,
+            names: {
+                home: info.hometeamname || (teams.hometeam || {}).name || '',
+                away: info.visitorteamname || (teams.visitorteam || {}).name || ''
+            }
+        }, pin);
+
+        statShown = { goals: goals, pin: pin };
+        el.statline.textContent = fact ? fact.text : '';
+        el.statline.className = fact ? 'statline' : 'statline hide';
     }
 
     /**
@@ -997,12 +1068,25 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
      */
     var lastPayload = null;
 
+    /**
+     * The payload actually DRAWN, after the score source was applied.
+     *
+     * Kept apart from `lastPayload` because they are different answers whenever
+     * match control is the source: one is Live!'s game, the other is the one on
+     * screen. Anything the ~1s channel repaints must use this one, or a surface
+     * ends up describing a game the board is not showing — which is how the
+     * stat strip came to talk about upstream's fourteen goals beside a local
+     * score of three.
+     */
+    var lastRendered = null;
+
     function render(payload) {
         lastPayload = payload;
         // Before anything reads it: every derivation below — the score, the
         // clock, hold and break, the point number — then works on one payload
         // without knowing or caring which answer it holds.
         payload = window.ScoreSource.merge(payload, localScore);
+        lastRendered = payload;
         var result = payload.game_result || {};
         var info = payload.game_info || {};
         var pool = payload.poolinfo || {};
@@ -1095,6 +1179,7 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         ribbonContext = [season.name, pool.name || info.poolname, info.gamename]
             .filter(Boolean).join(' · ');
         paintRibbon();
+        paintStatline(payload);
 
         el.loadingState.style.display = 'none';
         el.errorDisplay.style.display = 'none';
@@ -1141,6 +1226,13 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
         if (outcomeTimer) { clearTimeout(outcomeTimer); outcomeTimer = null; }
         possession = { live: false, breaking: null };
         ribbonContext = '';
+        // A field-following board changes game under itself, and both of these
+        // are ABOUT a game. The strip is held between points by comparing the
+        // goal count, so a new game that happens to be on the same count would
+        // have kept the previous game's sentence on air -- a true statement
+        // about a match that is no longer in front of the camera.
+        statShown = null;
+        lastRendered = null;
     }
 
     function buildClient() {
@@ -1225,6 +1317,12 @@ $json = static fn ($value): string => json_encode($value, JSON_UNESCAPED_SLASHES
     } else if (CONFIG.demo) {
         // One real fetch for the payload shape, then the script drives it. The
         // poll loop never starts, so nothing overwrites a demo frame.
+        //
+        // Including the stat strip, which is why it is switched on here: the
+        // demo is the showcase of every display state and the poll that would
+        // normally carry the operator's switch is exactly what is not running.
+        // Without this the one state the demo cannot show is the newest one.
+        declared.statline = true;
         el.demoLabel.classList.remove('hide');
         client.fetchGame()
             .then(function (base) {

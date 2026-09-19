@@ -251,6 +251,68 @@ Every game response carries the whole `uo_pool` row as `poolinfo`. With UltiOrga
 
 **Known gap: `?size=compact` drops the segment line**, so the badge does not appear there. That follows the compact bug's rule — standing context goes, outcome callouts stay — though a decider arguably belongs with the callouts. Left as it is for now.
 
+### 4b. The statistic strip: one fact, and everything it refuses to say
+
+A strip above the bug carrying a single sentence about the game — `PONY: 3 IN A ROW`, `REVOLVER: 5 STRAIGHT CLEAN O POINTS`. It is switched on per game from the Studio, and the facts come from `shared/facts.js`, tested directly in `tests/e2e/facts.spec.js`.
+
+This is the broadcast half of what `COMMENTATOR.md` §2 asked for: commentators use talking points rather than tables, so a surface that answers "what is interesting right now?" beats one that answers "what are all the numbers?". The desk-side half, prepared talking points (§5a), is typed by a person; this one is derived. The spotter and the auto-surfacing engine there remain unbuilt.
+
+**What it can say, and what each fact costs:**
+
+| from | facts |
+|---|---|
+| the goal list alone | a run of points, breaks in a row, straight holds, a break count, a comeback from N down, a callahan, the player who just scored and their goals and assists in this game |
+| `gameevents` | a side with no timeouts left; the second-half split, where goal times exist |
+| the possession log, tracked points only | straight clean O points, clean holds, turnovers in the point that just ended, break-chance conversion |
+
+**What it refuses to say, and why.** A wrong statistic looks normal on air and stays wrong for as long as it is up, so each of these is a case where the strip says nothing instead.
+
+- **An untracked point is unknown, not clean.** A run of clean O points stops at the first of that team's points nobody was watching — the same positive-evidence rule `wasCleanHold()` uses for the CLEAN HOLD callout.
+- **Clean O points are a team's own offensive points, not consecutive goals.** Counting goals makes the fact unreachable whenever teams are trading points, which is most games, and reachable only during a scoring run, when it is least interesting.
+- **An unresolved point counts as neither a hold nor a break.** This is narrower than it sounds: with no recorded starting offence only the *first* point is unknown, because whoever concedes receives next and the chain re-establishes itself. A gap in the goal numbers breaks it again, as `classifyPoints()` does.
+- **Timed facts check that times exist.** Some tournaments record none, and every goal then reads as time 0, so the second-half split is omitted rather than attributed to nobody.
+- **A player fact needs a recorded scorer.** `scorer` is often null — match control does not collect it — so the fact is omitted.
+- **Nothing the board already says.** The score carries the lead, so there is no "lead by 2".
+- **It changes between points, never during one.** A strip that rewrites itself while the disc is in the air pulls the eye off the play, and every fact it carries is about a completed point.
+
+**Two gaps.** The store validates a pinned fact id (`statpin`) and the board honours it, but nothing sets one: the operator's veto is the on/off switch, which takes the whole strip off rather than one fact. A pin control needs the Studio to render the live candidate list, which means the payload, the possession log and `facts.js` on that page. The strip is also absent from the compact bug, since `?size=compact` drops standing context.
+
+**Thresholds are configuration, not a control.** `'fact_thresholds' => ['run' => 4, 'cleanRun' => 5]` in `conf/local-config.php`, merged over the defaults in `shared/facts.js`. How long a run has to be before it is worth a line is an event's editorial taste, set once; eleven number boxes in the Studio would be eleven more things to get wrong during a broadcast. A threshold below 1 is refused, because it would make its fact permanently true.
+
+**Not built, and what each would need:**
+
+- **Time of possession.** Genuinely possible, and more work than a fact: the possession log stamps each press with wall-clock time, so a point's share can be split — but the point's boundaries come from somewhere else. Hosted that is the goal's `time` in game seconds, which means reconciling two time bases (the overlay already knows `timer_start` and the paused duration, so the conversion exists); under match control the goals carry wall-clock `at` and the two are directly comparable. It needs three things this does not have: a decision about the untracked head and tail of a point, exclusion of stoppages so a timeout is not counted as possession, and a refusal where either boundary is missing. A biased percentage is worse than no percentage.
+- **Playing time — "on for more than half the points".** Derivable now, at the desk. It was written up here as impossible on the grounds that no line data exists upstream, which is true and beside the point. **The commentary desk knows the line every point** — picking it is what that surface is for — and the reason the history did not exist was a storage decision in this project, not a gap in the data: `shared/lines.php` kept one current selection per team and overwrote it. It now keeps a per-point record, `shared/playingtime.js` derives from it, and the quick card carries it. Reaching the SCOREBOARD is the part still open — see §4c.
+- **Blocks in this game.** `deftotal` is a tournament total on the roster row, for completed games, only where `ShowDefenseStats` is on. There is no per-game block list in any payload.
+- **Tournament totals on the strip** — top scorer, seeds, records. These need `entity=teams`, a fetch per side the bug does not make, and the arm/show rule applies.
+
+**Known duplication.** `Facts.points()` walks the goal list the way `classifyPoints()` (aggregate counts) and `wasCleanHold()` (the last point) already do, which makes three walks. They agree today and are tested to, but this is the pattern `AGENTS.md` warns about. Folding the other two onto `Facts.points()` is mechanical; it was left out because both sit on the live callout path of the scoreboard and no hosted instance was available to verify the change.
+
+### 4c. Who was on the field, and what follows from it
+
+Nothing upstream records a line: no table, no payload, and `UPSTREAM.md` carries the ask. The commentary desk knows it anyway, because picking the line every point is what that surface is for. What was missing was the record, not the knowledge — `shared/lines.php` kept one current selection per team and overwrote it on every change.
+
+It now keeps a per-point history, keyed by the score the point started at — the same key the possession store uses, so the two can be joined without being a point out. `shared/playingtime.js` derives from it, tested in `tests/e2e/playingtime.spec.js`.
+
+**What makes it trustworthy is when a point is not recorded.** The desk's line carries over between points (`resetFor()` clears the injury prompt at a goal, not the line), because substitutions are edited incrementally rather than by re-picking seven players. A snapshot at every goal would therefore copy the previous point's line into every point nobody was watching, and playing time built on that over-counts the players who were on earlier. So a point is recorded only where somebody said it was this point's line:
+
+- **an edit during the point**, which happens automatically while a desk is substituting, and
+- **a "Same line again" tap**, for the case an edit-only rule loses: a settled O-line going out unchanged.
+
+Every number derived from that record carries the denominator it was measured over:
+
+| fact | where it is |
+|---|---|
+| **Playing time** — "on for 9 of 11 points" | the quick card, above the season line. Never a percentage: the denominator is the points the desk confirmed, not the points played, and a share that hides the difference is the number on that card most likely to be wrong while looking right |
+| **Coverage** — "8 of 14 points recorded" | under each on-field panel, so a desk that has stopped keeping up sees it at the time rather than later, in a figure that looked complete |
+| **Units and crossovers** — "Crossed from the O line at 2-3" | the quick card. A team's O points are the ones they received, so a player's unit is inferred from where they have played, and a crossover is an established O-line player taking a D point. It happens late in close games and around half |
+
+**Crossovers refuse more than they claim.** A player has a unit only after a run of points in one unit and none in the other, so their first appearance in the other one is a real crossing rather than a rotation. For teams that do not split O and D, nothing is shown at all. Once a player has crossed, their unit is no longer clear and they stop being reported, because the fact is the crossing rather than a label. A point whose receiver is unknown counts towards neither unit.
+
+**Still open: none of this reaches the scoreboard.** The obstacle is not the derivation. The line history lives in a commentary room addressed by a code that is a namespace rather than a credential, and the board cannot read one. Publishing that code into the per-game store the scoreboard polls would put it in a world-readable file, and the same code addresses the notes room, which holds what a desk wrote about named people. Two routes to weigh when it is built: the desk writing a derived summary into the possession store it may already write to, or the operator holding the code in the Studio and publishing the summary from there. Either way the number reaching air is computed at a desk, like declared possession, and has to be labelled as recorded rather than played.
+
+**A room can be reset.** `POST {"clearPoints": true}` forgets the recorded points and keeps the current lines: for a desk that recorded the wrong game, and for the screenshot recipe, which has to leave a room as it found it or the committed shots differ on every run.
+
 ### Scoreboard feature reference
 
 | feature | notes |

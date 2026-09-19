@@ -625,6 +625,50 @@ body {
    because one reference carries a ribbon and the other deliberately does not.
    --------------------------------------------------------------------------- */
 
+/**
+ * The statistic strip, above the bug.
+ *
+ * Deliberately quieter than the callouts that sit above it and louder than the
+ * ribbon below. A hold or a break is worth exactly the seconds after a goal and
+ * shouts; the ribbon is standing context nobody needs to read; this is one fact
+ * somebody might want to read once, and then not again until it changes.
+ *
+ * Its own row rather than a corner of the bug: the facts are sentences of
+ * varying length and the bug's columns are measured to the pixel (`PLAN.md`
+ * §4), so a variable-width string inside it would push the score around.
+ *
+ * `hide` rather than an empty box, because an empty strip above the scoreboard
+ * reads as a graphic that failed to load.
+ */
+.statline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    margin-bottom: 2px;
+    padding: 0 18px;
+    overflow: hidden;
+    background: rgb(11 15 20 / 88%);
+    border-radius: var(--bug-radius) var(--bug-radius) 0 0;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.statline.hide {
+    display: none;
+}
+
+/* The compact bug drops standing context; a fact is exactly that. Same rule as
+   the seed, the timeouts and the ribbon -- the callouts are what survive. */
+.scoreboard.compact .statline {
+    display: none;
+}
+
 .ribbon {
     display: flex;
     align-items: center;

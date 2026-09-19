@@ -339,6 +339,7 @@ Standalone none of this table applies: there is no `uo_setting`, no Live! admin 
 | **Pool: timeouts** | `uo_pool.timeouts`, `timeoutsper` | unset | The allowance drawn as ticks under each team name. `timeoutsper: "half"` resets the allowance at half time, so only timeouts after the `half_cap` event count in the second half |
 | **Pool: game points** | `uo_pool.winningscore`, pool settings | unset | What the game is played to. Set, the scoreboard can call UNIVERSE POINT at 14-14 of a game to 15. Unset, neither decider is shown, because there is no agreed target to be one point short of. `PLAN.md` §4a |
 | **Pool: halftime at point** | `uo_pool.halftimescore`, pool settings | unset | Where GALAXY POINT falls. Unset, it is derived as `floor(game points / 2) + 1` — game to 15, galaxy point at 7-7. Note `uo_pool.halftime` is a different field: the length of the break, in minutes |
+| `fact_thresholds` | `conf/local-config.php` | unset | How long a run has to be before the stat strip says so — `['run' => 4, 'cleanRun' => 5]`, merged over the defaults in `shared/facts.js`. Set once per event, and not a control in the Studio. `PLAN.md` §4b |
 | `CACHE_MINUTES_MODULATOR` | Live! admin | `1.0` | How long game data is cached. **Upstream documents this as "do not lower below 1.0"** — lowering it to chase score latency is not the supported route. See `PLAN.md` §6 for what is |
 
 Two preconditions that are not settings at all, and between them account for most of "the overlay is not working":

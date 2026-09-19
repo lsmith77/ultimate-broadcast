@@ -1400,6 +1400,162 @@ test.describe('the point that decides it', () => {
   });
 });
 
+test.describe('the statistic strip', () => {
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  test('an operator switches it on, and only an operator can', async ({ page, browser }) => {
+    test.setTimeout(90000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    const score = (d) => page.request.post('/app.php?view=score', { data: d });
+    const poss = (d) => page.request.post('/app.php?view=possession', { data: d });
+
+    await score({ game: 702, code: 'ABCDE' });
+    await clearLocalScore(page.request, 702);
+    await score({ game: 702, enabled: true });
+
+    const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const s = await board.newPage();
+    try {
+      await s.goto(`${base}/app.php?view=scoreboard&game=702`);
+      await expect(s.locator('#homeScore')).toHaveText('0', { timeout: 5000 });
+
+      // Off by default: a strip nobody asked for must not appear on air.
+      await expect(s.locator('#statline')).toBeHidden();
+
+      await poss({ game: 702, statline: true });
+      // Still nothing to say at 0-0 — an empty answer is a normal one, and the
+      // strip stays hidden rather than reaching for filler.
+      await expect(s.locator('#statline')).toBeHidden();
+
+      // Three in a row, which is a fact it will state -- and the fixture game
+      // records the starting offence, so two of the three are breaks and the
+      // ranking prefers saying that over the plain run.
+      for (let num = 1; num <= 3; num += 1) {
+        await score({ game: 702, code: 'ABCDE', goal: { home: true, num } });
+      }
+      await expect(s.locator('#statline')).toBeVisible({ timeout: 5000 });
+      await expect(s.locator('#statline')).toContainText(/2 breaks in a row/i);
+
+      // Measured rather than eyeballed: the facts are sentences of varying
+      // length, and one that overflows its row is a graphic with a word cut off.
+      const fit = await s.locator('#statline').evaluate((n) => ({
+        scroll: n.scrollWidth, client: n.clientWidth,
+      }));
+      expect(fit.scroll, 'the strip is not clipped').toBeLessThanOrEqual(fit.client + 1);
+
+      /**
+       * It must keep describing the game ON SCREEN, not the upstream one.
+       *
+       * The capture's own game is 8-6 with fourteen goals; match control is the
+       * source here and the board is showing three. The strip is repainted from
+       * the ~1s possession channel as well as from the game poll, and that
+       * channel used to hand it the UNMERGED payload — so a second after a
+       * correct strip appeared, it would start stating facts about a fourteen
+       * goal game beside a score of three. Two answers about one game, which is
+       * exactly what switching the source is supposed to prevent.
+       */
+      // Turning possession tracking on changes the possession document, which
+      // is what makes the board repaint the strip from the ~1s channel rather
+      // than from the game poll. That is the path with the bug in it.
+      await poss({ game: 702, enabled: true });
+      // SAMPLED rather than awaited, because the wrong state is transient: the
+      // game poll repairs it within a few seconds, so a retrying assertion
+      // would wait the defect out and pass. Upstream's game would say "6
+      // straight holds" here -- it is 8-6 with fourteen goals, and the board is
+      // showing three.
+      const seen = new Set();
+      for (let i = 0; i < 15; i += 1) {
+        seen.add(await s.locator('#statline').textContent());
+        await s.waitForTimeout(200);
+      }
+      expect([...seen].join(' | '), 'never upstream\'s game beside a local score')
+        .not.toMatch(/straight holds/i);
+      await poss({ game: 702, enabled: false });
+
+      await poss({ game: 702, statline: false });
+      await expect(s.locator('#statline')).toBeHidden({ timeout: 5000 });
+    } finally {
+      await poss({ game: 702, statline: false });
+      await score({ game: 702, enabled: false });
+      await clearLocalScore(page.request, 702);
+      await board.close();
+    }
+  });
+
+  test('the demo shows it, because the demo is the showcase of every state', async ({ browser }) => {
+    // The poll that carries the operator's switch is exactly the one the demo
+    // does not run, so without a deliberate nudge the newest display state is
+    // the one state `?demo=1` cannot show.
+    const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const s = await board.newPage();
+    try {
+      // A short step so the walk reaches a point with something to say quickly.
+      await s.goto('/app.php?view=scoreboard&game=702&demo=1&step=600');
+      await expect(s.locator('#statline')).toBeVisible({ timeout: 20000 });
+      await expect(s.locator('#statline')).not.toBeEmpty();
+    } finally {
+      await board.close();
+    }
+  });
+
+  test('never on a post-production frame, which has to be reproducible', async ({ page, browser }) => {
+    // `?at=` draws ONE deterministic frame, and the strip is the only thing on
+    // the bug that is not a function of the payload: it is switched on by an
+    // operator in the present and arrives on a poll, so the same command would
+    // sometimes carry a statistic and sometimes not.
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    await page.request.post('/app.php?view=possession', { data: { game: 702, statline: true } });
+
+    const board = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const s = await board.newPage();
+    try {
+      // Goals enough that the live strip would have plenty to say.
+      await s.goto(`${base}/app.php?view=scoreboard&game=702&at=600&goals=8`);
+      await s.waitForFunction(() => document.documentElement.dataset.rendered === '1',
+        null, { timeout: 15000 });
+      await expect(s.locator('#homeScore')).not.toHaveText('0');
+      // Sampled, because the thing being excluded arrives on a timer.
+      for (let i = 0; i < 10; i += 1) {
+        await expect(s.locator('#statline')).toBeHidden();
+        await s.waitForTimeout(200);
+      }
+    } finally {
+      await page.request.post('/app.php?view=possession', { data: { game: 702, statline: false } });
+      await board.close();
+    }
+  });
+
+  test('a scorekeeping code cannot turn it on', async ({ page, browser }) => {
+    // Same line match control draws: the code lets somebody keep the score, and
+    // grants nothing upward about what reaches air.
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    const base = new URL(page.url()).origin;
+    await page.request.post('/app.php?view=possession', { data: { game: 914, code: 'ABCDE' } });
+
+    const phone = await browser.newContext();
+    const res = await phone.request.post(`${base}/app.php?view=possession`, {
+      data: { game: 914, code: 'ABCDE', statline: true },
+    });
+    // The write itself is accepted — the code may record possession — but the
+    // strip is not in the fields it may set, so it must not have changed.
+    expect(res.status()).toBe(200);
+    const after = await (await page.request.get('/app.php?view=possession&game=914')).json();
+    expect(after.statline, 'the code holder did not change what is on air').toBe(false);
+    await phone.close();
+  });
+});
+
 test.describe('admin gating without Live!', () => {
   test('this really is a hostless tree', async ({ request }) => {
     // The assertion that gives the rest of this block its meaning. If an

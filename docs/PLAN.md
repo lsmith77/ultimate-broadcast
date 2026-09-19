@@ -220,6 +220,37 @@ What was learned building it, all verified by measurement rather than inspection
 - **Seed replaces the win-loss record.** A record of 1-0 on day one carries almost no information; a seed is meaningful all week and costs one glyph.
 - **Colour must never be the only signal.** Measured with a deuteranope simulation: solid green against solid red is 1.50:1 in normal vision and **1.18:1** for a deuteranope — two indistinguishable blocks. Hold and break therefore separate by *lightness* as well as hue (light green block with dark text, dark red block with white text): 5.70:1 and 4.79:1. The words carry the meaning; colour only reinforces.
 
+### 4a. What the game is played to, and the point that decides it
+
+A scoreboard can say "universe point" only if it knows what the game ends on. That number is already in every payload, so this needed nothing from upstream. Four of the five fields involved are easy to mistake for each other, so the derivation lives in one place, `shared/target.js`, tested in `tests/e2e/target.spec.js`.
+
+Every game response carries the whole `uo_pool` row as `poolinfo`. With UltiOrganizer's own admin labels (`admin/addseasonpools.php`):
+
+| field | label | what it is |
+|---|---|---|
+| `winningscore` | Game points | the score the game is played to |
+| `halftimescore` | Halftime at point | the score the break falls at |
+| `halftime` | Halftime | the **length of the break in minutes** — not a score |
+| `timecap` | Time cap | **minutes**, the clock's limit; the countdown already uses it |
+| `scorecap` | Point cap | a ceiling on the score, not the target |
+| `addscore` | Additional points after time cap | cap-plus-N |
+
+`game_info` repeats `timecap`, `scorecap`, `winningscore` and `drawsallowed`, from `GameInfo()` in `lib/game.functions.php`. Only the pool row carries `halftimescore` and `addscore`.
+
+**The rules, and what each prevents:**
+
+- **A decider needs the scores level, one short of the target.** One side on game point is not universe point: it can be held off, and the board would stay wrong for as long as the game continued.
+- **A called cap replaces the target.** `half_cap` and `time_cap` carry the new point cap in `info` ("Time cap 6.45 - new point cap 4"), so 8-8 under a cap of 9 is universe point while 14-14 against the scheduled 15 is not. The cap resolution moved out of `scoreboard.php` into `shared/target.js` rather than being copied.
+- **After any cap there is no galaxy point.** Half is taken at the end of the current point by the clock, not at a score.
+- **No recorded game target, no badge.** An unset `winningscore` means the installation never agreed a target. That rules out galaxy point too, because the half fallback is derived from the game target.
+- **`halftimescore` is usually unset, so it is derived as `floor(target / 2) + 1`** — game to 15, half at 8, galaxy point at 7-7. This is not half rounded up: on an even target the two differ, and a game to 14 breaks at 8. The return value flags the derived case so a later reader can tell an inference from a record.
+- **`scorecap` is never the target.** It is the ceiling a score may reach, and using it would announce universe point a goal or two early.
+- **Never on a finished game.** A capped game where draws are allowed can end level, and 14-14 final would otherwise keep the badge.
+
+**Standalone wrote the half target into the wrong field.** `shared/event.php` stored it as `halftime` — the break-length field — with a comment saying Live! spells it that way. It does not. A reader of the half target would have been right in one mode and wrong in the other (35 hosted, nothing standalone). The authored key is now `halftimescore`; the old spelling is still read, so existing `conf/event.json` files keep working, and standalone omits `halftime` rather than sending a score under a duration's name.
+
+**Known gap: `?size=compact` drops the segment line**, so the badge does not appear there. That follows the compact bug's rule — standing context goes, outcome callouts stay — though a decider arguably belongs with the callouts. Left as it is for now.
+
 ### Scoreboard feature reference
 
 | feature | notes |

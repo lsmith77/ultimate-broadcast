@@ -8,7 +8,7 @@ A release is a git tag and the source archive GitHub builds from it. There is no
 
 ## Unreleased
 
-Nothing yet.
+- `deploy.sh --version v0.7.0` and `deploy.sh --latest` deploy a release rather than the working directory, from a temporary git worktree, so this directory is untouched and `dirty` stays honest. `--show` prints what would be sent without sending it. [`docs/DEPLOY.md`](docs/DEPLOY.md) §4.
 
 ## v0.7.0 — 2026-09-19
 

@@ -45,7 +45,7 @@ Run from a clean checkout of `main`.
    gh release create v0.7.0 --title "v0.7.0" --notes-file <(sed -n '/^## v0.7.0/,/^## v0.6/p' CHANGELOG.md)
    ```
 
-6. **Deploy from the tag** if the public installation should run it (`./deploy.sh`), and check the site agrees:
+6. **Deploy from the tag** if the public installation should run it — `./deploy.sh --latest`, which deploys the newest tag from a temporary worktree rather than from whatever is in the working directory — and check the site agrees:
 
    ```
    curl -s https://ultimate-broadcast.org/version.json

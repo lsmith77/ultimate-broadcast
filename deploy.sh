@@ -4,8 +4,23 @@
 # Copy deploy.env.example to deploy.env and fill it in. deploy.env is gitignored
 # and never committed.
 #
-#   ./deploy.sh          deploy
-#   ./deploy.sh -n       dry run: exactly what would change, nothing sent
+#   ./deploy.sh                    deploy this directory, as it stands
+#   ./deploy.sh -n                 dry run: exactly what would change, nothing sent
+#   ./deploy.sh --version v0.7.0   deploy that tag (or any commit-ish)
+#   ./deploy.sh --latest           deploy the newest tag, fetching first
+#   ./deploy.sh --version v0.7.0 --show   print what that would send, and stop
+#
+# WHY A VERSION IS NOT "CHECK IT OUT FIRST"
+#
+# Because `git checkout v0.7.0 && ./deploy.sh` leaves a detached HEAD behind,
+# and the next deploy from that state silently ships the old tag again — with
+# no symptom until somebody asks why a fix is not live. It also cannot be done
+# with edits in progress without stashing them, and a tag deployed from a dirty
+# tree is not the tag it claims to be.
+#
+# So a version is deployed from a temporary git worktree instead: this
+# directory is never touched, `dirty` is honestly false, and the worktree is
+# removed afterwards however the script exits.
 #
 # THE TWO THINGS THIS SCRIPT EXISTS TO GET RIGHT
 #
@@ -27,15 +42,99 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/deploy.env"
 
-if [[ ! -f "$ENV_FILE" ]]; then
+# ---------------------------------------------------------------------------
+# Which version, and where its files come from.
+#
+# Everything not understood here is passed through to rsync, which is how -n
+# and --dry-run have always worked.
+# ---------------------------------------------------------------------------
+REF=""
+SHOW=false
+ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version)
+      [[ $# -ge 2 ]] || { echo "deploy: --version needs a tag or commit" >&2; exit 2; }
+      REF="$2"
+      shift 2
+      ;;
+    --latest)
+      REF="latest"
+      shift
+      ;;
+    --show)
+      SHOW=true
+      shift
+      ;;
+    -h|--help)
+      sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *)
+      ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+# The directory whose contents get sent. This one, unless a version was asked
+# for, in which case a worktree replaces it below.
+SRC="$SCRIPT_DIR"
+WORKTREE=""
+
+cleanup() {
+  [[ -n "${SCRATCH_VERSION:-}" ]] && rm -f "$SCRATCH_VERSION"
+  if [[ -n "$WORKTREE" ]]; then
+    git -C "$SCRIPT_DIR" worktree remove --force "$WORKTREE" >/dev/null 2>&1 || rm -rf "$WORKTREE"
+  fi
+}
+trap cleanup EXIT
+
+if [[ -n "$REF" ]]; then
+  git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "deploy: --version needs a git checkout; this is not one" >&2
+    exit 1
+  }
+
+  if [[ "$REF" == "latest" ]]; then
+    # Tags somebody else pushed are not here yet. A fetch that fails (no
+    # network, no remote) is not fatal — it just means "newest I know of",
+    # which is said out loud rather than assumed.
+    git -C "$SCRIPT_DIR" fetch --tags --quiet 2>/dev/null \
+      || echo "deploy: could not fetch tags; using the ones already here" >&2
+    REF="$(git -C "$SCRIPT_DIR" tag --sort=-v:refname | head -n 1)"
+    [[ -n "$REF" ]] || { echo "deploy: --latest, but this checkout has no tags" >&2; exit 1; }
+    echo "==> latest tag is $REF"
+  fi
+
+  git -C "$SCRIPT_DIR" rev-parse --verify --quiet "${REF}^{commit}" >/dev/null || {
+    echo "deploy: no such version: $REF" >&2
+    exit 1
+  }
+
+  # Outside this directory on purpose: a worktree nested inside it would be
+  # copied to the server by the very rsync it exists to feed.
+  WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/uo-deploy.XXXXXX")"
+  git -C "$SCRIPT_DIR" worktree add --detach --quiet "$WORKTREE" "$REF"
+  SRC="$WORKTREE"
+fi
+
+if [[ ! -f "$ENV_FILE" ]] && [[ "$SHOW" == true ]]; then
+  ENV_FILE=""   # --show contacts nothing, so it needs no destination
+elif [[ ! -f "$ENV_FILE" ]]; then
   echo "Error: $ENV_FILE not found. Copy deploy.env.example and fill it in." >&2
   exit 1
 fi
 
-# shellcheck source=deploy.env
-source "$ENV_FILE"
-
-: "${REMOTE:?deploy.env must define REMOTE}"
+if [[ -n "$ENV_FILE" ]]; then
+  # shellcheck source=deploy.env
+  source "$ENV_FILE"
+  : "${REMOTE:?deploy.env must define REMOTE}"
+else
+  REMOTE="(nowhere — --show)"
+fi
 
 # Recent macOS ships openrsync as /usr/bin/rsync, which does not implement every
 # flag below. Prefer a real rsync when one is installed; deploy.env can pin it.
@@ -73,17 +172,28 @@ echo "==> $REMOTE"
 # — most deployments are not releases, and this says so rather than rounding
 # down to the last tag. See docs/RELEASES.md.
 # ---------------------------------------------------------------------------
-VERSION_FILE="$SCRIPT_DIR/version.json"
+VERSION_FILE="$SRC/version.json"
 
-if command -v git >/dev/null 2>&1 && git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
-    COMMIT="$(git -C "$SCRIPT_DIR" rev-parse HEAD)"
-    SHORT="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)"
-    COMMITTED="$(git -C "$SCRIPT_DIR" log -1 --format=%cI)"
-    SUBJECT="$(git -C "$SCRIPT_DIR" log -1 --format=%s)"
-    BRANCH="$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD)"
+# --show without a version would otherwise rewrite this checkout's own
+# version.json, which is the record of the last real deploy. Looking is not
+# deploying, so it writes somewhere it can throw away.
+if [[ "$SHOW" == true ]] && [[ -z "$WORKTREE" ]]; then
+    VERSION_FILE="$(mktemp "${TMPDIR:-/tmp}/uo-version.XXXXXX")"
+    SCRATCH_VERSION="$VERSION_FILE"
+fi
+
+if command -v git >/dev/null 2>&1 && git -C "$SRC" rev-parse --git-dir >/dev/null 2>&1; then
+    COMMIT="$(git -C "$SRC" rev-parse HEAD)"
+    SHORT="$(git -C "$SRC" rev-parse --short HEAD)"
+    COMMITTED="$(git -C "$SRC" log -1 --format=%cI)"
+    SUBJECT="$(git -C "$SRC" log -1 --format=%s)"
+    BRANCH="$(git -C "$SRC" rev-parse --abbrev-ref HEAD)"
     # --always so a checkout with no tags at all still says something.
-    RELEASE="$(git -C "$SCRIPT_DIR" describe --tags --always 2>/dev/null || echo '')"
-    if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then DIRTY=true; else DIRTY=false; fi
+    RELEASE="$(git -C "$SRC" describe --tags --always 2>/dev/null || echo '')"
+    # A worktree is detached, so `branch` would read HEAD and say nothing. The
+    # version asked for is the true answer to "what was deployed from".
+    if [ "$BRANCH" = "HEAD" ] && [ -n "$REF" ]; then BRANCH="$REF"; fi
+    if [ -n "$(git -C "$SRC" status --porcelain)" ]; then DIRTY=true; else DIRTY=false; fi
 else
     COMMIT=""; SHORT="unknown"; COMMITTED=""; SUBJECT=""; BRANCH=""; RELEASE=""; DIRTY=false
 fi
@@ -106,11 +216,19 @@ PYEOF
 
 echo "==> deploying ${RELEASE:-$SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCOMMITTED CHANGES)')"
 
+if [[ "$SHOW" == true ]]; then
+    # Everything decided, nothing sent. This is the answer to "what would
+    # --latest actually deploy", which was otherwise only knowable by doing it.
+    echo "==> source:  $SRC"
+    cat "$VERSION_FILE"
+    exit 0
+fi
+
 # ---------------------------------------------------------------------------
 # The rules, first and by themselves.
 # ---------------------------------------------------------------------------
 "$RSYNC" --verbose "$@" \
-  "$SCRIPT_DIR/install/standalone.htaccess" "${REMOTE}.htaccess"
+  "$SRC/install/standalone.htaccess" "${REMOTE}.htaccess"
 
 # ---------------------------------------------------------------------------
 # The installation.
@@ -181,7 +299,7 @@ echo "==> deploying ${RELEASE:-$SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCO
   --exclude='/deploy.env' \
   --exclude='/deploy.env.example' \
   "$@" \
-  "$SCRIPT_DIR/" "$REMOTE"
+  "$SRC/" "$REMOTE"
 
 cat <<'DONE'
 

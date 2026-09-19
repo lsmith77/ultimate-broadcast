@@ -916,9 +916,32 @@ $swScope = $base . '/k/';
             el(id).classList.toggle('hide', !s.canWrite);
         });
         paintMore();
-        if (!s.canWrite && s.nominated === false) {
-            el('setupWhy').textContent =
-                'No code has been set for this game yet. Ask the operator to set one.';
+
+        /**
+         * Why this phone cannot keep score, in the three ways it can happen.
+         *
+         * The third one is the trap the offline flow walks into: a code typed
+         * at a pitch is checked against the store, and with no signal there is
+         * nothing to check it against, so the buttons stay disabled and the
+         * screen used to repeat "enter the code" at somebody who just had. A
+         * phone that was authorised once carries that with it (the client keeps
+         * the server's last answer), which is exactly why the code has to be
+         * entered while there is still signal — and why saying so here is worth
+         * more than saying it in the documentation alone.
+         */
+        if (!s.canWrite) {
+            if (s.nominated === false) {
+                el('setupWhy').textContent =
+                    'No code has been set for this game yet. Ask the operator to set one.';
+            } else if (s.error) {
+                el('setupWhy').textContent =
+                    'No signal, so a code cannot be checked here. This phone has to be '
+                    + 'set up for this game once where there is signal — after that it '
+                    + 'keeps score with no network at all.';
+            } else {
+                el('setupWhy').textContent =
+                    'Enter the code the operator gave you for this game.';
+            }
         }
     }
 

@@ -1881,6 +1881,40 @@ test.describe('a phone with no signal at all', () => {
     await page.evaluate(() => localStorage.removeItem('uo-score-declined-702'));
   });
 
+  test('a phone with no signal says why a code cannot be used yet', async ({ page, context }) => {
+    /**
+     * The trap in the offline flow. A code typed at a pitch is checked against
+     * the store, and with no signal there is nothing to check it against — so
+     * the buttons stay disabled and the screen used to repeat "enter the code"
+     * at somebody who just had.
+     */
+    test.setTimeout(60000);
+    await page.goto('/app.php?view=login');
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.waitForLoadState('networkidle');
+    await page.request.post('/app.php?view=score', { data: { game: 703, code: 'ABCDE' } });
+
+    // A phone that has never been set up for this game.
+    const phone = await page.context().browser().newContext();
+    const q = await phone.newPage();
+    try {
+      await q.goto(new URL(page.url()).origin + '/k/703');
+      await expect(q.locator('#setup')).toBeVisible();
+      await expect(q.locator('#setupWhy')).toContainText(/Enter the code/i);
+
+      await phone.setOffline(true);
+      await q.locator('#code').fill('ABCDE');
+      await q.locator('#useCode').click();
+      await expect(q.locator('#setupWhy'), 'not "enter the code" again')
+        .toContainText(/No signal.*where there is signal/is);
+      await expect(q.locator('#homeBtn')).toBeHidden();
+    } finally {
+      await phone.setOffline(false);
+      await phone.close();
+    }
+  });
+
   test('a game can be removed once it has nothing left to send', async ({ page, context }) => {
     // `forget()` existed, was documented and was tested, and no screen called
     // it — so a phone accumulated games, and their scorekeeping codes, with no

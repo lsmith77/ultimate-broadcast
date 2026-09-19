@@ -6,16 +6,26 @@ This is the path for a club that films a game and streams nothing. There is no b
 
 The reasoning behind the surface is [`MATCHCONTROL.md`](MATCHCONTROL.md). This page is how to use it, what it guarantees, and where it stops.
 
-## 1. What a scorekeeper does
+## 1. What the operator does first
 
-1. **At home, with signal:** open `/k/<game>` once for each game of the day, then add it to the phone's home screen ("Add to Home Screen" on iOS, "Install app" on Android). Opening each game caches it; adding to the home screen makes it open without browser chrome.
+**Nominate a scorekeeping code for each game**, in the Studio's Match control bar. Without one the phone is read-only and says so.
+
+A code is **per game**, so a day of games means a code per game — and the easiest thing is to type the *same* code into each rather than generating five. It is a namespace with a lock on it, not a password: it decides who may write the score for that game, and nothing else.
+
+The Studio's games table has a **Match control ↗** link per game, which is the `/k/<game>` URL to hand over. Sending those links is the whole handover.
+
+## 2. What a scorekeeper does
+
+1. **At home, with signal:** open `/k/<game>` once for each game of the day, **enter the code on each one**, and add it to the phone's home screen ("Add to Home Screen" on iOS, "Install app" on Android). Opening a game caches it; entering the code is what lets the phone write; the home screen makes it open without browser chrome.
 2. **At the pitch:** tap the icon. It opens the list of games on the phone. Pick one and keep score. Every press is applied on screen at once.
 3. **Back in signal:** the presses send themselves. The list shows what is still unsent.
 4. **If they cannot be sent:** export the file from the list and pass it on.
 
-No account is needed. A scorekeeper is handed a link and a five-character code.
+**The code has to be entered where there is signal.** It is checked against the store, and at a pitch with no network there is nothing to check it against — so a code typed there does not unlock anything. A phone that was authorised once keeps that authority offline, which is the whole reason step 1 happens at home. The screen says this rather than repeating "enter the code" at somebody who just did.
 
-## 2. Why it is safe to keep score offline
+No account is needed at any point: a scorekeeper is handed a link and a five-character code.
+
+## 3. Why it is safe to keep score offline
 
 **A goal is written as the point it completes, never as "+1".** Sending the same point twice therefore stores one goal, so a queue can be retried, replayed after a reload, or delivered a day late without double-counting. With `+1` messages, a duplicate would add a goal that nobody could distinguish afterwards from a real one.
 
@@ -28,7 +38,7 @@ Everything below follows from that rule.
 | **Several games at once** | Each game is separate. `/k/` lists them with their scores and what each has left to send |
 | **The scoring screen stays two buttons** | The list, the export and the sync state sit outside it |
 
-## 3. Handing it over
+## 4. Handing it over
 
 **Automatically.** Back in signal, the queue drains on its own. Opening the game sends that game; opening `/k/` sends every game on the phone, and the hint at the top says "Sending…" until it has.
 
@@ -38,15 +48,15 @@ Everything below follows from that rule.
 
 **It does not reach UltiOrganizer.** That API is read-only — six endpoints, all GET — so a score kept here is parallel to the tournament record and does not replace it. An event that wants the result in UltiOrganizer enters it there as usual. [`UPSTREAM.md`](UPSTREAM.md) records the ask.
 
-## 4. Limits
+## 5. Limits
 
-- **The first visit needs signal.** A game that has never been opened has nothing cached and no team names. Opening the list caches it too, so the icon works cold afterwards.
+- **The first visit needs signal**, for two reasons rather than one: a game that has never been opened has nothing cached and no team names, and the code cannot be checked. Opening the list caches it too, so the icon works cold afterwards.
 - **Only `/k/` is covered.** The long URL (`?view=…&game=702`) is outside the service worker's scope, because widening the scope would put a worker in front of the scoreboard and the stage. Tell people to add `/k/<game>`.
 - **Private browsing keeps nothing.** Storage throws there instead of returning nothing. The page still works, but closing it loses whatever has not been sent.
 - **A device is not a backup.** Forty games are kept, oldest dropped first, and never one with something unsent. **Remove** on a row forgets a game and its code once it has nothing left to send. Clearing site data clears all of it, and the exported file is the backup.
 - **Conflicts are not merged.** If somebody else recorded the same point first, theirs stands and this phone says so. [`MATCHCONTROL.md`](MATCHCONTROL.md) §0b covers each case and the three gaps that remain.
 
-## 5. For post-production
+## 6. For post-production
 
 A recorded game plus a kept score is what the overlay needs to draw a scoreboard onto footage. The score log gives the sequence of points. It cannot give **when each point happened on the video**: many tournaments record no goal times, and a phone's clock is not the camera's.
 
@@ -55,7 +65,7 @@ Alignment is therefore the operator's: `?at=<seconds>&goals=<n>` draws one deter
 - **Start the clock** when the game starts, even if nobody looks at it. It is the simplest anchor available.
 - **Note the camera's timecode at the first pull.** One number, written anywhere, saves scrubbing later. [`SETUP.md`](SETUP.md) argues this belongs on a teardown checklist because it cannot be recovered once everyone has left.
 
-## 6. For whoever set the installation up
+## 7. For whoever set the installation up
 
 - The manifest and the worker are served by the installation. Nothing to configure, no build step.
 - **TLS is required.** A service worker will not register over plain HTTP, except on localhost, so an installation without a certificate has no offline mode — and nothing else breaks, so the loss is easy to miss.

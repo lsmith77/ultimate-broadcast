@@ -1,0 +1,34 @@
+{
+  "players": [
+    {
+      "firstname": "Ada",
+      "lastname": "Weber",
+      "nickname": ""
+    },
+    {
+      "firstname": "Sam",
+      "lastname": "Weber",
+      "nickname": ""
+    },
+    {
+      "firstname": "Hana",
+      "lastname": "Lehner",
+      "nickname": ""
+    },
+    {
+      "firstname": "Nico",
+      "lastname": "Lang",
+      "nickname": "Wings"
+    },
+    {
+      "firstname": "Ash",
+      "lastname": "Keller",
+      "nickname": ""
+    },
+    {
+      "firstname": "Kai",
+      "lastname": "Reiter",
+      "nickname": ""
+    }
+  ]
+}

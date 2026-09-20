@@ -1,0 +1,98 @@
+{
+  "source": "fixture (invented commentary, invented people)",
+  "duration": 200,
+  "annotated": "2026-09-20",
+  "entries": [
+    {
+      "at": 12,
+      "words": "big pull from the Herons, Lehner running it down",
+      "classes": [
+        "none"
+      ]
+    },
+    {
+      "at": 28,
+      "words": "Weber swings it wide",
+      "classes": [
+        "pass"
+      ]
+    },
+    {
+      "at": 35,
+      "words": "and that is a throwaway from Weber, straight to the sideline",
+      "classes": [
+        "throwaway"
+      ]
+    },
+    {
+      "at": 51,
+      "words": "huge block by Nico Lang",
+      "classes": [
+        "block"
+      ]
+    },
+    {
+      "at": 66,
+      "words": "Hana Lehner hucks it deep",
+      "classes": [
+        "pass"
+      ]
+    },
+    {
+      "at": 74,
+      "words": "dropped by Keller",
+      "classes": [
+        "drop"
+      ]
+    },
+    {
+      "at": 92,
+      "words": "goal, Vipers, Kai Reiter with the assist",
+      "classes": [
+        "goal"
+      ]
+    },
+    {
+      "at": 110,
+      "words": "great intensity from the Herons here",
+      "classes": [
+        "none"
+      ]
+    },
+    {
+      "at": 131,
+      "words": "number seven puts it in for the score",
+      "classes": [
+        "goal"
+      ]
+    },
+    {
+      "at": 152,
+      "words": "Weber again, and it is picked off",
+      "classes": [
+        "block"
+      ]
+    },
+    {
+      "at": 168,
+      "words": "the zone is working for the Vipers",
+      "classes": [
+        "none"
+      ]
+    },
+    {
+      "at": 184,
+      "words": "dump to Lang, swing, and away they go",
+      "classes": [
+        "pass"
+      ]
+    },
+    {
+      "at": 196,
+      "words": "and that is a turnover, Herons get it back",
+      "classes": [
+        "throwaway"
+      ]
+    }
+  ]
+}

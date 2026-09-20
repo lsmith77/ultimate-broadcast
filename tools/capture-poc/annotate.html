@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commentary annotator — phase 0</title>
+<!--
+    Mark what a commentator actually said, so phase 0 can be measured.
+
+    A single file with no dependency, no build and no server, opened straight
+    from disk — the same property the installation itself has, and the reason
+    this can be handed to somebody who is not a developer.
+
+    THE AUDIO NEVER LEAVES THE MACHINE. The file is read locally through a
+    File input and played from an object URL; nothing is uploaded, and no
+    footage is committed to this repository. That matters twice: the material
+    belongs to whoever recorded it, and the transcript is speech by named
+    people about named people.
+
+    Keyboard-driven because both hands are busy and the ear is the instrument:
+    a mouse round trip per event is how twenty minutes becomes two hours.
+-->
+<style>
+    :root {
+        --bg: #0f1a30; --panel: #16203a; --line: #26324e; --ink: #e8eefb;
+        --mute: #9fb0c6; --accent: #4f8cf7; --ok: #3fb984;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        padding: 1.5rem; max-width: 60rem; margin-inline: auto;
+    }
+    h1 { font-size: 1.15rem; margin: 0 0 .2rem; }
+    .sub { color: var(--mute); font-size: .88rem; margin: 0 0 1.2rem; }
+    .panel {
+        background: var(--panel); border: 1px solid var(--line);
+        border-radius: 8px; padding: 1rem; margin-bottom: 1rem;
+    }
+    .row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+    button, label.file {
+        font: inherit; font-size: .88rem; padding: .45rem .9rem; cursor: pointer;
+        border-radius: 6px; border: 1px solid var(--line);
+        background: #1d2a48; color: var(--ink);
+    }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    input[type=file] { display: none; }
+    .clock { font-variant-numeric: tabular-nums; font-size: 1.6rem; font-weight: 700; }
+    .hint { color: var(--mute); font-size: .82rem; }
+    kbd {
+        border: 1px solid var(--line); border-radius: 4px; background: #0d1628;
+        padding: .05rem .35rem; font: inherit; font-size: .8rem;
+    }
+    #entry { display: none; }
+    #entry.on { display: block; }
+    #words {
+        width: 100%; font: inherit; padding: .6rem; border-radius: 6px;
+        border: 1px solid var(--accent); background: #0d1628; color: var(--ink);
+    }
+    .classes { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
+    .cls {
+        font-size: .82rem; padding: .3rem .6rem; border-radius: 999px;
+        border: 1px solid var(--line); background: #0d1628; color: var(--mute);
+    }
+    .cls.on { border-color: var(--ok); color: #bff3dc; background: #10382a; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th, td { text-align: left; padding: .3rem .5rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--mute); font-weight: 600; }
+    td.t { font-variant-numeric: tabular-nums; color: var(--mute); width: 5rem; }
+    .warn { color: #ffcf8f; }
+</style>
+</head>
+<body>
+
+<h1>Commentary annotator</h1>
+<p class="sub">Phase 0: what does real commentary actually carry? Nothing is uploaded — the audio is read from this machine and stays on it.</p>
+
+<div class="panel">
+    <div class="row">
+        <label class="file">Load audio<input id="file" type="file" accept="audio/*,video/*"></label>
+        <button id="play" disabled>Play</button>
+        <span class="clock" id="clock">0:00</span>
+        <span class="hint" id="name">no file loaded</span>
+    </div>
+    <p class="hint" style="margin:.7rem 0 0">
+        <kbd>space</kbd> play/pause &nbsp; <kbd>j</kbd>/<kbd>l</kbd> &minus;5s/+5s &nbsp;
+        <kbd>m</kbd> mark &nbsp; <kbd>1</kbd>&ndash;<kbd>6</kbd> class &nbsp;
+        <kbd>enter</kbd> save &nbsp; <kbd>esc</kbd> discard
+    </p>
+</div>
+
+<div class="panel" id="entry">
+    <div class="row">
+        <strong id="at">0:00</strong>
+        <span class="hint">type what was said, as closely as you can</span>
+    </div>
+    <input id="words" autocomplete="off" placeholder="…">
+    <div class="classes" id="classes"></div>
+</div>
+
+<div class="panel">
+    <div class="row">
+        <strong>Marked</strong>
+        <span class="hint" id="count">0 entries</span>
+        <button id="save" disabled>Download JSON</button>
+        <button id="undo" disabled>Remove last</button>
+    </div>
+    <table id="list"><tbody></tbody></table>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    /**
+     * The event classes, and their order on the number keys.
+     *
+     * Deliberately the same alphabet the store would use, so a phase 0
+     * transcript can be replayed against a recogniser in phase 1 without a
+     * translation step. `none` exists because "great play by the Herons"
+     * carries no event, and knowing how much commentary is like that is half
+     * of what phase 0 measures.
+     */
+    var CLASSES = [
+        { key: '1', id: 'goal', label: 'goal' },
+        { key: '2', id: 'throwaway', label: 'throwaway' },
+        { key: '3', id: 'drop', label: 'drop' },
+        { key: '4', id: 'block', label: 'block' },
+        { key: '5', id: 'pass', label: 'completed pass' },
+        { key: '6', id: 'none', label: 'no event' }
+    ];
+
+    var audio = new Audio();
+    var entries = [];
+    var pending = null;
+
+    function el(id) { return document.getElementById(id); }
+
+    function clock(sec) {
+        var s = Math.max(0, Math.floor(sec || 0));
+        return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    function renderClasses() {
+        var box = el('classes');
+        box.replaceChildren();
+        CLASSES.forEach(function (c) {
+            var span = document.createElement('span');
+            span.className = 'cls' + (pending && pending.classes.indexOf(c.id) !== -1 ? ' on' : '');
+            span.textContent = c.key + ' ' + c.label;
+            box.append(span);
+        });
+    }
+
+    function renderList() {
+        var body = el('list').querySelector('tbody');
+        body.replaceChildren();
+        entries.slice().reverse().slice(0, 12).forEach(function (e) {
+            var tr = document.createElement('tr');
+            var t = document.createElement('td');
+            t.className = 't';
+            t.textContent = clock(e.at);
+            var w = document.createElement('td');
+            w.textContent = e.words;
+            var c = document.createElement('td');
+            c.textContent = e.classes.join(', ') || '—';
+            tr.append(t, w, c);
+            body.append(tr);
+        });
+        el('count').textContent = entries.length + (entries.length === 1 ? ' entry' : ' entries');
+        el('save').disabled = entries.length === 0;
+        el('undo').disabled = entries.length === 0;
+    }
+
+    function startEntry() {
+        if (!audio.src) { return; }
+        // Pause on mark: transcribing while the game runs on is how the next
+        // three events get missed, which would corrupt the very number this
+        // is measuring.
+        audio.pause();
+        pending = { at: audio.currentTime, words: '', classes: [] };
+        el('at').textContent = clock(pending.at);
+        el('entry').className = 'on';
+        el('words').value = '';
+        renderClasses();
+        el('words').focus();
+    }
+
+    function endEntry(keep) {
+        if (pending && keep && el('words').value.trim()) {
+            pending.words = el('words').value.trim();
+            entries.push(pending);
+            entries.sort(function (a, b) { return a.at - b.at; });
+            renderList();
+        }
+        pending = null;
+        el('entry').className = '';
+        el('words').blur();
+    }
+
+    el('file').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) { return; }
+        audio.src = URL.createObjectURL(f);
+        el('name').textContent = f.name;
+        el('play').disabled = false;
+        window.__source = f.name;
+    });
+
+    el('play').addEventListener('click', function () {
+        if (audio.paused) { audio.play(); } else { audio.pause(); }
+    });
+
+    audio.addEventListener('timeupdate', function () {
+        el('clock').textContent = clock(audio.currentTime);
+    });
+    audio.addEventListener('play', function () { el('play').textContent = 'Pause'; });
+    audio.addEventListener('pause', function () { el('play').textContent = 'Play'; });
+
+    el('undo').addEventListener('click', function () {
+        entries.pop();
+        renderList();
+    });
+
+    el('save').addEventListener('click', function () {
+        var doc = {
+            source: window.__source || 'unknown',
+            duration: Math.round(audio.duration || 0),
+            annotated: new Date().toISOString().slice(0, 10),
+            entries: entries
+        };
+        var blob = new Blob([JSON.stringify(doc, null, 2) + '\n'], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'annotations.json';
+        a.click();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        var typing = pending !== null;
+
+        if (typing) {
+            if (e.key === 'Enter') { e.preventDefault(); endEntry(true); return; }
+            if (e.key === 'Escape') { e.preventDefault(); endEntry(false); return; }
+            // Number keys tag the class while the caret is in the text field,
+            // so a hand never leaves the keyboard — at the cost of digits not
+            // being typeable into the words. Shirt numbers are written as
+            // words for that reason, and how often that happens is itself one
+            // of the things being measured.
+            var hit = CLASSES.filter(function (c) { return c.key === e.key; })[0];
+            if (hit) {
+                e.preventDefault();
+                var at = pending.classes.indexOf(hit.id);
+                if (at === -1) { pending.classes.push(hit.id); } else { pending.classes.splice(at, 1); }
+                renderClasses();
+            }
+            return;
+        }
+
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (audio.src) { audio.paused ? audio.play() : audio.pause(); }
+        } else if (e.key === 'j') {
+            audio.currentTime = Math.max(0, audio.currentTime - 5);
+        } else if (e.key === 'l') {
+            audio.currentTime = audio.currentTime + 5;
+        } else if (e.key === 'm') {
+            e.preventDefault();
+            startEntry();
+        }
+    });
+
+    renderClasses();
+    renderList();
+}());
+</script>
+</body>
+</html>

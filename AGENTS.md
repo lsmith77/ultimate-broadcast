@@ -34,7 +34,7 @@ Runtime code sits at the top level, because a routed view's path *is* its URL �
 | `fixtures/payloads/` | recorded API responses, so pages can render with no host — see `docs/STANDALONE.md` §8 |
 | `brand/` | the mark: one tab icon per surface, the lockup, and the social card. **Deployed** — browsers and link scrapers request these. See `docs/BRAND.md` |
 | `robots.txt` | standalone only; keeps crawlers off the desk and out of the visitor counts |
-| `tools/` | `stats.sh` pulls the host's access log and reads it with `visitors.php`. Run on a laptop, never on the server; the host comes from `deploy.env` rather than a second setting |
+| `tools/` | `stats.sh` pulls the host's access log and reads it with `visitors.php`; `capture-poc/` is the phase 0 experiment for detailed statistics — an annotator and a reporter, run on a laptop against footage that is never committed. Run on a laptop, never on the server; the host comes from `deploy.env` rather than a second setting |
 | `docs/` `tests/` `fixtures/` `install/` | not served to viewers |
 
 `tests/selftest.php` is still a routed page (`?view=live/overlays/tests/selftest`) because it must be loadable by the switcher it diagnoses.

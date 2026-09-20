@@ -230,7 +230,13 @@ if [[ "$SHOW" == true ]]; then
     # --latest actually deploy", which was otherwise only knowable by doing it.
     # The mode as well as the path: rsync copies the SOURCE directory's mode to
     # the destination, and a 0700 source is what took the site down once.
-    echo "==> source:  $SRC (mode $(stat -f '%OLp' "$SRC" 2>/dev/null || stat -c '%a' "$SRC"))"
+    #
+    # GNU first, BSD second, and the order is not cosmetic. `stat -f` means
+    # "filesystem status" to GNU, which SUCCEEDS on a directory and prints the
+    # format string back — so BSD-first never fell through on Linux and the
+    # mode was reported as literal `%OLp`. It passed on macOS and failed in CI.
+    SRC_MODE="$(stat -c '%a' "$SRC" 2>/dev/null || stat -f '%OLp' "$SRC" 2>/dev/null || echo '?')"
+    echo "==> source:  $SRC (mode $SRC_MODE)"
     cat "$VERSION_FILE"
     exit 0
 fi

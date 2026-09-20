@@ -8,7 +8,7 @@ A release is a git tag and the source archive GitHub builds from it. There is no
 
 ## Unreleased
 
-- **Fixed: deploying from a tag took the site down.** `rsync --archive` copies the source directory's permissions to the destination, and the temporary worktree `--version`/`--latest` build was `0700` — so the document root became unreadable by the web server and every URL 404ed with every file present. The worktree is now `0755` before use, `--show` prints the mode, and a test asserts it. The same deploy also published a `.git` file naming a path on the deploying machine, because a worktree's `.git` is a file and the exclude only matched a directory.
+- **Fixed: deploying from a tag took the site down.** (`--show`'s mode readout needed a follow-up: `stat -f` means *filesystem status* to GNU and succeeds, so the BSD-first order printed a literal `%OLp` on Linux and the check could not see it.) `rsync --archive` copies the source directory's permissions to the destination, and the temporary worktree `--version`/`--latest` build was `0700` — so the document root became unreadable by the web server and every URL 404ed with every file present. The worktree is now `0755` before use, `--show` prints the mode, and a test asserts it. The same deploy also published a `.git` file naming a path on the deploying machine, because a worktree's `.git` is a file and the exclude only matched a directory.
 
 ## v0.8.0 — 2026-09-20
 

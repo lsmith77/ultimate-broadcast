@@ -287,6 +287,198 @@ So the rule that actually holds is not "same key, same action". It is *same key,
 
 **What it would cost.** Not storage, though the data volume does cross the line where `localStorage` and a JSON file stop being adequate ([`RELAY.md`](RELAY.md) §7a). The cost is **attention at the pitch**. Every surface here is shaped by whose job it is, and per-throw capture is a full-time job for somebody doing nothing else — the spotter argument in [`COMMENTATOR.md`](COMMENTATOR.md) §6a, one level harder. A tool that needs a person nobody rostered produces sparse data, and sparse data presented as statistics is the failure this project guards against.
 
+### How complete the data is, declared rather than assumed
+
+**The organising idea, and the one that has to come first.** This system already scales with the number of people (§6). Collected statistics scale the same way — and what changes with each person added is not only *how much* is recorded but **which classes of event are recorded completely**. That distinction is the whole thing, because a count is only a statistic when you know whether it is all of them.
+
+**It exists already, in one place.** The scoreboard shows CLEAN HOLD only where possession was actually being tracked, and break chance only while somebody is driving it. That is exactly this rule, decided ad hoc inside one feature. The proposal is to make it a declared, per-class property of a game rather than a condition each new feature re-implements and eventually forgets.
+
+**Coverage is per event class, not per game.** A commentary-driven capture is the example of an *uneven* one — and the shape of that unevenness was assumed here until it was measured, wrongly. The assumption was that a commentator reliably calls a throwaway, a drop and a block because those are the moments worth narrating. They do not; they reliably call **goals**. The measurement is below.
+
+So:
+
+| with | complete | partial or absent |
+|---|---|---|
+| **score and clock only** | goals, timeouts, the clock | everything else |
+| **+ possession tracked** | turnovers per point, holds and breaks, clean holds | individual actions |
+| **+ commentary-driven capture** | goals, near-completely | everything else — **measured, see below**: turnovers are narrated about one time in five, and most events name no player at all |
+| **+ a dedicated spotter** | every throw for that team | the other team, unless they have one too |
+| **+ two spotters** | every throw, both teams | — |
+
+**What follows is mechanical rather than a judgement per feature.** A fact declares which classes it needs and at what completeness; the strip refuses anything whose inputs do not meet it. `shared/facts.js` already refuses to say what it cannot support, so this is a precondition field on an existing catalogue rather than a new mechanism — and it is testable, which "we remembered to check" is not.
+
+Three rules make it safe:
+
+- **A derived number inherits the worst coverage of its inputs.** One team has a spotter and the other does not, so a per-player leaderboard across both is a lie however good each half of it is. The comparison is the thing that must be refused, not the data.
+- **Coverage is a claim somebody makes, and can be withdrawn.** A spotter who leaves at half time does not make the first half untrue — they make the second half partial. So it is an interval, and a number spanning the change carries the weaker one.
+- **Absent is still not zero, one level up.** Nothing can distinguish "no throwaways happened" from "nobody was recording throwaways" by looking at the data. Only a declaration can, which is why it has to be stored rather than inferred.
+
+**The spotter can say the game got ahead of them, in one press.** Within-point partiality is the one degradation nothing can detect: a spotter who catches four throws of a nine-throw point and then looks away leaves a record that reads as complete. So the levels above are not only a profile chosen before the game — they are a **control**, one key, that drops detail when the action outruns the caller: full, names only, outcomes only, off. Four notes on it:
+
+- **Downshifting is reliable; upshifting is not.** You press it while drowning, and forget it while recovering. So it **returns to the declared default at the next goal** and is pressed again if still needed — a point ending is already this codebase's natural state boundary, and a switch that outlives its cause is the failure the diagnostics expiry was written for.
+- **It is written into the log as an interval**, not set as a mode on the game, so the coverage of any window is reconstructable afterwards — including a number computed across points 8 to 15, which straddles the change.
+- **It takes effect immediately, not only as a caveat.** A fact needing throw types refuses for those points automatically. The press does not merely annotate the data for later; it stops a wrong number being derived now.
+- **It does not replace the cross-checks.** A spotter under enough load to downshift is also under enough load to forget the press, so "a point with a goal and no throws" stays the backstop. The button for what only a person knows; derivation for what the data can prove.
+
+**Counts have to update within a point, not at the next goal.** "Already 25 passes this game" and "two turnovers this point" are in-game facts, which sets the write cadence — a few seconds, not a point boundary — and means the endpoint must answer with **totals by default** and the event log only on request. That is the shape `playingtime` already needed when returning full histories flooded a 2-second poll.
+
+**The example worth keeping in mind:** with commentary-driven capture, *throwaways per player* is publishable and *completion percentage* is not — the numerator is complete and the denominator is not. Add possession tracking and turnovers per point becomes available too, because that class is complete for a different reason. The numbers that are safe to show are a function of who turned up, and the system should be able to work that out rather than leaving it to whoever is looking at the screen.
+
+### The play clock, and the denominator it finally provides
+
+**A spotter can also say whether the disc is live, and that turns out to be worth as much as the events.** It is one more thing to press, so it has to earn its place. It does, three times over:
+
+- **It is a denominator that means something.** "Throws per point" is hostage to how long points ran, so it compares nothing across games. Throws per minute of *live play* does. Every rate in the system has wanted a real denominator and this is the first one available without a camera.
+- **It gives time on the field, per player.** The line is already recorded per point. Intersect it with the live intervals and each player has a figure for how long they were on while the disc was live — the number a coach actually asks for, and one no amount of event capture produces on its own.
+- **It is mostly inferable, so the cost is low.** A pull starts play, a goal ends it, a foul stops it, a check restarts it. These are rules, not guesses. The spotter says the words already, and the clock follows them; explicit presses are the exception rather than the workload.
+
+**The failure mode is a spotter who forgets to restart it**, which would park the clock at "stopped" for the rest of a point and silently halve the game. The repair is a rule the data can apply by itself: a throw cannot happen while the disc is dead, so seeing one means play resumed. That makes an unclosed stoppage self-healing, which matters more than getting the restart instant exactly right.
+
+**AFK and a stoppage look identical and mean opposite things.** This is the distinction the whole idea stands on, and conflating them would ruin both numbers at once:
+
+| | what it says | what it does to the data |
+|---|---|---|
+| **stoppage** | the disc was not live | nothing is missing. A stopped disc is a real state of a game, and roughly half of one |
+| **AFK** | the disc *was* live, nobody was capturing | data is missing, and the coverage rule turns it into "these points have no throw data" |
+
+So they are separate timelines, and live time inside an AFK window is reported as **unknown** rather than counted either way. The table shows both: the live figure, and how much of it nobody was watching.
+
+**What it is not, and the tool says so under the table.** This is *time present while the disc was live*. It is not work done, distance covered, or effort spent — a handler parked in the dump and a cutter running the whole point score identically. That gap needs trackers or vision and no amount of spotting closes it, which is exactly why the number has to be labelled rather than left to be read as "workload".
+
+**The play clock is itself an input class with declared coverage**, by the rules above. A clock nobody ever started reports no field time at all rather than a plausible one; a clock driven entirely by inference from calls says so, because it deserves less trust than one a person drove. Both appear in the banner above the table rather than in a footnote.
+
+### Two spotters, one from each team
+
+**This is the answer to the staffing problem this section opened with.** "A tool that needs a person nobody rostered produces sparse data" — so do not ask the broadcast to roster one. Detailed statistics are what coaches buy software for, which is why teams already use apps like Statto; a team will staff a spotter for their own coach's sake, and they know their own players by sight. The broadcast then receives the data as a byproduct of somebody else's motivation, which is the only staffing model that survives a Sunday morning.
+
+**A disagreement between the two is not an error.** One side scores a turnover as a block, the other as a throwaway, and **both readings are legitimate descriptions of the same event** — the sport genuinely has that ambiguity. So the system must not resolve it: not by majority, not by rule, not by trusting the defence. Four consequences:
+
+- **Do not merge at write time.** Each spotter's stream stays their own; merging is a read-time policy per consumer. The broadcast takes the conservative view, each coach sees their own, and neither is overwritten by the other.
+- **Separate the event from the attribution.** Both agree a turnover happened at that moment and disagree about whose it was, so store one agreed turnover carrying two competing attributions rather than two contradictory events. That also gives air something safe to say: *turnover* is agreed and publishable; *block by X* is not, until it is.
+- **Bias stops being hypothetical and becomes measurable.** A team's own spotter over-credits their blocks and under-credits their throwaways — perception, not dishonesty. With both sides recording, the asymmetry is visible in the disagreement set and can be stated rather than assumed away. The agreed subset is roughly unbiased by construction, which is a second argument for air using only that.
+- **Reconciliation is a deliverable, not a chore.** "Here are the eleven events you disagreed on, with the moment to scrub to" is worth having to both coaches — and it is the same worklist as the detail-downshift intervals and the bookmark idea below. Three sources, one mark-and-resolve mechanism.
+
+**This is the first feature where "the code is a namespace, not a credential" breaks.** Every store here rests on that trade because everyone holding a code is on the same crew. Here the two parties are *adversaries*: team A must not write into team B's stream, and a coach watching the opposition's own classification of their turnovers mid-game is scouting. The shape that follows is a per-team capability rather than a shared room, with each side seeing only their own stream until the game ends and the broadcast seeing the agreed subset throughout. That is a genuine escalation from what the room code is today, and it should be designed as one rather than discovered.
+
+**The alternative remains open.** Importing what a team already collects needs no attention at the pitch at all and depends on somebody else's format — which makes it post-game unless an integration exists. Team spotters on this project's own surface is the version that feeds the broadcast *during* the game. They are not the same product decision and both are worth keeping.
+
+### Voice, which is an attempt to buy that attention back
+
+**An idea, thought through and not built.** The cost above is attention at the pitch, and the obvious shape needs *two* people: one calling what happens, one looking at a screen entering it. The second person is the one nobody rosters. So the question is whether a machine can be the second person — and, separately, whether voice should drive the controls that already exist rather than only collect new data.
+
+**Driving the existing controls is the stronger half, and it is not the same feature.** Voice that writes to the stores already here — lines, possession, stoppage — needs no new data model, no new pipeline and no new consumer: the scoreboard already reads possession, the strip already reads facts, the line history already feeds playing time. It is an input method for a tested path. That makes it worth discriminating between the controls rather than voice-enabling the page:
+
+| control | today | worth saying out loud? |
+|---|---|---|
+| **The line, before each point** | seven picks, ~200 a game, by mouse | **Yes — the best candidate here.** It happens at a dead ball, so there is no latency pressure; the vocabulary is exactly the squad; and the line is *displayed before it matters*, so a misheard name is caught by eye before the pull. High volume, slack timing, visible verification |
+| **Possession, injury stoppage** | one keystroke each (`O`, `D`, `I`) | **No.** One utterance plus a recognition error replaces one key, during live play, on a fact that reaches air through the break-chance tab |
+| **Blocks, throws, completions** | not collected at all | The genuinely new data, and the hardest: the highest event rate in the game, during play, when the caller's attention is worst |
+
+**What "in-browser AI" means matters.** The Web Speech API is not in-browser — Chrome streams the microphone to Google and Safari to Apple, which puts a pitch-side microphone carrying people's voices into a third party's hands, on a project whose imprint claims no analytics. Locally means Whisper or Vosk compiled to WASM or WebGPU: tens of megabytes of weights, downloaded once and cached, and no network at inference. The desk is the tier allowed to take dependencies (`AGENTS.md`), and a laptop that fetches a model at home works at a pitch with no signal — which is the deployment `OFFLINE.md` describes.
+
+**Transcription is the easy half; structure is the hard half.** What is wanted is not dictation but events — thrower, receiver, action, outcome — over a vocabulary of about 28 names and twenty verbs. That is grammar-constrained recognition, a different and far more accurate problem than open dictation, and it favours an engine that constrains (Vosk) over one that invents fluent text when unsure.
+
+**Three things this project already holds make that grammar unusually tight**, and they are the reason this is worth writing down here rather than admiring from a distance:
+
+- a **name pronunciation** field per player, collected through the team's own CSV (§5 of `COMMENTATOR.md`) — a pronunciation lexicon, which is exactly what a recogniser needs and what almost nobody has
+- **nicknames**, collected the same way — shorter to say than a full name, and the answer to two players sharing a surname
+- **per-point line history** ([`PLAN.md`](PLAN.md) §4c) — the candidate set at any moment is not the squad but the seven on the field, and the score log segments the audio into points for free
+
+**A speaker profile is not the mechanism people expect.** Modern recognition does not enrol a speaker the way dictation software did; the accuracy comes from the vocabulary and from confirmation. The cheap version of the idea is real, though: a spotter reading the roster once before the game — two minutes, 28 utterances — gives speaker-specific templates for exactly the words that matter. That is keyword spotting rather than a profile, and the throw verbs need no recording at all because they are the grammar.
+
+**Accuracy is the gate, not a confirmer.** The first draft of this section said a recognised event may reach the desk immediately and air only once a person has confirmed it. That is the wrong trade: it invents a crew seat nobody rosters (§6 already stops at four), and it delays exactly the numbers that are wanted *during* a point. The decision is that recognition may feed air directly **when its class of event clears a measured accuracy bar** — and the bar is per class, because a name chosen from the seven players on the field is a far easier problem than a throw type chosen from twenty, and the two should not share a threshold.
+
+Two things follow. **Confirmation survives only where it is nearly free:** the line before a point is displayed and read by eye anyway, so it is confirmed at no cost in attention — and it is also the highest-volume input, which is a pleasant coincidence. And **the bar must be measured continuously rather than assumed once**: two spotters agreeing is itself a live accuracy signal, so a class whose agreement rate falls can stop reaching air before anybody notices it should have.
+
+**None of this proceeds until that measurement exists.** Whether constrained recognition clears a high bar on Ultimate jargon, in accented English, beside a windy pitch, is unknown — and it is the first thing to build, before any of the rest. If it does not clear the bar, this section describes a tool nobody should trust.
+
+**Counts before rates**, which is the coverage rule above applied to a microphone. A completion percentage needs every throwaway and drop caught, and a caller who misses three produces a confident wrong number that nobody can audit during a game. "Third block called" is defensible; "60% completion" is not, until coverage is measured and travels with it — the denominator rule `AGENTS.md` already states. Partial capture is fine; a partial capture presented as a rate is the failure this section opened with.
+
+**And voice never drives what is on air.** Card switching in the Studio stays a click. The arm-then-show lifecycle exists because a graphic appearing by accident cannot be taken back, and an accidental trigger is exactly what an open microphone beside a shouting sideline produces.
+
+**It should never need to be multilingual, and that is a design choice rather than a limitation.** Whisper's multilingual quality collapses at the model sizes that fit in a browser, and Vosk ships one model per language, so a Swiss tournament — Swiss German commentary, English jargon, German and French surnames in one sentence — defeats any single language model. But the vocabulary here is names plus jargon, and Ultimate's jargon is English loanwords almost everywhere: *huck*, *break*, *dump*, *swing*, *callahan*. So the call format should be a bare keyword sequence with **no function words** — thrower then receiver, not "Weber to Lehner". With "to", "from" and "catches" gone, the only words left are proper nouns and borrowed jargon, and the recogniser never has to know which language is being spoken around them. Names then depend on the speaker's mouth rather than on a language model, which is what the roster read-through and the per-player pronunciation field are for.
+
+**Fine-tuning is the wrong tool for the half that matters.** The roster changes every game, so anything needing a training run per squad is obsolete by the next one: names must be adapted at *runtime*, from a word list — constrained grammar first, then hotword boosting, then enrolment templates. Jargon is static and is the only part where training is even coherent, and its labelled data would come from confirmed captures, which means storing audio of named people and inheriting the retention question the notes store already answers. One architectural objection outweighs the rest: a fine-tuned model is a build artifact, and *the directory is the installation* is this project's defining property. A stock model plus a runtime word list keeps it; shipped weights the repository cannot rebuild would be the first thing here that does not.
+
+**The practical constraint nobody plans for:** a close microphone on the caller. An open mic at a windy pitch defeats all of the above, whatever the model.
+
+**If it gets built, the order is:** the line picker first, because it is the highest-volume mouse work in the project, it is verified by eye, and getting it wrong costs a click rather than a broadcast. Everything else can wait for that to prove itself.
+
+### Proving it, before building it
+
+**Everything above is conditional on one measurement, and the measurement is cheaper than the feature.** Ulti TV and comparable archives hold hundreds of hours of commentated Ultimate. That is a test set nobody has to stage — and, better, one recorded by commentators who had no idea a machine would listen, which makes it a **floor** rather than a best case.
+
+**Two different truths, and only one of them is needed first.**
+
+| truth | how it is obtained | what it measures |
+|---|---|---|
+| **What was said** | a person transcribes the audio, never needing to read a shirt number | whether recognition works — the viability question |
+| **What happened** | somebody identifies players from video | whether commentary is *complete enough* — the coverage question |
+
+The second is the hard one, and the reason is practical: **shirt numbers are rarely legible in broadcast footage**, so a spotter cannot be run retroactively over an archive. Splitting the two is what lets the work start, because the viability question needs only the first.
+
+**Phase 0 needs no AI at all, and is the experiment most likely to kill the idea cheaply.** Transcribe twenty minutes of real commentary by hand and mark every utterance that carries a capturable event. That answers three things nothing else can: how often real commentary contains the events at all, which words are actually used (against the jargon list this section assumes), and what the utterances look like — whether commentators say full names, surnames, nicknames or numbers, and whether they use the function words the call format is designed to avoid. If natural commentary does not contain the events, no recogniser rescues it, and that is worth knowing before anybody downloads a model.
+
+**Phase 1 is recognition against that transcript.** Vosk with a grammar built from the real roster, Whisper as a baseline, measured **per class** — names separately from jargon — because the decisions above set a per-class bar and a single aggregate number would hide exactly the split that matters.
+
+**Phase 2 is the coverage question, narrowed to what video can answer without numbers.** A reviewer can see that a turnover happened without knowing who threw it, and the score gives the goals. So "how many turnovers went unmentioned" is measurable from footage; "was the block correctly attributed" is not. Partial, and it covers the class the commentary-driven profile most depends on.
+
+**Phase 3 has no ground truth, and that is where the two-spotter model earns its place a second time.** In a live test, agreement between two independent spotters is the only available accuracy signal — which is the same signal the deployed system uses to police its own per-class bar. The field test and the production safeguard are the same mechanism.
+
+**The observer effect is real and cuts both ways.** Commentators who know their voice feeds the statistics will call more, so anything measured on an archive understates what a deployed system would collect. That is the good half. The bad half deserves stating plainly: **the commentary must not degrade to serve the capture.** "Weber, Lehner, Weber, throwaway" is excellent input and terrible broadcast, and a broadcast project that makes its commentary worse to improve its statistics has traded the wrong way round. If prompting commentators turns out to be necessary, that is an argument for a separate spotter on a separate microphone — which is the team-spotter model above — not for coaching the people on air.
+
+**Where it lives.** A harness rather than a feature: audio plus a reference transcript in, per-class accuracy out, run on a laptop and never deployed. It has no place in the installation, so it belongs outside the tree the release ships — and whatever directory it lands in needs adding to `deploy.sh`'s excludes on the day it is created, because everything not excluded is deployed.
+
+### What phase 0 found, and the pivot it forced
+
+**Run, on 2026-09-20, against seven complete games — 8 hours 36 minutes, 57,650 spoken words.** Ulti.tv's published commentary, read through YouTube's own auto-captions rather than by hand: a machine transcript is not ground truth, but ordinary English like *score*, *drop* and *turnover* survives general recognition intact, so the **rate** of those words can be counted across an archive for nothing. The tooling is deliberately local and uncommitted; it reads third-party captions and produces counts.
+
+One trap worth recording for whoever runs this again: auto-caption VTT is *rolling* — each cue restates the previous line and adds a few words — so a naive parse counted 34,766 words in a 92-minute game, roughly double. Words have to be de-duplicated by overlap before anything is counted.
+
+| | across 7 games | per minute |
+|---|---|---|
+| goal words | **154** | 0.30 |
+| turnover | 19 | 0.04 |
+| throwaway | 15 | 0.03 |
+| drop | 13 | 0.03 |
+| block | 10 | 0.02 |
+| any event utterance | 203 | 0.39 |
+
+**The class that is covered is the one already recorded.** Seven games hold somewhere between 105 and 210 goals, and there are 154 goal mentions — near-complete. The same games contain dozens of turnovers each, and all four turnover-ish classes together appear 57 times in eight and a half hours. The score log already has the goals.
+
+**Attribution is the binding constraint, not recognition.** Of the 203 event utterances, **13% carry a shirt number** and 19% attribute only by pronoun. Two thirds name no usable actor at all. An event with no actor is a count, not a statistic — so even perfect transcription of this material would yield a turnover tally with nobody attached to it.
+
+**And 8% of event utterances are hedged** — "I think", "looked like", "not sure". One in twelve, which is small and not nothing: a hedge must never be stored as a fact, so the format needs somewhere to put uncertainty rather than dropping it into the same field as an observation.
+
+**Three caveats, and the first is the one that keeps this honest.** The measure is **lexical, not semantic**: a turnover narrated without any of those words is not counted, so every figure above is a *lower bound*. The attribution figures are proxies, because a general recogniser mangles names it has never heard. And this is one channel, one language, one broadcast culture.
+
+**Why the gap exists, which is also the condition for revisiting it.** Television commentary leans on the picture for identity — the viewer can see who threw it, so saying the name is redundant. **Radio** commentary names everybody, continuously, because the listener cannot see. The events are narrated either way; what TV omits is precisely the actor. So commentary-driven capture is not dead, it is *conditional on a narration style* — and asking commentators to work in a radio register to feed a database is a real cost to the broadcast, which is the trade `AGENTS.md` refuses to make silently.
+
+**So the direction pivots to the spotter**, which is the easier case and the one this section already named as the complete-coverage profile. If a dedicated spotter with a fixed call format works, commentary can be revisited as the cheap partial supplement it might still be.
+
+### Decided on paper, built not at all
+
+Taken deliberately rather than left open, so that whoever builds this is arguing with a decision rather than starting from nothing. Every one of them is reversible; none of them has been tested against a real game.
+
+| question | decision |
+|---|---|
+| **How is completeness established?** | **Declared per game, measured as a check.** The crew names a profile; the cross-checks warn when reality diverges from the claim. Where the two disagree, the weaker governs what may be published |
+| **What makes a throw safe to retry?** | **Client-generated ids**, deduped on arrival. Works for any number of observers and any number of devices per observer, which `(point, sequence)` does not |
+| **How is a dead capture told from a quiet game?** | **A heartbeat**, and a point with none is marked *uncovered* rather than empty. Silence is never read as zero |
+| **What shape is the store?** | **Append-only per observer**, flushed on a few-second interval rather than per point, because in-point counts are wanted. Reads answer with totals by default and the log only behind a cursor |
+| **Who confirms before air?** | **Nobody, when the class clears a measured accuracy bar.** Confirmation is kept only where it is free — the line-up, which is read by eye anyway. The bar is per class and measured continuously |
+| **How do season numbers work?** | **Aggregate only over games meeting the bar each statistic needs, and print the subset** — "9 blocks, from 4 of 7 games with block capture". A smaller true number beats a larger mixed one |
+| **Ours or UltiOrganizer's?** | **A tournament decision, either way** — see below. Not a merge rule, because the answer is political rather than technical |
+| **Coverage downgraded while on air?** | **The card finishes its dwell; no new claims are made under the weaker coverage.** A graphic vanishing mid-sentence draws more attention than the error it would correct |
+
+### Whose data this becomes
+
+**If it works, it probably should not stay ours.** Detailed capture that clears its accuracy bar is a better record than what a tournament collects today by hand — so the natural end state is that it *drives UltiOrganizer's own statistics* rather than living beside them. That is not a technical decision and should not be made by this project.
+
+It is the **tournament's**: whether they trust a broadcast crew, or coaches recording their own players, to be the source of the event's official numbers. Some will; plenty will not, and will want the broadcast's capture to stay the broadcast's. So the option has to exist in both directions — feeding upstream, or broadcast-only — and the choice belongs beside the event's other policy, not in a config file here.
+
+Two things follow. It makes the per-event **capture policy** already asked for upstream ([`UPSTREAM.md`](UPSTREAM.md), ask 2) load-bearing rather than convenient: if capture can feed the record, the event has to be able to declare who may source it. And it needs a **write path that does not exist** — the API is six endpoints and all GET — which makes it a larger ask than the score push, and one worth making only once the accuracy measurement says the data is worth having.
+
 ### A bookmark button, which is the cheap half of it
 
 **Also unbuilt, and much smaller than the tool above.** One button on the phone that marks the moment, with a tag and an optional line of text. Standard tags — *great point*, *injury*, *questionable call*, *coaching note*, *highlight* — plus whatever an event adds.
@@ -304,6 +496,12 @@ Three rules it inherits:
 - A mark names the moment it describes rather than a delta, so it is safe in the same outbox as everything else.
 - Free text becomes personal data as soon as it names a player. That is the boundary [`COMMENTATOR.md`](COMMENTATOR.md) §5a draws around the notes store.
 - Tags are language-neutral values rendered through a label, not strings typed twice.
+
+**A spotter's note is the same press wearing the spotter's hat, optionally against a player.** The spotter already has the line on screen, the play clock running and a microphone open, so a note costs them almost nothing and is the one artefact a coach asks for by name. It is mostly a recombination of what §10a already builds — a moment, an optional player from the six on the line, a tag, a line of text — and it inherits the personal-data boundary above the moment it names somebody.
+
+**The version worth aiming at is the one that closes the loop during the game.** A note carries a timestamp, and in training mode a timestamp is a video position — so a player handed a tablet on the sideline could be looking at the thirty seconds their note is about, cued automatically, while the game is still on. The same mechanism serves the post-game discussion, which is the safer first target: nothing has to be live for a list of tagged moments with video positions to be worth having.
+
+Unbuilt and deliberately so. It is recorded here because it is cheap, it reuses the whole of this section, and the temptation will be to build it before the thing it rides on works.
 
 ### Calls and how they resolved
 

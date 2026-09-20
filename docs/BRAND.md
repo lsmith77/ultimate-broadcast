@@ -18,21 +18,23 @@ An operator has several of these open at once — the Studio, a stage, a scorebo
 | Scoreboard and stage | target | `#D55E00` | vermillion |
 | Commentary desk | microphone | `#009E73` | bluish green |
 | Match control | plus | `#3F4A56` | dark slate |
+| Spotter | binoculars | `#E69F00` | orange |
 
 Each surface differs in shape as well as colour, and that is `AGENTS.md`'s rule about colour never being the only carrier of a distinction, applied where it is easiest to forget. A tab icon is sixteen pixels; at that size colour is most of what a person perceives, which is exactly why leaning on it alone fails hardest here. The glyphs are distinguishable with no colour information at all.
 
 ## 3. The colours were simulated, not chosen
 
-The first three are from the [Okabe-Ito palette](https://jfly.uni-koeln.de/color/), which exists for this purpose. The fourth is not a hue, and that is the finding worth recording.
+Four are from the [Okabe-Ito palette](https://jfly.uni-koeln.de/color/), which exists for this purpose. Match control is not a hue, and that is the finding worth recording.
 
 Match control began as Okabe-Ito's reddish purple `#CC79A7`. Rendered through protanopia and deuteranopia matrices it came out a **pale grey-green** — washed out against a light tab strip, and drifting toward the scoreboard's olive. A dark slate stays dark under every simulation, so it is distinguishable by lightness, which no form of colour vision deficiency takes away.
 
-Two residual convergences, both acceptable because the glyphs carry the distinction:
+Three residual convergences, all acceptable because the glyphs carry the distinction:
 
 - Under **deuteranopia**, the Studio's blue and the desk's green both read as purples. Camera versus microphone separates them.
 - Under **tritanopia** (rare), the Studio and the desk both read as teal. Same answer.
+- Under **protanopia and deuteranopia**, the scoreboard's vermillion and the spotter's orange both read as olive. This is the closest pair in the set and it was measured rather than assumed: the spotter's stays perceptibly **lighter**, and one circle inside a ring is not two circles side by side. The spotter was given the last Okabe-Ito hue that works under a white glyph — sky blue converges with the Studio, yellow is too light to carry white, and reddish purple is the one match control already failed with.
 
-Re-run the simulation before changing any of these. The method is a `feColorMatrix` per deficiency over the rendered tiles — the four icons at 64, 32 and 16 pixels, plus a mock tab strip, which is the size that actually matters.
+Re-run the simulation before changing any of these. The method is a `feColorMatrix` per deficiency over the rendered tiles — every icon at 64, 32 and 16 pixels, plus a mock tab strip, which is the size that actually matters.
 
 ## 4. The social card
 

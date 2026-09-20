@@ -43,6 +43,11 @@ final class Brand
         'onair' => 'target',
         'desk' => 'microphone',
         'score' => 'plus',
+        // Binoculars: somebody watching from a distance and reporting what
+        // they saw. Orange rather than another blue, and a shape nothing else
+        // in the set resembles - the target is the only other round glyph and
+        // it is one circle where this is two.
+        'spot' => 'binoculars',
     ];
 
     /**

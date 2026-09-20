@@ -503,6 +503,21 @@ Three rules it inherits:
 
 Unbuilt and deliberately so. It is recorded here because it is cheap, it reuses the whole of this section, and the temptation will be to build it before the thing it rides on works.
 
+### Formations, which are two words a point and answer questions throws cannot
+
+**Also unbuilt.** A spotter can name what each side is running — *vert stack*, *horizontal*, *side stack*, *dominator* on offence; *match*, *zone*, *junk*, *bracketing* on defence — and it costs two words at the start of a possession rather than two per throw.
+
+The reason to want it is that it answers a question the throw data cannot. "Completion rate" is a number about a team; "completion rate against a zone" is a number a coach can act on, and the difference between them is one word nobody is currently saying. It is also the thing an opponent scout writes down first, and the thing a commentator reaches for when a point goes twenty passes: *they have not solved this junk look yet*.
+
+Four things it inherits, and one it does not:
+
+- **It is declared, not observed.** Nobody can derive a side stack from a list of receivers, so it is a claim a person makes — with the same coverage rules as everything else here. A point nobody named a formation for is **unknown**, never "match".
+- **It is an interval, not a point attribute.** A team that starts in a zone and switches to match after the first turnover did both in one point, and recording the first would make the second a lie. Same shape as the play clock and the AFK log: it changes when somebody says it changed.
+- **It pairs.** The interesting cross-tab is offence *against* defence — vert against zone is a different question from either alone — which needs both sides named, and therefore a spotter covering both teams rather than one.
+- **The words need the same collision check as every other name.** A closed vocabulary cannot afford two terms that sound alike, and this adds a dozen at once into a grammar that already contains *swing*, *dump* and *side*.
+
+**What it does not inherit is the per-throw cost.** Formations are the cheapest high-value thing on this list — two utterances a point, no attribution, no timing — which makes them a plausible FIRST thing for a spotter who cannot yet keep up with every throw, rather than a refinement after everything else works. A capture that records only the line, the formations and the outcome of each point is already worth more to a coach than most tournaments collect, and it is within reach of somebody watching a game normally.
+
 ### Calls and how they resolved
 
 **An idea, noted rather than designed.** Record the call as well as the moment: *foul*, *travel*, *pick*, *strip*, and then how it ended — contested or uncontested, and what happened to the disc.

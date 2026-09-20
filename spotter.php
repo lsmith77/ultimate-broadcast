@@ -234,7 +234,10 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .startpill.d { background: #3a2540; color: #e0b3ff; }
     .namerisk { margin: 0 0 .5rem; font-size: .78rem; color: var(--warn);
                 border-left: 3px solid var(--warn); padding-left: .55rem; }
-    .namerisk div { padding: .06rem 0; }
+    .namerisk div { padding: .12rem 0; display: flex; gap: .3rem;
+                    align-items: baseline; flex-wrap: wrap; }
+    .namerisk button { font-size: .72rem; padding: .1rem .45rem;
+                       border-color: var(--warn); color: #ffdca8; }
     .grouplabel { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase;
                   color: var(--mute); margin: .5rem 0 .25rem; }
     .numrow { display: flex; flex-wrap: wrap; gap: .35rem; }
@@ -1055,7 +1058,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
          */
         grip: {
             backhand: ['backhand'],
-            forehand: ['forehand', 'flick']
+            forehand: ['forehand', 'flick'],
+            // The weaker hand, which is worth separating rather than lumping
+            // in: a team that throws off-hand under pressure is doing
+            // something a coach wants to know about.
+            offhand: ['offhand', 'off hand', 'weak hand']
         },
         side: {
             offence: ['offence', 'offense', 'attack'],
@@ -2169,6 +2176,14 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         add(p.first, 'first');
         add(p.last, 'last');
         add(p.nick, 'nickname');
+        /*
+         * The name this page was told to call them, which has to be sayable.
+         *
+         * A calling name that only changes the chip is worse than none: the
+         * spotter reads it, says it, and the grammar has never heard of it.
+         * It goes in the vocabulary like every other form.
+         */
+        add(p.call, 'called');
         spokenNumber(p.num).forEach(function (a) { out.push({ alias: a, form: 'number' }); });
 
         var seen = {};
@@ -2328,6 +2343,31 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
      * form that is safe - a surname, a first name, a shirt number - and the
      * spotter needs to be told WHICH, not that something is wrong.
      */
+    /**
+     * WHAT THE SPOTTER CALLS THIS PLAYER, WHICH IS NOT WHO THEY ARE.
+     *
+     * A name the matcher cannot separate is useless however correct it is,
+     * so the spotter picks a different one - and then has to remember, on a
+     * sideline, that Storm is the one they must call Sandor. Putting the
+     * chosen form on the chip removes the remembering.
+     *
+     * Local to this page and this device. It is a label for saying somebody
+     * out loud, not a correction to the roster: the event still records the
+     * player's real identity, the commentary desk is untouched, and nothing
+     * is written back to the installation.
+     */
+    function callName(p) { return p.call || p.nick || p.last || p.label; }
+
+    function setCallName(p, name) {
+        [squad, line, sides.O, sides.D].forEach(function (list) {
+            list.forEach(function (q) { if (q.label === p.label) { q.call = name || ''; } });
+        });
+        render();
+        // Kaldi takes its vocabulary at construction, so a name added after
+        // the recogniser was built cannot be decoded until it is replaced.
+        rebuildGrammar();
+    }
+
     function nameRisks() {
         var out = [];
         var vocab = vocabulary();
@@ -2359,7 +2399,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 else { good.push(f.alias); }
             });
             if (bad.length) {
-                out.push({ who: p.nick || p.last || p.label, bad: bad, good: good,
+                out.push({ who: callName(p), player: p, bad: bad, good: good,
                            num: p.num });
             }
         });
@@ -2477,15 +2517,21 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             warn.className = 'namerisk';
             risks.slice(0, 4).forEach(function (r) {
                 var d = document.createElement('div');
-                // The shortest safe form, because a spotter under time
-                // pressure will say the short one or none at all.
-                var safe = r.good.slice().sort(function (x, y) {
-                    return x.length - y.length;
-                })[0] || (r.num ? 'number ' + spokenNumber(r.num)[1] : null);
-                d.textContent = '\u201c' + r.bad[0].alias + '\u201d sounds like \u201c'
-                    + r.bad[0].with + '\u201d \u2014 say '
-                    + (safe ? '\u201c' + safe + '\u201d' : 'the shirt number')
-                    + ' for ' + r.who;
+                var said = document.createElement('span');
+                said.textContent = '\u201c' + r.bad[0].alias + '\u201d sounds like \u201c'
+                    + r.bad[0].with + '\u201d \u2014 call ' + r.who;
+                d.append(said);
+                // Shortest first, because a spotter under time pressure says
+                // the short form or none at all.
+                r.good.slice().sort(function (x, y) { return x.length - y.length; })
+                    .slice(0, 3).forEach(function (safe) {
+                        var pick = document.createElement('button');
+                        pick.type = 'button';
+                        pick.textContent = safe;
+                        pick.title = 'Call ' + r.who + ' \u201c' + safe + '\u201d on this page';
+                        pick.addEventListener('click', function () { setCallName(r.player, safe); });
+                        d.append(pick);
+                    });
                 warn.append(d);
             });
             box.append(warn);
@@ -2546,7 +2592,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 + (provisional.indexOf(p.label) !== -1 ? ' maybe' : '');
             b.textContent = p.num || '\u2013';
             var nm = document.createElement('small');
-            nm.textContent = p.nick || p.last || p.label;
+            nm.textContent = callName(p);
             b.append(nm);
             if (at !== -1) {
                 var key = document.createElement('span');
@@ -2555,8 +2601,19 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 b.append(key);
             }
             b.title = p.label + (at !== -1 ? ' \u2014 on, key ' + (at + 1) : ' \u2014 off')
-                + (at !== -1 && holder === at ? ' \u00b7 has the disc' : '');
-            b.addEventListener('click', function () { toggleInLine(p); });
+                + (at !== -1 && holder === at ? ' \u00b7 has the disc' : '')
+                + ' \u00b7 shift-click to rename for this page';
+            b.addEventListener('click', function (ev) {
+                // Shift renames rather than substitutes, so the ordinary
+                // click keeps doing the ordinary thing.
+                if (ev.shiftKey) {
+                    var next = window.prompt('What should this page call '
+                        + p.label + '?', callName(p));
+                    if (next !== null) { setCallName(p, next.trim()); }
+                    return;
+                }
+                toggleInLine(p);
+            });
             row.append(b);
         });
 
@@ -3016,7 +3073,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             ['pull ' + d1, d1 + ' pulls \u2014 you name the puller'],
             ['brick', 'it went out \u2014 attaches to the pull'],
             [o1 + ' picks up', 'who put it into play'],
-            ['inside to ' + o2, '"to" is ignored \u2014 filler costs nothing'],
+            ['backhand inside to ' + o2, 'grip first, and "to" is ignored'],
             ['huck', 'still in the air \u2014 no receiver yet'],
             ['tipped by ' + o4, 'deflected, still up'],
             ['' + o3, 'caught \u2014 that closes the throw'],
@@ -3034,9 +3091,9 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             ['defence line ' + [o1, o2, o3, o4, pick(O, 4, 'rocket')].join(' '), ''],
             ['pull ' + o1, ''],
             [d1 + ' picks it up', ''],
-            ['hammer to ' + d2, ''],
+            ['forehand hammer to ' + d2, ''],
             ['layout d ' + o2, 'a block \u2014 the other side gets it'],
-            ['hammer ' + o3, ''],
+            ['hammer ' + o3 + ' offhand', 'grip after the receiver works too'],
             ['maybe ' + o4, 'records it and marks it unsure'],
             ['throwaway', ''],
             [d2 + ' picks up', ''],
@@ -3323,6 +3380,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             ['brick', 'brick', 'the pull went out'],
             ['[throw] receiver', (line.length ? 'huck ' + a : 'huck lang'),
                 'you name who CAUGHT it \u2014 never the thrower'],
+            ['[grip] [throw] who', 'backhand huck ' + a,
+                'backhand, forehand or offhand \u2014 either side of the throw'],
             ['drop receiver', 'drop ' + b, 'who put it down'],
             ['throwaway', 'throwaway', 'no name: the thrower is already known'],
             ['call [who] [on who]', 'foul ' + b + (rival ? ' ' + rival : ''),

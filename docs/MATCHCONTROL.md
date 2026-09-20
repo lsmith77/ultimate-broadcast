@@ -503,9 +503,40 @@ Three rules it inherits:
 
 Unbuilt and deliberately so. It is recorded here because it is cheap, it reuses the whole of this section, and the temptation will be to build it before the thing it rides on works.
 
+### What commentators actually talk about, measured over 26 games
+
+Phase 0 asked whether commentary carries the events we had planned to collect. A second pass over a larger corpus — **26 full games, 276,335 words** of auto-captions from the same public channel — asks the opposite question: what do commentators find worth saying that we have no word for? What they reach for repeatedly is a reasonable proxy for what a coach and a viewer care about.
+
+Counted by **breadth** rather than frequency. A term used sixty times in one game is a player's name or one commentator's habit; a term used in twenty-four of twenty-six games is a category the sport has.
+
+| | in games | uses | reading |
+|---|---|---|---|
+| `match` / `zone` | 26, 25 | 303, 480 | the defence is named constantly |
+| `switch`, `cup`, `poach`, `bracket` | 20, 14, 12, 9 | | and named in detail |
+| `vertical stack` | 12 | 27 | the offence is **not** |
+| `horizontal stack`, `side stack` | 8, 6 | 14, 8 | |
+| `under` / `deep` | 26, 25 | 361, 251 | the CUT, which we do not record at all |
+| `sideline` | 26 | 380 | |
+| `reset` / `dump` | 22, 12 | 256, 106 | |
+| `break side` / `open side` | 11, 9 | 38, 64 | where the throw went |
+| `handler` / `cutter` | 22, 12 | 192, 19 | a role, not an event |
+| `force` | 21 | 87 | but a direction (`force flick`, `force home`) **never** |
+| `pressure`, `momentum`, `legs` | 26, 20, 14 | 250, 76, 35 | judgements, not facts |
+
+**Four things follow.**
+
+- **The defensive formation is the one worth capturing; the offensive one is not.** This is the asymmetry the idea below was missing. A spotter naming both would spend half their breath on something commentators mention in fewer than half of games, while the defence is named in every one of them.
+- **Cut type is the largest thing we do not record.** `under` and `deep` appear more often than almost any throw name, and they describe the receiver's movement rather than the throw — a dimension the grammar has no slot for. One word appended to a throw would add it.
+- **Force is named, its direction is not.** `force` appears in 21 games and `force flick`, `force backhand`, `force home` and `force away` appear in none. So a spotter who wants the direction has to volunteer it; commentary will never supply it, and neither will a crowd.
+- **Effort is discussed constantly and is not collectable.** `pressure` appears in all 26 games. It is a judgement, and the coverage rules mean a judgement dressed as a measurement is worse than nothing.
+
+**One caveat that cuts against the zeros.** These are machine transcripts, so a term the recogniser cannot spell is under-counted rather than absent: `scoober` appears zero times across 26 games and is also missing from the acoustic model's lexicon, which are not independent facts. A zero here means *not reliably transcribed*, which is weaker than *not said*.
+
 ### Formations, which are two words a point and answer questions throws cannot
 
-**Also unbuilt.** A spotter can name what each side is running — *vert stack*, *horizontal*, *side stack*, *dominator* on offence; *match*, *zone*, *junk*, *bracketing* on defence — and it costs two words at the start of a possession rather than two per throw.
+**Also unbuilt.** A spotter can name what each side is running — *match*, *zone*, *cup*, *poach*, *bracket*, *switch* on defence; *vert stack*, *horizontal*, *side stack*, *dominator* on offence — and it costs two words at the start of a possession rather than two per throw.
+
+The measurement above puts the **defence first and the offence a distant second**: the defensive look is named in every game of a 26-game sample and the offensive one in fewer than half. So the defence is the one to build, and the offence is an optional second word for a spotter who has breath for it.
 
 The reason to want it is that it answers a question the throw data cannot. "Completion rate" is a number about a team; "completion rate against a zone" is a number a coach can act on, and the difference between them is one word nobody is currently saying. It is also the thing an opponent scout writes down first, and the thing a commentator reaches for when a point goes twenty passes: *they have not solved this junk look yet*.
 

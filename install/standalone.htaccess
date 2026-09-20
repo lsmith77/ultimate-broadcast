@@ -82,5 +82,5 @@ RedirectMatch 404 (^|/)install/
     # an internal rewrite is in `app.php`: the pages read their parameters with
     # `filter_input(INPUT_GET, ...)`, which reads the original request and
     # ignores anything written into `$_GET`.
-    RewriteRule ^(s|c|k)(/|$) app.php [L,QSA]
+    RewriteRule ^(s|c|k|p)(/|$) app.php [L,QSA]
 </IfModule>

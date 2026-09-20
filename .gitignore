@@ -25,3 +25,10 @@
 /playwright-report/
 /docs/images/.frames/
 version.json
+
+# The local recogniser: a WASM build and a ~40MB model, fetched by
+# tools/capture-poc/get-model.sh. Not committed — git keeps blobs for ever,
+# and a binary the repository cannot rebuild does not belong in a tree whose
+# whole property is that the directory is the installation.
+spotter/vosk.js
+spotter/model.tar.gz

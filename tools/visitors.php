@@ -85,6 +85,9 @@ const SURFACES = [
     // somebody opened — and the one a home-screen icon lands on, so it is the
     // most-visited match control URL there is.
     'Match control' => '#^/(?:k(?:/[0-9]+)?/?(?:$|\?)|app\.php\?view=matchcontrol)#',
+    // The spotter, /p/ with or without a game: it answers with no game too,
+    // because a spotter can name a line and start before an event exists.
+    'Spotter' => '#^/(?:p(?:/[0-9]+)?/?(?:$|\?)|app\.php\?view=spotter)#',
     'Event editor' => '#^/(?:s/event|app\.php\?view=event)#',
     'Imprint' => '#^/(?:s/imprint|app\.php\?view=imprint)#',
     'Self-test' => '#view=(?:live/overlays/)?tests/selftest#',

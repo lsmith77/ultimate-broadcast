@@ -147,8 +147,14 @@ final class Notes
      * Reading does NOT extend it. That is deliberate: a desk leaving the page
      * open must not keep somebody's personal data alive indefinitely, and expiry
      * that any passer-by can renew is not expiry.
+     *
+     * The window is what `Overlays\Mode::retentionSeconds()` answers, which is
+     * this unless an installation has said otherwise — a club tracking its own
+     * team all season would otherwise re-import the same CSV every week. The
+     * default ships short; lengthening it is somebody's decision, recorded in
+     * their config, about data describing named people.
      */
-    public const STALE_SECONDS = 604800;   // 7 days
+    public const STALE_SECONDS = 604800;   // 7 days, unless configured otherwise
 
     /**
      * How often expiry is actually checked.
@@ -749,8 +755,12 @@ final class Notes
     {
         $files = glob($this->dir . '/*.json') ?: [];
         $now = time();
+        $stale = Mode::retentionSeconds();
         foreach ($files as $i => $file) {
-            if (($now - (int) filemtime($file)) > self::STALE_SECONDS) {
+            // 0 means this installation keeps rooms until somebody deletes
+            // them. The count bound below still applies: an unbounded
+            // directory is a different problem from an unbounded lifetime.
+            if ($stale > 0 && ($now - (int) filemtime($file)) > $stale) {
                 @unlink($file);
                 @unlink($file . '.lock');
                 unset($files[$i]);

@@ -48,6 +48,8 @@
 
 namespace Overlays;
 
+require_once __DIR__ . '/mode.php';
+
 final class Roster
 {
     /** A squad, generously. Past this something is wrong with the input. */
@@ -84,6 +86,8 @@ final class Roster
      */
     public function load(int $team): array
     {
+        $this->maybePrune();
+
         $empty = ['players' => [], 'rev' => 0, 'touched' => 0, 'next' => 1];
         $path = $this->path($team);
         if (!is_file($path)) {
@@ -210,6 +214,51 @@ final class Roster
 
             return ['ok' => true, 'removed' => true, 'state' => $state];
         });
+    }
+
+    /**
+     * Squads go the same way prepared notes do, and for the same reason.
+     *
+     * A standalone squad is a list of named people this project holds because
+     * nothing upstream does (see the header). Hosted, the equivalent list
+     * belongs to UltiOrganizer and outlives us; here it is ours, so the rule
+     * that forgets a desk's notes has to reach the names as well — otherwise
+     * a club's roster sits on a laptop for a year after the game it was for.
+     *
+     * **Reading does not extend it**, exactly as in `Notes`: an expiry any
+     * visitor can renew is not an expiry. The consequence worth knowing is
+     * that a squad nobody edits for longer than the window disappears even
+     * while it is being used — which is safe for the two or three days a
+     * tournament lasts, and is precisely why somebody tracking one team all
+     * season should raise `retention_days` rather than re-import a CSV every
+     * week. `Overlays\Mode::retentionSeconds()` is the whole policy.
+     *
+     * Pruned on read rather than on a schedule, because there is no schedule:
+     * this is a directory of files on somebody's shared hosting, and the next
+     * request is the only clock there is.
+     */
+    private function maybePrune(): void
+    {
+        $stale = Mode::retentionSeconds();
+        if ($stale <= 0 || !is_dir($this->dir)) {
+            return;
+        }
+
+        // Throttled by a stamp, as Notes does it: a glob per request would be
+        // a filesystem scan on every roster read of every page load.
+        $stamp = $this->dir . '/.roster-pruned';
+        if (is_file($stamp) && (time() - (int) filemtime($stamp)) < 3600) {
+            return;
+        }
+        @touch($stamp);
+
+        $now = time();
+        foreach (glob($this->dir . '/roster-*.json') ?: [] as $file) {
+            if (($now - (int) filemtime($file)) > $stale) {
+                @unlink($file);
+                @unlink($file . '.lock');
+            }
+        }
     }
 
     public function isWritable(): bool

@@ -168,6 +168,57 @@ final class Mode
      */
     public const DEMO_CODE = 'TRYME';
 
+    /**
+     * How long this installation keeps desk-authored data about people.
+     *
+     * Two cases, and they differ because of who owns the squad.
+     *
+     * **Hosted**, the squad is UltiOrganizer's — registered, accredited, the
+     * list the scoresheet is built from — so `roster.php` 404s and nothing
+     * here holds names. What this project adds on top is scaffolding for one
+     * broadcast: prepared notes, pronouns, pronunciations, matchings. Those go
+     * when they are done, and the tournament's own record is untouched.
+     *
+     * **Standalone** there is no upstream list, so the squad is ours too, and
+     * the same rule has to reach it: names as well as matchings.
+     *
+     * **Which is wrong for one real person.** Somebody tracking their own club
+     * on their own machine would re-import the team's CSV every week for ever,
+     * which is not a privacy win — it is the same data typed again. So the
+     * window is configurable, in days:
+     *
+     *     'retention_days' => 90,   // a season
+     *     'retention_days' => 0,    // keep until deleted by hand
+     *
+     * **The default is seven days and it ships that way on purpose.** A
+     * tournament is two or three; a week covers preparation either side of it
+     * and forgets before the next one. Raising it is a deliberate act by
+     * whoever runs the installation, about data describing named people — and
+     * `0` means this installation never forgets them, which is a promise to
+     * make on purpose rather than by leaving a field blank.
+     */
+    public const RETENTION_DAYS = 7;
+
+    /** Seconds, or 0 for "keep indefinitely". */
+    public static function retentionSeconds(): int
+    {
+        $days = self::RETENTION_DAYS;
+        if (is_file(self::LOCAL_CONFIG)) {
+            $config = require self::LOCAL_CONFIG;
+            $raw = is_array($config) ? ($config['retention_days'] ?? null) : null;
+            if ($raw !== null) {
+                $days = (int) $raw;
+            }
+        }
+        if ($days <= 0) {
+            return 0;
+        }
+
+        // Ten years is not a policy, it is a guard against a typo that would
+        // otherwise read as "for ever" without anybody choosing that.
+        return min($days, 3650) * 86400;
+    }
+
     public static function isDemo(): bool
     {
         if (!is_file(self::LOCAL_CONFIG)) {

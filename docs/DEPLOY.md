@@ -220,6 +220,20 @@ The prepared room is [`../fixtures/demo-desk.json`](../fixtures/demo-desk.json) 
 
 **None of this exists off a demonstration.** Every fallback is gated on `Overlays\Mode::isDemo()`, and a test asserts the other side of that gate — a real installation where the published code writes nothing is the case worth failing loudly.
 
+### How long it remembers people
+
+```
+php install/make-config.php --retention-days=90 --capture=fixtures/payloads/dev --force
+```
+
+Standalone, this project holds two things about named people that nothing upstream holds: the **squad** (`shared/roster.php` — hosted this is UltiOrganizer's and the endpoint 404s) and the desk's **prepared notes**, which carry nicknames, pronouns, name pronunciations and FMP/MMP matchings. Both are forgotten **seven days after they were last written**, and that is the shipped default.
+
+Seven days covers a tournament and the preparation either side of it, and forgets before the next one. The hosted case differs on purpose: there the tournament's own record outlives the broadcast, so what expires is only what this project added on top.
+
+**Reading does not extend it.** An expiry any visitor can renew is not an expiry — which has one consequence worth knowing: a squad nobody edits for longer than the window disappears even while it is in use. That is safe for two or three days and is exactly why the number is configurable.
+
+**Raise it for the case it would otherwise punish:** somebody tracking their own club all season on their own machine, who would re-import the same CSV every week for no gain in privacy. `--retention-days=0` keeps everything until somebody deletes it by hand — a promise worth making deliberately rather than by leaving a field blank.
+
 ### The guided tour
 
 `?demo=1` on the scoreboard or the stage plays a whole game through — hold, break, timeout, cap, halftime, a running clock — from **one real payload**, mutating copies of it in the browser. Nothing is written anywhere, so it is the one showcase that is safe to hand a stranger, and it is the only way to see a moving clock without a game in progress. The Studio links it beside each stage URL.

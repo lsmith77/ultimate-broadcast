@@ -3041,3 +3041,108 @@ test.describe('what an overlay is allowed to say', () => {
     }
   });
 });
+
+test.describe('how long this installation remembers people', () => {
+  /**
+   * Squads and prepared notes are data about named people that this project
+   * holds because nothing upstream does. Hosted, the squad belongs to
+   * UltiOrganizer and `roster.php` 404s; standalone it is ours, so the rule
+   * that forgets a desk's notes has to reach the names too — otherwise a
+   * club's roster sits on a laptop for a year after the game it was for.
+   *
+   * Time is faked by ageing the files' mtimes rather than by waiting, which is
+   * the only honest way to test a week-long window in a suite that runs in two
+   * minutes. That is also exactly how the stores decide: `filemtime`.
+   */
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { ADMIN_PASSWORD } = require('../standalone-setup.js');
+
+  let CONFIG;
+  let original;
+  let conf;
+  test.beforeAll(({}, testInfo) => {
+    conf = path.join(testInfo.config.metadata.root, 'conf');
+    CONFIG = path.join(conf, 'local-config.php');
+    original = fs.readFileSync(CONFIG, 'utf8');
+  });
+  test.afterAll(() => { if (CONFIG) { fs.writeFileSync(CONFIG, original); } });
+
+  /** Set retention and wait for the installation to be reading the new value. */
+  const setRetention = async (request, days) => {
+    fs.writeFileSync(CONFIG, days === null
+      ? original
+      : original.replace(/^return \[/m, `return [\n  'retention_days' => ${days},`));
+    // opcache revalidates a cached PHP file on a delay, so a request made
+    // immediately after the write gets the old settings — true of a real
+    // deployment too, and the reason this polls rather than sleeps.
+    await expect.poll(async () => {
+      const r = await request.get('/app.php?view=notes&code=AGEDD');
+      return r.ok();
+    }, { timeout: 15000 }).toBe(true);
+  };
+
+  /** Make a store file look older than it is. */
+  const age = (file, days) => {
+    const when = new Date(Date.now() - days * 86400 * 1000);
+    fs.utimesSync(file, when, when);
+  };
+
+  const seed = async (page, request) => {
+    await page.goto('/app.php?view=login');
+    if (await page.locator('#password').count()) {
+      await page.locator('#password').fill(ADMIN_PASSWORD);
+      await page.locator('button[type=submit]').click();
+      await page.waitForLoadState('networkidle');
+    }
+    await page.request.post('/app.php?view=notes', {
+      data: { code: 'AGEDD', player: 4242, text: 'something about a named person' },
+    });
+    const roster = await page.request.post('/app.php?view=roster', {
+      data: { team: 971, add: [{ num: 8, name: 'Ari Ace' }] },
+    });
+    expect(roster.ok(), 'a standalone squad can be written').toBe(true);
+    // Both stores must actually be on disk, or the test proves nothing.
+    expect(fs.existsSync(path.join(conf, 'notes', 'AGEDD.json'))).toBe(true);
+    expect(fs.existsSync(path.join(conf, 'roster-971.json'))).toBe(true);
+  };
+
+  test('a squad and a note are both forgotten after the default week',
+    async ({ page, request }) => {
+      await setRetention(request, null);
+      await seed(page, request);
+
+      age(path.join(conf, 'notes', 'AGEDD.json'), 9);
+      age(path.join(conf, 'roster-971.json'), 9);
+      // The prune is throttled by a stamp, which must not make the test lie.
+      fs.rmSync(path.join(conf, 'notes', '.pruned'), { force: true });
+      fs.rmSync(path.join(conf, '.roster-pruned'), { force: true });
+
+      const room = await (await request.get('/app.php?view=notes&code=AGEDD')).json();
+      expect(room.players, 'the note is gone').toEqual({});
+      const squad = await (await request.get('/app.php?view=roster&team=971')).json();
+      expect(squad.players, 'and so are the names').toEqual([]);
+    });
+
+  test('and kept when an installation says to keep them', async ({ page, request }) => {
+    /*
+     * The case the setting exists for: somebody tracking one club on their own
+     * machine, who would otherwise re-import the same CSV every week. Privacy
+     * by default, not privacy by force.
+     */
+    await setRetention(request, 365);
+    await seed(page, request);
+
+    age(path.join(conf, 'notes', 'AGEDD.json'), 30);
+    age(path.join(conf, 'roster-971.json'), 30);
+    fs.rmSync(path.join(conf, 'notes', '.pruned'), { force: true });
+    fs.rmSync(path.join(conf, '.roster-pruned'), { force: true });
+
+    const room = await (await request.get('/app.php?view=notes&code=AGEDD')).json();
+    expect(Object.keys(room.players), 'a month old and still here').toContain('4242');
+    const squad = await (await request.get('/app.php?view=roster&team=971')).json();
+    expect(squad.players.length, 'the squad too').toBe(1);
+
+    await setRetention(request, null);
+  });
+});

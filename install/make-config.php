@@ -49,7 +49,7 @@ if (PHP_SAPI !== 'cli') {
 $root = dirname(__DIR__);
 $target = $root . '/conf/local-config.php';
 
-$opts = getopt('', ['capture::', 'event::', 'demo', 'password-stdin', 'force', 'help']);
+$opts = getopt('', ['capture::', 'event::', 'demo', 'retention-days::', 'password-stdin', 'force', 'help']);
 if (isset($opts['help'])) {
     fwrite(STDOUT, <<<TEXT
     Create conf/local-config.php for a standalone installation.
@@ -64,6 +64,12 @@ if (isset($opts['help'])) {
                          unauthenticated writes (prepared notes, shared lines)
                          stop taking them from anyone but an administrator.
                          Reads are untouched, so every surface still works.
+      --retention-days=N how long to keep squads and prepared notes — names,
+                         pronouns, pronunciations, matchings. Default 7, which
+                         covers a tournament and forgets before the next one.
+                         Raise it for a club tracking one team all season, who
+                         would otherwise re-import the same CSV every week. 0
+                         keeps everything until somebody deletes it.
       --password-stdin   read the administrator password from stdin instead of
                          prompting, for a scripted install.
       --force            overwrite an existing config. It holds the password
@@ -195,6 +201,25 @@ if ($capture !== '') {
 if (isset($opts['demo'])) {
     $settings['demo'] = true;
 }
+
+/*
+ * How long this installation keeps desk-authored data about named people —
+ * squads, prepared notes, pronouns, matchings. Seven days unless asked
+ * otherwise, which covers a tournament and forgets before the next one.
+ *
+ * Offered here because the person who needs it is the person running this
+ * command: somebody tracking their own club all season would otherwise
+ * re-import the same CSV every week. It is written only when given, so an
+ * installation that never thinks about it gets the short default rather than a
+ * number somebody typed once.
+ */
+if (isset($opts['retention-days']) && $opts['retention-days'] !== false) {
+    $days = (int) $opts['retention-days'];
+    if ($days < 0) {
+        fail('--retention-days must be 0 or more (0 keeps everything until deleted by hand).');
+    }
+    $settings['retention_days'] = $days;
+}
 $settings['admin_hash'] = $hash;
 
 // One writer for this file, shared with the event editor — see
@@ -210,4 +235,9 @@ fwrite(STDOUT, "Wrote " . $target . "\n"
     . '  event:   ' . $event . "\n"
     . '  capture: ' . ($capture !== '' ? $capture : '(none — reads a live Live!)') . "\n"
     . (isset($opts['demo']) ? "  demo:    yes — notes and lines are read-only\n" : '')
+    . '  keeps:   ' . (isset($settings['retention_days'])
+        ? ($settings['retention_days'] === 0
+            ? "squads and notes until deleted by hand\n"
+            : 'squads and notes for ' . $settings['retention_days'] . " days\n")
+        : "squads and notes for 7 days (the default)\n")
     . "\nSign in at /app.php?view=login\n");

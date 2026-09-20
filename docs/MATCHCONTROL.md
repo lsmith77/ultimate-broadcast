@@ -186,14 +186,20 @@ Two smaller consequences of the same discipline:
 
 ## 6. The crew, at each size
 
+**The scale has no floor and no ceiling, and that is the design rather than a consolation.** It starts at *nobody at the field* and runs as far as an event can staff. No row below is the supported configuration with the others as degraded modes; they are all it, and a feature that only works at one of them does not work (`AGENTS.md`).
+
+The roles below are the obvious allocation, not a requirement. Capabilities are granted by a code rather than by a job title, so whoever is holding the phone keeps score — broadcast crew, a team volunteer, or the person also holding the camera.
+
 With one phone surface, the allocation question becomes simply *who is holding the phone*.
 
 | People | Who holds the phone | Devices | Notes |
 |---|---|---|---|
+| **0** | Nobody — there is no phone | A camera | Film it and add the overlay afterwards ([`POSTPRODUCTION.md`](POSTPRODUCTION.md)). The score comes from the scoresheet, or from a phone somebody carried at the sideline and synced later ([`OFFLINE.md`](OFFLINE.md)). The bottom of the scale is a real deployment, not a failure of one |
 | **1** | The operator | Laptop + phone | The phone matters most here: a solo operator is away from the desk for much of the game. |
 | **2** | The **commentator** | Two laptops + a phone | Their job is already watching every point; one press every three minutes rides along, where the operator's job does not (§2). Costs this crew a third device, which is the clearest price of the v1 scoping — and the case embedding would later remove. |
 | **3** | A dedicated keeper, or a team volunteer at the pitch | Three + phone | Frees the commentator's hands for lines and possession, the high-frequency inputs. |
 | **4** | A dedicated keeper | Four + phone | Operator, two commentators, keeper. |
+| **more** | Still the keeper | More laptops | Nothing caps it. Further people buy specific things rather than a better version of the same thing: a spotter per team for detailed statistics (§10a), a replay operator ([`REPLAY.md`](REPLAY.md)), a second field. Each is optional and each degrades to the row above by simply not being staffed |
 
 The two-person case decides the design, because it is the most common and the obvious allocation is wrong. Giving score to the operator "because they have the admin login" optimises for the permission model instead of for attention.
 

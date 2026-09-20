@@ -39,6 +39,18 @@ Runtime code sits at the top level, because a routed view's path *is* its URL �
 
 `tests/selftest.php` is still a routed page (`?view=live/overlays/tests/selftest`) because it must be loadable by the switcher it diagnoses.
 
+## Nobody is required
+
+**The crew is whoever turned up, in whatever role they chose, and the scale has no floor and no ceiling.** At one end nobody is at the field at all: a camera runs, and the overlay is added to the footage afterwards (`docs/POSTPRODUCTION.md`). Then one person doing everything, then two splitting it however suits them, then as many as an event can staff — a spotter per team, a dedicated keeper, two commentators. Nothing in the middle of that range is the supported configuration with the others as degraded modes. They are all it.
+
+This is a design rule rather than a description, and it constrains every feature: **a feature that only works at three people does not work.** Three consequences that already hold, and that new work has to keep:
+
+- **Capabilities are granted by a code, not by a role.** Whoever holds the scorekeeping code keeps score, whether they are broadcast crew, a team volunteer or the person who also holds the camera. Never gate a capability on *being* something.
+- **Every input has a path that does not need somebody watching.** The clock derives from `timer_start` rather than needing a person to tick it; a card can be triggered automatically; `?auto=1` runs a whole stage with no operator. Anything that can only be driven by hand has to be optional.
+- **An absent input is omitted, never zero** — which is what lets a surface simply not be staffed. A statistic nobody collected is missing, and every consumer already does the right thing with a missing fact.
+
+When a feature genuinely needs a person, say so where the feature is documented and make the rest work without them.
+
 ## Architecture rules
 
 - **Routing:** every page checks `UO_ROUTED_VIEW` and 404s otherwise, so a direct request to a `.php` file returns nothing.

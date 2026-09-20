@@ -13,6 +13,10 @@ Four surfaces, for four different jobs:
 | **Commentator** | the people talking | A second screen, never on air: rosters, stats, who is on the field. Nothing here reaches a viewer, which is why it can show numbers a graphic must refuse. |
 | **Match control** | whoever is watching the game | The score and the clock, from a phone at the pitch. Applies a press locally and sends it afterwards, so a bar of signal never makes anybody wait. |
 
+### Any number of people, including none
+
+The crew is whoever turned up, in whatever role they chose. At one end nobody is at the field: a camera records and the overlay is added afterwards ([`POSTPRODUCTION.md`](POSTPRODUCTION.md)). Then one person doing everything, then two splitting it however suits them, then a spotter per team or a replay operator. None of those is the supported configuration with the others as degraded modes — a surface that is not staffed simply has no data, and every consumer already treats a missing fact as missing rather than as zero. [`MATCHCONTROL.md`](MATCHCONTROL.md) §6 is the table.
+
 ### Two modes, both real
 
 The project began as an extension to **[Live! by BULA](https://github.com/layoutd/live-by-bula)** 3.0.6 (which itself runs on UltiOrganizer 4.0), and that is still the mode that gets you a whole tournament. It is no longer the only one.

@@ -5926,14 +5926,14 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         { firstname: 'Nico', lastname: 'Lang', nickname: 'Speedy', role: 'O', num: 6 },
         { firstname: 'Kai', lastname: 'Reiter', nickname: 'Bear', role: 'O', num: 23 },
         { firstname: 'Rina', lastname: 'Okafor', nickname: 'Comet', role: 'O', num: 15 },
-        { firstname: 'Liv', lastname: 'Sandor', nickname: 'Storm', role: 'O', num: 18 },
+        { firstname: 'Nora', lastname: 'Sandor', nickname: 'Storm', role: 'O', num: 18 },
 
         { firstname: 'Sky', lastname: 'Thaler', nickname: 'Tiny', role: 'D', num: 2 },
         { firstname: 'Jo', lastname: 'Moser', nickname: 'Mo', role: 'D', num: 9 },
         { firstname: 'Val', lastname: 'Wagner', nickname: 'Wags', role: 'D', num: 4 },
         { firstname: 'Elias', lastname: 'Brandt', nickname: 'Brandy', role: 'D', num: 8 },
         { firstname: 'Mira', lastname: 'Kovac', nickname: 'Kova', role: 'D', num: 12 },
-        { firstname: 'Emil', lastname: 'Roth', nickname: 'Flash', role: 'D', num: 21 }
+        { firstname: 'Emil', lastname: 'Roth', nickname: 'Piper', role: 'D', num: 14 }
     ];
 
     el('demoline').addEventListener('click', function () {

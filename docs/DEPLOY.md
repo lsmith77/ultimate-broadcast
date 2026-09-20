@@ -67,7 +67,11 @@ The default is the directory as it stands, which is what a day of work wants. A 
 
 Both build a **temporary git worktree** and deploy from there, rather than asking you to check the tag out. `git checkout v0.7.0 && ./deploy.sh` works once and then leaves a detached HEAD, and the next deploy from that state ships the old tag again with nothing to say so. It also cannot be done with edits in progress without stashing them — and a tag deployed from a tree with uncommitted changes is not the tag it claims to be. From a worktree this directory is untouched, `dirty` is honestly `false`, and the worktree is removed however the script exits. [`../tests/deploy.mjs`](../tests/deploy.mjs) asserts that last part, because a worktree that survives a failure is a worktree somebody deploys from months later.
 
-`--show` stops after deciding: it prints the source directory and the `version.json` that would be sent, contacts nothing, and needs no `deploy.env`.
+`--show` stops after deciding: it prints the source directory **and its mode**, plus the `version.json` that would be sent. It contacts nothing and needs no `deploy.env`.
+
+**The mode is printed because it took the site down once.** `rsync --archive` copies the *source directory's* own permissions to the destination, and a git worktree made by `mktemp -d` is `0700` — so the first deploy from a tag set the live document root to `0700`, the web server (which is not the account that owns the files) could no longer traverse it, and **every URL answered 404 while every file sat there correct and complete**. Deploying from the working copy never showed it, because a checkout is `0755`. The worktree is now chmodded before use and `tests/deploy.mjs` asserts the mode.
+
+The same deploy published a `.git` file naming a path on the deploying machine: a worktree's `.git` is a *file*, and the exclude was written `/.git/`, which matches only a directory.
 
 **It replaces the `.htaccess`.** The one at the top of the project is for hosted mode: it rewrites onto UltiOrganizer's front controller with `RewriteBase /live/overlays/`, and on a site of its own that means every URL is a 404 — including `/`, because the file the server reaches for is `index.php`, which is the Studio page, which refuses to run unrouted. So that file is excluded and [`../install/standalone.htaccess`](../install/standalone.htaccess) is sent in its place, first, so that a first deployment is never briefly serving `conf/` with no rules in front of it.
 

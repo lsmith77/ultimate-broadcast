@@ -118,6 +118,15 @@ if [[ -n "$REF" ]]; then
   # copied to the server by the very rsync it exists to feed.
   WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/uo-deploy.XXXXXX")"
   git -C "$SCRIPT_DIR" worktree add --detach --quiet "$WORKTREE" "$REF"
+
+  # `mktemp -d` makes a 0700 directory, and `rsync --archive` faithfully copies
+  # the SOURCE directory's mode onto the destination — so deploying from one
+  # set the live document root to 0700 and the web server, which is not this
+  # user, stopped being able to traverse it. Every URL on the site answered 404
+  # while every file sat there correctly. Deploying from the working copy never
+  # showed this because a checkout is 0755.
+  chmod 755 "$WORKTREE"
+
   SRC="$WORKTREE"
 fi
 
@@ -219,7 +228,9 @@ echo "==> deploying ${RELEASE:-$SHORT}$([ "$DIRTY" = true ] && echo ' (WITH UNCO
 if [[ "$SHOW" == true ]]; then
     # Everything decided, nothing sent. This is the answer to "what would
     # --latest actually deploy", which was otherwise only knowable by doing it.
-    echo "==> source:  $SRC"
+    # The mode as well as the path: rsync copies the SOURCE directory's mode to
+    # the destination, and a 0700 source is what took the site down once.
+    echo "==> source:  $SRC (mode $(stat -f '%OLp' "$SRC" 2>/dev/null || stat -c '%a' "$SRC"))"
     cat "$VERSION_FILE"
     exit 0
 fi
@@ -278,7 +289,10 @@ fi
   --exclude='/.well-known/' \
   --exclude='/error_log' \
   --exclude='/.htaccess' \
-  --exclude='/.git/' \
+  # No trailing slash: a worktree's .git is a FILE, not a directory, and the
+  # pattern with one matched only the directory — so a deploy from a worktree
+  # published a .git naming a path on the deploying machine.
+  --exclude='/.git' \
   --exclude='/.github/' \
   --exclude='/.gitignore' \
   --exclude='.DS_Store' \

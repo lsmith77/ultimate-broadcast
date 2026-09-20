@@ -80,6 +80,35 @@ if (shown.code !== 0) {
   }
 }
 
+/*
+ * The worktree's own mode, which took the live site down.
+ *
+ * `mktemp -d` makes a 0700 directory and `rsync --archive` copies the SOURCE
+ * directory's mode to the destination — so a deploy from a worktree set the
+ * document root to 0700, the web server could no longer traverse it, and every
+ * URL answered 404 with every file present and correct. Deploying from the
+ * working copy never showed it, because a checkout is 0755.
+ */
+const shown2 = deploy(['--version', 'HEAD', '--show']);
+const mode = /^==> source:.*\(mode (\d+)\)/m.exec(shown2.out);
+if (!mode) {
+  fail('--show no longer reports the source directory mode, so this cannot be checked');
+} else if (mode[1] !== '755') {
+  fail(`the worktree is mode ${mode[1]}, and rsync copies that onto the document `
+    + 'root — it must be 755 or every URL on the site 404s');
+}
+
+/*
+ * And what the worktree carries that a checkout does not. A worktree's `.git`
+ * is a FILE, so an exclude written as `/.git/` — matching directories only —
+ * let it through, and a deploy published a file naming a path on the deploying
+ * machine.
+ */
+const excludes = readFileSync(path.join(ROOT, 'deploy.sh'), 'utf8');
+if (!/--exclude='\/\.git'/.test(excludes)) {
+  fail("deploy.sh must exclude '/.git' without a trailing slash: a worktree's .git is a file");
+}
+
 const bogus = deploy(['--version', 'no-such-version-exists', '--show']);
 if (bogus.code === 0) {
   fail('a version that does not exist was accepted');

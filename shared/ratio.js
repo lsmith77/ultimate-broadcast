@@ -100,6 +100,24 @@
         return a > b ? parts[0] : parts[1];
     }
 
+    /**
+     * The ratio a given point is played at, from point one's.
+     *
+     * The commentator page and the spotter had each written this out - the
+     * same drift this file exists to stop, one function further in than the
+     * last time. Null when point one was never declared, because a point whose
+     * ratio nobody said is unknown rather than played at a default.
+     */
+    function forPoint(first, size, pointNumber) {
+        var options = pairForSize(size);
+        if (!options || !options.length) { return null; }
+        // An even size forces the split: nothing to alternate.
+        if (options.length === 1) { return options[0]; }
+        if (!first || options.indexOf(String(first)) === -1) { return null; }
+        var other = options[0] === first ? options[1] : options[0];
+        return slot(pointNumber) === 'A' ? String(first) : other;
+    }
+
     /** Mixed is decided by the division name, as the scoresheet decides it. */
     function isMixed(seriesName) {
         return String(seriesName || '').toLowerCase().indexOf('mixed') !== -1;
@@ -124,6 +142,6 @@
     return {
         slot: slot, pair: pair, short: short, isMixed: isMixed, counts: counts,
         sizes: sizes, isSize: isSize, defaultSize: defaultSize,
-        pairForSize: pairForSize, isChoice: isChoice
+        pairForSize: pairForSize, isChoice: isChoice, forPoint: forPoint
     };
 }));

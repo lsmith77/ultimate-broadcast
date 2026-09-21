@@ -65,6 +65,20 @@ $assetUrl = static function (string $relative) use ($base): string {
 /** Present only when somebody has run `spotter/get-model.sh`. */
 $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
 
+/*
+ * A reference game pack, if this installation has one.
+ *
+ * Not in the repository: a real pack holds a real squad, and the rule here
+ * is invented people in anything committed. `spotter/games.example.json`
+ * documents the shape; the pack itself is handed to a spotter with the rest
+ * of the briefing.
+ */
+$gamePack = null;
+if (is_file(__DIR__ . '/spotter/games.json')) {
+    $raw = json_decode((string) file_get_contents(__DIR__ . '/spotter/games.json'), true);
+    if (is_array($raw) && !empty($raw['games'])) { $gamePack = $raw['games']; }
+}
+
 $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter/model.tar.gz');
 
 /*
@@ -427,6 +441,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-game="<?= $gameId === false || $gameId === null ? '' : (int) $gameId ?>">
 <script>
+    window.SPOTTER_PACK = <?= $gamePack ? $json($gamePack) : 'null' ?>;
     /*
      * Where the rosters come from, which is the same place every other
      * surface reads: `shared/provider.js` answers for a hosted Live!
@@ -543,6 +558,14 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     <div class="panel trainonly" id="trainPanel">
       <div class="row">
         <strong>Training</strong>
+<?php if ($gamePack) : ?>
+        <select id="packGame" title="A reference game, with both squads">
+          <option value="">choose a game…</option>
+<?php foreach ($gamePack as $i => $g) : ?>
+          <option value="<?= (int) $i ?>"><?= $e((string) ($g['name'] ?? $g['id'] ?? ('game ' . $i))) ?></option>
+<?php endforeach; ?>
+        </select>
+<?php endif; ?>
         <label class="file">Load a tagged game<input id="ref" type="file" accept=".json"></label>
         <button id="scoreme" disabled>Score me</button>
         <span class="sub" id="refinfo">no reference loaded</span>
@@ -2868,6 +2891,22 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 : '—'],
             ['voice matched', tally.heard ? Math.round((tally.matched / tally.heard) * 100) + '%' : '—']
         ];
+        /*
+         * The official score, checked against what was captured.
+         *
+         * The one piece of ground truth that costs nothing: if the
+         * tournament says 15-13 and the capture holds 13 goals, two were
+         * missed, and that is known without anybody tagging a single event.
+         */
+        if (packGame && packGame.score) {
+            var ours = events.filter(function (e) { return e.type === 'goal'; }).length;
+            var theirs = events.filter(function (e) { return e.type === 'conceded'; }).length;
+            var want = Number(packGame.score.home || 0) + Number(packGame.score.away || 0);
+            var got = ours + theirs;
+            cells.push(['goals captured', got + '/' + want
+                + (got === want ? '' : ' \u26a0')]);
+        }
+
         var hb = holdsAndBreaks();
         if (hb.onO || hb.onD) {
             cells.push(['holds', hb.onO ? hb.hold + '/' + hb.onO : '\u2014']);
@@ -5612,6 +5651,50 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 
     // ---- training ----------------------------------------------------------
     var reference = null;
+
+    /**
+     * A reference game, loaded whole: video, both squads, the line size.
+     *
+     * The setup a recruit would otherwise do by hand is the step that loses
+     * them - two rosters typed in before they have said a word. One choice
+     * does it, and everybody spotting the same game gets the same names in
+     * the same forms, which is what makes their captures comparable at all.
+     *
+     * Training mode on purpose: it stamps events with VIDEO time, so two
+     * people spotting the same footage on different days align exactly. Wall
+     * clock captures cannot be compared.
+     */
+    var packGame = null;
+
+    if (el('packGame')) {
+        el('packGame').addEventListener('change', function () {
+            var pack = window.SPOTTER_PACK || [];
+            var g = pack[Number(el('packGame').value)];
+            if (!g) { packGame = null; render(); return; }
+            packGame = g;
+
+            wipe(true);
+            if (g.size) { lineSize = Number(g.size) || lineSize; }
+            sides = { O: [], D: [] };
+            squad = [];
+            (g.teams || []).forEach(function (t, i) {
+                var slot = t.side === 'D' || i === 1 ? 'D' : 'O';
+                teamNames[slot] = t.name || teamName(slot);
+                (t.players || []).forEach(function (q) {
+                    var pl = asPlayer({ firstname: q.firstname, lastname: q.lastname,
+                                        nickname: q.nickname, num: q.num, role: slot });
+                    if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
+                });
+            });
+            if (MODE !== 'training') { setMode('training'); }
+            if (g.video) {
+                el('url').value = g.video;
+                el('load').click();
+            }
+            startPoint(null, 'O');
+            render();
+        });
+    }
 
     el('ref').addEventListener('change', function (ev) {
         var f = ev.target.files && ev.target.files[0];

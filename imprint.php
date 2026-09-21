@@ -192,6 +192,27 @@ header('Content-Type: text/html; charset=UTF-8');
         It extends <a href="https://github.com/layoutd/live-by-bula" rel="noopener">Live! by
         BULA</a>, which is separate software under its own terms and is not running here.
     </p>
+    <?php
+    /*
+     * Attribution for what the spotter redistributes.
+     *
+     * The recogniser is not this project's work and is served from this
+     * domain, which makes the installation a redistributor rather than a
+     * user. Apache-2.0 asks that recipients get the licence and the notices;
+     * `spotter/NOTICE.md` and `spotter/LICENSE-Apache-2.0.txt` are deployed
+     * beside the files themselves, and this says so somewhere a reader looks.
+     */
+    ?>
+    <p>
+        Speech recognition in the spotter runs in the browser using
+        <a href="https://github.com/ccoreilly/vosk-browser" rel="noopener">vosk-browser</a>
+        with an English model from
+        <a href="https://alphacephei.com/vosk/models" rel="noopener">Alpha Cephei</a>
+        (Copyright 2020 Alpha Cephei Inc). Both are licensed under Apache-2.0 and
+        are used unmodified; where the recogniser is installed, the licence and
+        notices are served beside it as
+        <code>spotter/NOTICE.md</code> and <code>spotter/LICENSE-Apache-2.0.txt</code>.
+    </p>
 
     <footer>
         <a href="<?= $e(Mode::viewUrl('index')) ?>">Back to the Studio</a>

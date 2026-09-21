@@ -39,11 +39,22 @@
 
 # WHAT IS DELIBERATELY NOT DEPLOYED
 #
-# The spotter's recogniser model. It is fetched rather than shipped - a
-# worktree deploy would not carry it anyway, since it is gitignored and so
-# untracked, while a working-directory deploy would. The site would gain or
-# lose voice depending on which flag was used, so both exclude it, and
-# `spotter/get-model.sh` is run on the server to enable it there.
+# Nothing, now, of the spotter's recogniser: it IS deployed, in a step of its
+# own below.
+#
+# It used to be excluded and fetched again on the server, because it is
+# gitignored and so untracked - a worktree deploy would not carry it while a
+# working-directory deploy would, and the site gained or lost voice depending
+# on which flag was used. Excluding it fixed that asymmetry by making the
+# spotter mute everywhere unless somebody remembered to run a script over SSH,
+# which is a step that will be forgotten. The step below fixes it the other
+# way: the recogniser is always sent, always from THIS directory rather than
+# from `$SRC`, so a tagged deploy and a working-directory deploy put the same
+# files on the server.
+#
+# It travels with `NOTICE.md` and `LICENSE-Apache-2.0.txt`, because deploying
+# somebody else's Apache-2.0 work makes this a redistributor: recipients get
+# the licence and the notices, not just the binary.
 #
 # `--exclude='/.git'` has NO trailing slash on purpose: a worktree's .git is a
 # FILE, not a directory, and the pattern with one matched only the directory -
@@ -339,6 +350,28 @@ fi
   --exclude='/deploy.env.example' \
   "$@" \
   "$SRC/" "$REMOTE"
+
+# ---------------------------------------------------------------------------
+# The recogniser, and what it is licensed under.
+#
+# Sent from THIS directory whatever version was deployed, because it is
+# untracked and a worktree never has it. Skipped with a word rather than
+# silently when it has not been fetched: a mute spotter that never says why is
+# how somebody spends an afternoon on a microphone that was never the problem.
+# ---------------------------------------------------------------------------
+MODEL_DIR="$SCRIPT_DIR/spotter"
+if [[ -f "$MODEL_DIR/vosk.js" && -f "$MODEL_DIR/model.tar.gz" ]]; then
+  echo "==> recogniser (about 40MB, unchanged files are skipped)"
+  "$RSYNC" --archive --verbose "$@" \
+    "$MODEL_DIR/vosk.js" \
+    "$MODEL_DIR/model.tar.gz" \
+    "$MODEL_DIR/NOTICE.md" \
+    "$MODEL_DIR/LICENSE-Apache-2.0.txt" \
+    "${REMOTE}spotter/"
+else
+  echo "==> no recogniser here, so the spotter deploys mute."
+  echo "    Run spotter/get-model.sh in this directory, then deploy again."
+fi
 
 cat <<'DONE'
 

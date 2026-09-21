@@ -32,3 +32,8 @@ version.json
 # whole property is that the directory is the installation.
 spotter/vosk.js
 spotter/model.tar.gz
+# Written by get-model.sh beside the files they describe. Not committed, for
+# the same reason: a notice for a recogniser that is not present is worse than
+# no notice at all.
+spotter/NOTICE.md
+spotter/LICENSE-Apache-2.0.txt

@@ -49,8 +49,11 @@ if [ -f vosk.js ]; then
 else
     echo "==> vosk-browser ${VOSK_VERSION} (Apache-2.0)"
     curl -sL -o vosk.tgz "$VOSK_TARBALL"
-    tar xzf vosk.tgz package/dist/vosk.js
+    tar xzf vosk.tgz package/dist/vosk.js package/README.md
     mv package/dist/vosk.js vosk.js
+    # Kept, not discarded: redistributing the library means carrying what it
+    # says about itself. See NOTICE.md below.
+    mv package/README.md vosk-browser.README.md
     rm -rf package vosk.tgz
 fi
 
@@ -64,6 +67,50 @@ else
     tar czf model.tar.gz "$MODEL_NAME"
     rm -rf model.zip "$MODEL_NAME"
 fi
+
+# ---------------------------------------------------------------------------
+# What we are redistributing, and under what.
+#
+# These files are DEPLOYED, which makes this project a redistributor rather
+# than just a user. Apache-2.0 asks that recipients get the licence and that
+# notices are kept, so both travel with the artefacts instead of living in
+# somebody's memory. Written here rather than committed because the things
+# they describe are fetched here too, and a notice for a file that is not
+# present would be worse than none.
+# ---------------------------------------------------------------------------
+if [ ! -f LICENSE-Apache-2.0.txt ]; then
+    echo "==> Apache-2.0 licence text"
+    curl -sL -o LICENSE-Apache-2.0.txt "https://www.apache.org/licenses/LICENSE-2.0.txt"
+fi
+
+cat > NOTICE.md <<NOTICE
+# Third-party components in spotter/
+
+Fetched by \`get-model.sh\`, not committed. Both are used unmodified except
+where noted, and both are licensed under Apache-2.0 — see
+\`LICENSE-Apache-2.0.txt\` beside this file.
+
+## vosk-browser ${VOSK_VERSION}
+
+WASM build of the Vosk speech recogniser.
+
+- Source: <https://github.com/ccoreilly/vosk-browser>
+- Package: <${VOSK_TARBALL}>
+- Licence: Apache-2.0, as declared in the package metadata
+- Files: \`vosk.js\` (the published \`dist/vosk.js\`, unmodified) and the
+  upstream readme as \`vosk-browser.README.md\`
+
+## ${MODEL_NAME}
+
+English acoustic model.
+
+- Copyright 2020 Alpha Cephei Inc
+- Source: <${MODEL_ZIP}>
+- Licence: Apache-2.0
+- Files: \`model.tar.gz\` — the published archive repacked from zip to tar.gz
+  because vosk-browser expects a tarball. Contents are unchanged, including the
+  upstream README.
+NOTICE
 
 printf '\n%s\n' "spotter/ is ready:"
 ls -lh "$VENDOR" | awk 'NR>1 {printf "  %-16s %s\n", $9, $5}'

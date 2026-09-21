@@ -166,6 +166,8 @@ This applies to every displacing action — switching a card on into an occupied
 
 Verified against live payloads and the UO schema, not assumed. This is the difference between a card that can be built this week and one that needs an upstream change.
 
+> **A third category exists now: data no upstream has, which this project collects itself.** The spotter records throws, calls and disc-live time from the sideline. Nothing consumes it yet — a capture is a downloaded file — but it is the only source for a card keyed to whoever has the disc, for a point's pass count while the point is running, or for live time against elapsed. `MATCHCONTROL.md` §10a, "What a capture unlocks downstream", lists these and the transport they wait on.
+
 ### 3.1 Player stats — well supported
 
 `entity=teams&id=<team>` returns a `players` array, and the per-game equivalent is `hometeam_scoreboard` / `visitorteam_scoreboard` in the game payload. Each player carries:

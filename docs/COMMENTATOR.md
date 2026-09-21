@@ -64,6 +64,8 @@ That principle has since been built, on the broadcast side first. `shared/facts.
 
 All of the following come from the goal list, `entity=teams` and `entity=reference`, all already reachable:
 
+> **Everything here is derived from points, because points are all that is recorded.** The spotter captures individual throws, which would add a class of fact about *people* rather than about points — a completion streak, passes inside a possession, how many calls have passed between two players. None of it is reachable yet: a capture is a file the spotter downloads and no surface reads it. See `MATCHCONTROL.md` §10a, "What a capture unlocks downstream", for what that needs and for the coverage rules any such fact would have to carry.
+
 **Run of play**
 - Scoring runs — *"four of the last five"*, with the names.
 - Time since the last goal, and pace against the cap.

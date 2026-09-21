@@ -599,6 +599,20 @@ It shares the bookmark's shape — a mark with a tag, stored where possession al
 
 **So the first question is whether to build it at all.** Established apps already do this — Statto among them — with the input design worked out and users trained. A collaboration, or an import of their export, would get a coach's numbers onto a broadcast without this project growing a second product to staff. Either way the piece to build is the **join**: whatever collects the data, these overlays are where a number reaches air, and those rules are already written — a denominator travels with every rate, an untracked point is unknown rather than zero, and anything the data cannot support is not said.
 
+### What a capture unlocks downstream, and the one thing in the way
+
+The spotter is built and nothing consumes it. **A capture is currently a file the spotter downloads** — no surface reads it, so none of what follows exists yet. The gating piece is a transport: the events need to live in a store the other surfaces already poll, the same shape as possession, lines and notes. Until that exists, every item below is a consequence waiting on one piece of plumbing, and it is worth listing them together because they argue for the *shape* of that store rather than for building them one at a time.
+
+**At the commentary desk.** `shared/facts.js` ranks what is interesting right now, and everything it can currently say is derived from the possession log and the score: holds and breaks, turnover counts, conversion. Per-throw data adds a class of fact that is about **people** rather than about points — a completion streak, passes inside this possession, what a player has done so far this game, how many calls have passed between these two in this point. That last one is not a statistic anybody keeps; it is the kind of line a commentator actually says, and nothing records it today.
+
+**On air.** The overlays render what a desk already knows, so the same events reach graphics without new rules: a lower-third keyed to whoever has the disc, a point's pass and turnover count while the point is still running, live time against elapsed time. The last is genuinely new — nothing upstream distinguishes disc-live from stopped, which is the denominator §10a argues the play clock finally provides.
+
+**For a coach.** Per-player **live** time is not the same number as `shared/playingtime.js` computes: that is time on the field by line, this is time with the disc in play, which is the one that tracks workload. And a spotter covering both teams makes the cross-tab possible — completion rate *against* a named defensive look — which is the question throws alone cannot answer and the reason the formations note above exists.
+
+**What it does not unlock.** Nothing spatial: there are no field coordinates in a capture, so anything about space, field position or cuts is out of reach by construction. And a spotter is now encouraged to do a few points rather than a whole game, so partial coverage is the normal case rather than the exception.
+
+**The rules are already written, and they are the hard part.** Everything here is a derived number reaching air, which is exactly where this project's characteristic bug lives — a graphic quietly asserting something untrue. The doctrine above applies unchanged: coverage is declared per event class, a derived number inherits the worst coverage of its inputs, a denominator travels with every rate, and a point nobody spotted is unknown rather than zero. A capture covering four points of a final is a complete record of four points, and any fact built from it has to say so.
+
 ## 11. Open questions
 
 - **Does the keeper also hold the ratio and line size?** They already exist as declared values and are currently the desk's. The person with the paper scoresheet is the one who can actually see the circled ratio, which argues for moving them — but the desk is who needs them. Probably both, since they are already capability-gated declared values and reconcile cleanly.

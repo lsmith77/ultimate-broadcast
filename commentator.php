@@ -3769,7 +3769,18 @@ prepared notes and the shared line cannot be saved.</div>
         var count = el('span', 'count' + (line.length === size ? ' ok' : (line.length > size ? ' over' : '')),
             line.length + ' / ' + size);
         head.append(count);
-        head.append(window.LineupUI.counts({ groups: assist && assist.groups }));
+        /*
+         * Guarded, because this page goes to air.
+         *
+         * These moved to shared/ modules loaded over the network. A stale
+         * cache or a prefix that resolves wrongly would make the global
+         * undefined, and an unguarded call throws inside pickPanel - which is
+         * the LINE PICKER, so a missing count would cost the desk the whole
+         * control rather than the trim on it. Degrade to no counts instead.
+         */
+        if (window.LineupUI) {
+            head.append(window.LineupUI.counts({ groups: assist && assist.groups }));
+        }
         panel.append(head);
 
         if (!list.length) {
@@ -3777,7 +3788,7 @@ prepared notes and the shared line cannot be saved.</div>
             return panel;
         }
 
-        if (mixed && !hasMatchings) {
+        if (mixed && !hasMatchings && window.LineupUI) {
             panel.append(window.LineupUI.missingNote({
                 remedy: 'Import the team’s sheet on the prep screen, or check '
                     + 'the sync code — matchings live in the room the code names.'
@@ -4601,7 +4612,10 @@ prepared notes and the shared line cannot be saved.</div>
         renderSizeControl(box);
         if (!ratioIsChoice()) { return; }
 
-        // The SAME picker the spotter shows, from shared/ratio-ui.js.
+        // The SAME picker the spotter shows, from shared/ratio-ui.js. Guarded
+        // for the same reason as the counts above: no ratio selector is a
+        // worse desk, a thrown TypeError is no desk at all.
+        if (!window.RatioUI) { return; }
         var sel = window.RatioUI.select({
             size: lineSize(),
             current: firstRatioValue(),

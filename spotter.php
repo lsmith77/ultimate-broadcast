@@ -281,7 +281,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     .pickhead .preset { font-size: .75rem; padding: .22rem .55rem; }
     .pickhead .sizer { font-size: .75rem; padding: .15rem .3rem; max-width: 5rem; }
     /* Which line is out, which decides who starts with the disc. */
-    .startpill { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+    .startpill { cursor: pointer; font-size: .68rem; font-weight: 800; letter-spacing: .06em;
                  padding: .12rem .45rem; border-radius: 99px; }
     .startpill.o { background: #10382a; color: #7df0bd; }
     .startpill.d { background: #3a2540; color: #e0b3ff; }
@@ -2878,9 +2878,26 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         });
         head.append(sizer);
 
-        var pill = document.createElement('span');
+        /*
+         * Who is on offence, as a control rather than a readout.
+         *
+         * From point two this is derived and right: whoever scored pulls, so
+         * `nextStart()` flips it. The FIRST point of a game or a half has
+         * nothing to derive from, and it was simply assumed to be the team in
+         * slot O - which is wrong half the time, with no way to say so. It is
+         * a declaration, so somebody has to be able to make it.
+         */
+        var pill = document.createElement('button');
+        pill.type = 'button';
         pill.className = 'startpill ' + (starting === 'D' ? 'd' : 'o');
-        pill.textContent = starting === 'D' ? 'D point \u2014 we pull' : 'O point \u2014 we receive';
+        pill.textContent = teamName(starting) + ' \u2014 on offence';
+        var settable = startIsSettable();
+        pill.disabled = !settable;
+        pill.title = settable
+            ? 'Switch the pull: ' + teamName(other(starting)) + ' would receive instead'
+            : 'The point has started, so this would rewrite what is already '
+                + 'recorded. Say "new point" to begin again.';
+        pill.addEventListener('click', function () { setStarting(other(starting)); });
         head.append(pill);
 
         renderRatio(head);
@@ -4832,6 +4849,38 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
             if (events[i].type === 'conceded') { return 'O'; }
         }
         return starting;
+    }
+
+    /**
+     * Only before the point has anything in it.
+     *
+     * `starting` is not just a label: the grammar resolves "offence" and
+     * "defence" through it, possession is set from it, and it is stamped into
+     * the point event. Flipping it after throws are recorded would relabel
+     * events that were captured under the old answer, which is a rewrite of
+     * history rather than a correction.
+     */
+    function startIsSettable() {
+        for (var i = events.length - 1; i >= 0; i -= 1) {
+            if (events[i].type === 'point') { return i === events.length - 1; }
+        }
+        return true;
+    }
+
+    function setStarting(which) {
+        if ((which !== 'O' && which !== 'D') || which === starting) { return; }
+        if (!startIsSettable()) { return; }
+        starting = which;
+        // The point event already carries the old answer; it has to agree, or
+        // a reader of the log and this screen would disagree about the pull.
+        for (var i = events.length - 1; i >= 0; i -= 1) {
+            if (events[i].type === 'point') { events[i].starting = which; break; }
+        }
+        possession = starting === 'D' ? 'them' : 'us';
+        // "offence" and "defence" are words in the grammar that resolve
+        // through `starting`, so the recogniser has to be rebuilt.
+        rebuildGrammar();
+        render();
     }
 
     function startPoint(names, which) {

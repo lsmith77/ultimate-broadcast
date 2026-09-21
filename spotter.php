@@ -4871,11 +4871,18 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
          * control here would offer an edit that can only make things wrong -
          * the same reason the ratio is declared once and derived thereafter.
          *
+         * HALF TIME IS NOT AN EXCEPTION, though `nextStart()` alone gets it
+         * wrong. The second half reverses the opening pull, so it follows
+         * from point one's declaration rather than from the last goal - it is
+         * derived, not declared, and needs no control. What stops this page
+         * applying the rule is that it has no idea when half time happened:
+         * nothing in the grammar or the state marks it. The missing input is
+         * the half, not the pull.
+         *
          * KNOWN GAP, deliberately not handled: a spotter who joins a game in
          * progress starts at point one of THEIR capture, which is some later
-         * point of the game, and the same is true after half time - the pull
-         * there does not follow from the last goal. Both need a declaration
-         * this refuses to offer. Left alone until the common case is proven.
+         * point of the game. That one really does need a declaration this
+         * refuses to offer. Left alone until the common case is proven.
          */
         if (point !== 1) { return false; }
         for (var i = events.length - 1; i >= 0; i -= 1) {

@@ -325,6 +325,8 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     .peditmt button[aria-pressed="true"] { border-color: var(--ink); }
     #pedit menu { display: flex; gap: .4rem; justify-content: flex-end;
                   margin: 0; padding: 0; }
+    .board { font-size: 1.5rem; font-weight: 800; letter-spacing: .04em; }
+    #scoreMore > summary { cursor: pointer; font-size: .78rem; color: var(--mute); }
     .ratiobox { display: inline-flex; gap: .35rem; align-items: center; }
     .ratiobox label { display: inline-flex; gap: .2rem; align-items: center; }
     .ratiochip { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
@@ -552,6 +554,14 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 <script src="<?= $e($assetUrl('shared/ratio-ui.js')) ?>"></script>
 <script src="<?= $e($assetUrl('shared/lineup.js')) ?>"></script>
 <script src="<?= $e($assetUrl('shared/lineup-ui.js')) ?>"></script>
+<?php
+/*
+ * The scorekeeping client, because a tournament spotter IS the scorekeeper.
+ * Same module the match-control phone uses, so the score this page writes and
+ * the score that phone writes are the same store reached the same way.
+ */
+?>
+<script src="<?= $e($assetUrl('shared/score-client.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-model-version="<?= $e($modelVersion) ?>"
@@ -568,7 +578,8 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         api: <?= $json($base . '/index.php?view=live/api') ?>,
         captureBase: <?= $json(Mode::captureBase($base)) ?>,
         rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : Mode::viewUrl('roster', $base)) ?>,
-        notesUrl: <?= $json(Mode::viewUrl('notes', $base)) ?>
+        notesUrl: <?= $json(Mode::viewUrl('notes', $base)) ?>,
+        scoreUrl: <?= $json(Mode::viewUrl('score', $base)) ?>
     };
 </script>
 
@@ -736,6 +747,35 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
   </div>
 
   <div class="side">
+<?php if ($gameId) : ?>
+    <?php
+    /*
+     * The scoreboard, for a spotter who has replaced the scorekeeper.
+     *
+     * Reading it is the common act and pressing it is the rare one, so the
+     * board is plain and the buttons are folded away. They are still there,
+     * because a goal can be wrong, called back, or scored while nobody was
+     * saying anything - and "say it again" is not a correction.
+     */
+    ?>
+    <div class="panel" id="scorePanel">
+      <div class="row">
+        <span class="board" id="board">— : —</span>
+        <span class="sub" id="scoreState">not linked</span>
+      </div>
+      <details id="scoreMore">
+        <summary>Score controls</summary>
+        <div class="row">
+          <input id="scoreCode" type="text" size="7" placeholder="code"
+                 title="The scorekeeping code, as match control nominates it">
+          <button id="scoreLink">Link</button>
+          <button id="goalHome" disabled>+ home</button>
+          <button id="goalAway" disabled>+ away</button>
+          <button id="scoreUndo" disabled>undo</button>
+        </div>
+      </details>
+    </div>
+<?php endif; ?>
     <div class="panel" id="linePanel">
       <div class="row">
         <label class="file">Squad<input id="file" type="file" accept=".json"></label>
@@ -2114,6 +2154,68 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         return null;
     }
 
+    /*
+     * The score, kept by the spotter who replaced the scorekeeper.
+     *
+     * `ScoreClient` is the match-control phone's own module, so this writes to
+     * the same store the same way - including its offline outbox, which is why
+     * a goal said on a bad connection is not a goal lost.
+     *
+     * WHICH SIDE SCORED is not guessed. `loadFromEvent()` puts the home team in
+     * slot O and the visitor in slot D, and `nextStart()` already encodes the
+     * rest: after a `goal` the next point starts on D, so O scored; after a
+     * `conceded` it starts on O, so D did.
+     */
+    var keeper = null;
+
+    /*
+     * The rehearsal replays real handlers against a scratch `events` array, and
+     * a store write is a side effect that no array swap can undo. Without this,
+     * checking the script would post goals to the tournament's scoreboard.
+     */
+    var suppressScore = false;
+
+    function scoreGame() {
+        return (document.body.dataset.game || '').trim();
+    }
+
+    function renderBoard() {
+        var board = el('board');
+        if (!board) { return; }
+        if (!keeper) { board.textContent = '\u2014 : \u2014'; return; }
+        var v = keeper.view();
+        board.textContent = teamName('O') + ' ' + v.home + ' : ' + v.away + ' ' + teamName('D');
+    }
+
+    function linkScore() {
+        var code = (el('scoreCode').value || '').trim();
+        var cfg = window.SPOTTER_CONFIG;
+        if (!code || !cfg || !cfg.scoreUrl || !window.ScoreClient || !scoreGame()) {
+            el('scoreState').textContent = 'needs a game and a code';
+            return;
+        }
+        keeper = window.ScoreClient.create({
+            url: cfg.scoreUrl,
+            game: scoreGame(),
+            code: function () { return code; }
+        });
+        keeper.onChange(function () { renderBoard(); });
+        keeper.refresh();
+        ['goalHome', 'goalAway', 'scoreUndo'].forEach(function (b) {
+            if (el(b)) { el(b).disabled = false; }
+        });
+        el('scoreState').textContent = 'linked';
+        renderBoard();
+    }
+
+    /** A said goal counts exactly as a pressed one, because it is one. */
+    function scoreFromEvent(type) {
+        if (!keeper || suppressScore) { return; }
+        if (type !== 'goal' && type !== 'conceded') { return; }
+        keeper.goal(type === 'goal');
+        renderBoard();
+    }
+
     function push(type, extra) {
         var e = { id: id(), point: point, at: Math.round(at() * 10) / 10, type: type,
                   source: 'key', audioAt: heardAt ? heardAt.start : audioOffset() };
@@ -2140,6 +2242,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
          */
         events.push(e);
         playFromEvent(e);
+        scoreFromEvent(type);
         render();
     }
 
@@ -3707,6 +3810,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     var replaying = false;
 
     function dryRun(steps) {
+        suppressScore = true;
         /*
          * Everything the handlers touch, and that list grows.
          *
@@ -3759,6 +3863,9 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         lastCall = saved.lastCall;
         heardAt = saved.heardAt;
         tally = saved.tally;
+        // Back on with the restore, so a write is suppressed for exactly as
+        // long as the scratch session exists and not one event longer.
+        suppressScore = false;
         replaying = false;
 
         return out;
@@ -7034,6 +7141,19 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         { firstname: 'Mira', lastname: 'Kovac', matching: 'FMP', nickname: 'Kova', role: 'D', num: 12 },
         { firstname: 'Emil', lastname: 'Roth', matching: 'MMP', nickname: 'Piper', role: 'D', num: 14 }
     ];
+
+    if (el('scoreLink')) {
+        el('scoreLink').addEventListener('click', linkScore);
+        el('goalHome').addEventListener('click', function () {
+            if (keeper) { keeper.goal(true); renderBoard(); }
+        });
+        el('goalAway').addEventListener('click', function () {
+            if (keeper) { keeper.goal(false); renderBoard(); }
+        });
+        el('scoreUndo').addEventListener('click', function () {
+            if (keeper) { keeper.undo(); renderBoard(); }
+        });
+    }
 
     if (el('desknotes')) { el('desknotes').addEventListener('click', pullNotes); }
 

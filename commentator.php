@@ -779,6 +779,7 @@ prepared notes and the shared line cannot be saved.</div>
 
 <script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/ratio-ui.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/lineup.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/playingtime.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
@@ -3082,13 +3083,10 @@ prepared notes and the shared line cannot be saved.</div>
      */
     function currentRatioFull() {
         if (!isMixedDivision()) { return null; }
-        var pair = ratioPair();
-        if (!pair.length) { return null; }
-        if (pair.length === 1) { return pair[0]; }
-        var first = firstRatioValue();
-        if (!first) { return null; }
-        var other = pair[0] === first ? pair[1] : pair[0];
-        return abbaSlot(currentPointNumber()) === 'A' ? first : other;
+        // The arithmetic is Ratio's; this only says which point is being asked
+        // about. It was written out here until the spotter needed it too.
+        return window.Ratio.forPoint(firstRatioValue(), lineSize(),
+            currentPointNumber());
     }
 
     function setFirstRatio(v) {
@@ -4611,31 +4609,15 @@ prepared notes and the shared line cannot be saved.</div>
         renderSizeControl(box);
         if (!ratioIsChoice()) { return; }
 
-        var pair = ratioPair();
-        var current = firstRatioValue();
-
-        var sel = document.createElement('select');
-        sel.className = 'tsel ratiosel';
-        sel.title = possession.canTrack
-            ? (current
-                ? 'Gender ratio on point 1. Everything else follows the ABBA pattern from it.'
-                : 'Set the gender ratio on point 1, from the paper scoresheet.')
-            : 'Gender ratio on point 1 — kept on this screen only until the desk is '
-                + 'linked; a shared value replaces it.';
-        sel.setAttribute('aria-label', 'Gender ratio on point 1');
-
-        var opts = [['', 'ratio pt 1']].concat(pair.map(function (r) {
-            return [r, shortRatio(r) + ' pt 1'];
-        }));
-        opts.forEach(function (o) {
-            var opt = document.createElement('option');
-            opt.value = o[0];
-            opt.textContent = o[1];
-            if (o[0] === (current || '')) { opt.selected = true; }
-            sel.append(opt);
+        // The SAME picker the spotter shows, from shared/ratio-ui.js.
+        var sel = window.RatioUI.select({
+            size: lineSize(),
+            current: firstRatioValue(),
+            canShare: possession.canTrack,
+            className: 'tsel ratiosel',
+            onChange: function (value) { setFirstRatio(value); }
         });
-        sel.addEventListener('change', function () { setFirstRatio(sel.value || null); });
-        box.append(sel);
+        if (sel) { box.append(sel); }
     }
 
     /**

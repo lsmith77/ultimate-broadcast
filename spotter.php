@@ -92,12 +92,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="night">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <?= Brand::head('spot', $base) ?>
 <title>Spotter</title>
+<link rel="stylesheet" href="<?= $e($assetUrl('shared/matching.css')) ?>">
 <style>
     :root {
         --bg: #0f1a30; --panel: #16203a; --line: #26324e; --ink: #e8eefb;
@@ -241,7 +242,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .pickhead .count { font-weight: 700; font-variant-numeric: tabular-nums;
                        color: var(--warn); }
     .pickhead .count.ok { color: var(--ok); }
-    .pickhead .gcount { font-size: .8rem; color: var(--mute); }
+    .pickhead .teamcount { font-size: .8rem; color: var(--mute); }
     .pickhead .preset { font-size: .75rem; padding: .22rem .55rem; }
     .pickhead .sizer { font-size: .75rem; padding: .15rem .3rem; max-width: 5rem; }
     /* Which line is out, which decides who starts with the disc. */
@@ -249,6 +250,22 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                  padding: .12rem .45rem; border-radius: 99px; }
     .startpill.o { background: #10382a; color: #7df0bd; }
     .startpill.d { background: #3a2540; color: #e0b3ff; }
+    /* Tokens from shared/matching.css so both desks tint alike; the type is
+       this page's own. Never colour alone - the tag carries the meaning and
+       the tint only lets a line be scanned. */
+    .mt { font-size: .6rem; font-weight: 800; letter-spacing: .04em;
+          padding: 0 .22rem; border-radius: 3px; display: block;
+          margin: .1rem auto 0; width: max-content; }
+    .mt.fmp { background: var(--fmp-bg); color: var(--fmp-ink); }
+    .mt.mmp { background: var(--mmp-bg); color: var(--mmp-ink); }
+    .numrow button.fmp { border-color: var(--fmp-bg); }
+    .numrow button.mmp { border-color: var(--mmp-bg); }
+    .gcount { font-size: .7rem; color: var(--mute); white-space: nowrap;
+              display: inline-flex; gap: .2rem; align-items: center; }
+    .gcount .mt { display: inline-block; margin: 0; }
+    .gcount.full { color: #7df0bd; }
+    .gcount.over { color: var(--warn); font-weight: 700; }
+    .mtwarn { margin: .2rem 0 .4rem; font-size: .75rem; color: var(--mute); }
     .ratiobox { display: inline-flex; gap: .35rem; align-items: center; }
     .ratiobox label { display: inline-flex; gap: .2rem; align-items: center; }
     .ratiochip { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
@@ -474,6 +491,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 <script src="<?= $e($assetUrl('shared/ratio.js')) ?>"></script>
 <script src="<?= $e($assetUrl('shared/declared.js')) ?>"></script>
 <script src="<?= $e($assetUrl('shared/ratio-ui.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/lineup.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/lineup-ui.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-game="<?= $gameId === false || $gameId === null ? '' : (int) $gameId ?>">
@@ -2577,13 +2596,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         var loose = squad.length - oN - dN;
         if (oN || dN) {
             var rest = document.createElement('span');
-            rest.className = 'gcount';
+            rest.className = 'teamcount';
             rest.textContent = teamName('O') + ' ' + oN + ' \u00b7 ' + teamName('D') + ' ' + dN
                 + (loose ? ' \u00b7 ' + loose + ' unassigned' : '');
             head.append(rest);
         } else if (squad.length > line.length) {
             var only = document.createElement('span');
-            only.className = 'gcount';
+            only.className = 'teamcount';
             only.textContent = squad.length + ' players, no sides set';
             head.append(only);
         }
@@ -2654,11 +2673,21 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             // Named as the sides they are. The team on offence this point is
             // marked, because which one it is changes every point and the
             // picker is where a spotter looks to find out.
-            groups.push([teamName('O') + (starting === 'O' ? ' \u2014 on offence' : ''), roleGroup('O')]);
-            groups.push([teamName('D') + (starting === 'D' ? ' \u2014 on offence' : ''), roleGroup('D')]);
+            groups.push([teamName('O') + (starting === 'O' ? ' \u2014 on offence' : ''), roleGroup('O'), 'O']);
+            groups.push([teamName('D') + (starting === 'D' ? ' \u2014 on offence' : ''), roleGroup('D'), 'D']);
             groups.push(['unassigned', squad.filter(function (p) { return !p.role; })]);
         } else {
             groups.push(['', squad]);
+        }
+
+        // Opted into the ratio but nobody has a matching: say why the counts
+        // are absent, rather than leaving a picker that silently does less.
+        if (ratioOn && squad.length && !anyMatching() && window.LineupUI) {
+            box.append(window.LineupUI.missingNote({
+                className: 'mtwarn',
+                remedy: 'Add "matching": "MMP" or "FMP" per player to the game '
+                    + 'pack, or pick the line without it.'
+            }));
         }
 
         groups.forEach(function (g) {
@@ -2667,10 +2696,44 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 var lbl = document.createElement('div');
                 lbl.className = 'grouplabel';
                 lbl.textContent = g[0];
+                // The same "MMP 2 of 4" the desk shows, from shared/lineup-ui.js.
+                if (g[2] && window.LineupUI) {
+                    var gs = matchingGroups(g[2]);
+                    lbl.append(window.LineupUI.counts({ groups: gs && gs.groups }));
+                }
                 box.append(lbl);
             }
             box.append(chipRow(g[1]));
         });
+    }
+
+    /** Only ever what the squad was told; absent is absent, never guessed. */
+    function matchingOf(p) {
+        return /^(MMP|FMP)$/.test(String(p.matching || '')) ? p.matching : '';
+    }
+
+    function anyMatching() {
+        return squad.some(function (p) { return matchingOf(p); });
+    }
+
+    /**
+     * This point's quotas against who is on, or null when it cannot be known.
+     *
+     * Needs BOTH a declared ratio and matchings: without the ratio there are
+     * no quotas to count against, and without matchings there is nothing to
+     * count. Either missing means the picker says so rather than showing
+     * "0 of 4" at a full line.
+     */
+    function matchingGroups(which) {
+        if (!window.Lineup || !window.Ratio || !ratioOn || !anyMatching()) { return null; }
+        var quotas = window.Ratio.counts(ratioValue() && ratioValue().get()
+            ? window.Ratio.forPoint(ratioValue().get(), lineSize, point) : null);
+        if (!quotas) { return null; }
+        var on = line.map(function (q) { return q.label; });
+        return window.Lineup.groups(
+            roleGroup(which).map(function (p) {
+                return { id: p.label, matching: matchingOf(p) };
+            }), quotas, on);
     }
 
     function chipRow(players) {
@@ -2681,13 +2744,21 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             line.forEach(function (q, i) { if (q.label === p.label) { at = i; } });
             var b = document.createElement('button');
             b.type = 'button';
+            var matching = matchingOf(p);
             b.className = (at !== -1 ? 'on' : '')
                 + (at !== -1 && holder === at ? ' has' : '')
+                + (matching ? ' ' + matching.toLowerCase() : '')
                 + (provisional.indexOf(p.label) !== -1 ? ' maybe' : '');
             b.textContent = p.num || '\u2013';
             var nm = document.createElement('small');
             nm.textContent = callName(p);
             b.append(nm);
+            if (matching) {
+                var mt = document.createElement('span');
+                mt.className = 'mt ' + matching.toLowerCase();
+                mt.textContent = matching;
+                b.append(mt);
+            }
             if (at !== -1) {
                 var key = document.createElement('span');
                 key.className = 'kk';
@@ -6281,20 +6352,22 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         }, function () { /* offline, or no event: the demo squad is still there */ });
     }
 
+    // Matchings included, so the mixed grouping is exercisable without a real
+    // roster: these are invented people, and a real one's is never guessed.
     var DEMO_LINE = [
-        { firstname: 'Ada', lastname: 'Weber', nickname: 'Ace', role: 'O', num: 7 },
-        { firstname: 'Hana', lastname: 'Lehner', nickname: 'Robin', role: 'O', num: 11 },
-        { firstname: 'Nico', lastname: 'Lang', nickname: 'Speedy', role: 'O', num: 6 },
-        { firstname: 'Kai', lastname: 'Reiter', nickname: 'Bear', role: 'O', num: 23 },
-        { firstname: 'Rina', lastname: 'Okafor', nickname: 'Comet', role: 'O', num: 15 },
-        { firstname: 'Nora', lastname: 'Sandor', nickname: 'Storm', role: 'O', num: 18 },
+        { firstname: 'Ada', lastname: 'Weber', matching: 'FMP', nickname: 'Ace', role: 'O', num: 7 },
+        { firstname: 'Hana', lastname: 'Lehner', matching: 'FMP', nickname: 'Robin', role: 'O', num: 11 },
+        { firstname: 'Nico', lastname: 'Lang', matching: 'MMP', nickname: 'Speedy', role: 'O', num: 6 },
+        { firstname: 'Kai', lastname: 'Reiter', matching: 'MMP', nickname: 'Bear', role: 'O', num: 23 },
+        { firstname: 'Rina', lastname: 'Okafor', matching: 'FMP', nickname: 'Comet', role: 'O', num: 15 },
+        { firstname: 'Nora', lastname: 'Sandor', matching: 'MMP', nickname: 'Storm', role: 'O', num: 18 },
 
-        { firstname: 'Sky', lastname: 'Thaler', nickname: 'Tiny', role: 'D', num: 2 },
-        { firstname: 'Jo', lastname: 'Moser', nickname: 'Mo', role: 'D', num: 9 },
-        { firstname: 'Val', lastname: 'Wagner', nickname: 'Wags', role: 'D', num: 4 },
-        { firstname: 'Elias', lastname: 'Brandt', nickname: 'Brandy', role: 'D', num: 8 },
-        { firstname: 'Mira', lastname: 'Kovac', nickname: 'Kova', role: 'D', num: 12 },
-        { firstname: 'Emil', lastname: 'Roth', nickname: 'Piper', role: 'D', num: 14 }
+        { firstname: 'Sky', lastname: 'Thaler', matching: 'FMP', nickname: 'Tiny', role: 'D', num: 2 },
+        { firstname: 'Jo', lastname: 'Moser', matching: 'MMP', nickname: 'Mo', role: 'D', num: 9 },
+        { firstname: 'Val', lastname: 'Wagner', matching: 'FMP', nickname: 'Wags', role: 'D', num: 4 },
+        { firstname: 'Elias', lastname: 'Brandt', matching: 'MMP', nickname: 'Brandy', role: 'D', num: 8 },
+        { firstname: 'Mira', lastname: 'Kovac', matching: 'FMP', nickname: 'Kova', role: 'D', num: 12 },
+        { firstname: 'Emil', lastname: 'Roth', matching: 'MMP', nickname: 'Piper', role: 'D', num: 14 }
     ];
 
     el('demoline').addEventListener('click', function () {

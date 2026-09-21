@@ -173,10 +173,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     @media (max-width: 48rem) {
         .wrap { display: flex; flex-direction: column; }
         .main, .side { display: contents; }
+        /* The video panel has no id and so sits at 0. Setup belongs next to
+           it rather than below the log: picking the game is what fills the
+           video, and the two were a column apart. */
+        #trainPanel { order: -1; }
         #linePanel { order: 1; }
         #reviewPanel { order: 2; }
         #actions { order: 3; }
-        #trainPanel { order: 4; }
         #logPanel { order: 5; }
 
         #actions .row.grid {
@@ -248,8 +251,10 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .startpill.d { background: #3a2540; color: #e0b3ff; }
     .namerisk { margin: 0 0 .5rem; font-size: .78rem; color: var(--warn);
                 border-left: 3px solid var(--warn); padding-left: .55rem; }
-    .packlinks { display: inline-flex; gap: .45rem; }
-    .packlinks a { font-size: .8rem; color: #7fd4ff; }
+    /* Wrap BETWEEN links, never inside one: "Ann Arbor Hybrid roster" broken
+       across two lines beside "game stats" reads as four links, not three. */
+    .packlinks { display: inline-flex; gap: .45rem; flex-wrap: wrap; }
+    .packlinks a { font-size: .8rem; color: #7fd4ff; white-space: nowrap; }
     .namerisk div { padding: .12rem 0; display: flex; gap: .3rem;
                     align-items: baseline; flex-wrap: wrap; }
     .namerisk button { font-size: .72rem; padding: .1rem .45rem;
@@ -489,10 +494,42 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 <div class="wrap">
   <div class="main">
     <p class="sub" id="blurb"></p>
+    <div class="panel trainonly" id="trainPanel">
+      <div class="row">
+        <strong>Training</strong>
+<?php if ($gamePack) : ?>
+        <label for="packGame">Reference game</label>
+        <select id="packGame" title="A reference game, with both squads">
+<?php if (count($gamePack) !== 1) : ?>
+          <option value="">choose a game…</option>
+<?php endif; ?>
+<?php foreach ($gamePack as $i => $g) : ?>
+          <option value="<?= (int) $i ?>"><?= $e((string) ($g['name'] ?? $g['id'] ?? ('game ' . $i))) ?></option>
+<?php endforeach; ?>
+        </select>
+        <?php
+        // Choosing is not loading. Loading wipes the session, so it gets its
+        // own button: a spotter who only wants to look a shirt number up
+        // should not have to destroy a capture to reach the link.
+        ?>
+        <button id="packLoad">Load squads and video</button>
+        <?php
+        // The tournament's own record, one click away: the roster to settle a
+        // shirt number mid-point, the statistics to compare a finished capture
+        // against. Links, not imports - nothing is fetched and nothing stored.
+        ?>
+        <span id="packLinks" class="packlinks"></span>
+<?php endif; ?>
+        <label class="file">Load a tagged game<input id="ref" type="file" accept=".json"></label>
+        <button id="scoreme" disabled>Score me</button>
+        <span class="sub" id="refinfo">no reference loaded</span>
+      </div>
+      <div id="scorecard"></div>
+    </div>
     <div class="panel trainonly">
       <div class="row">
         <input id="url" type="text" size="30" placeholder="YouTube URL or id">
-        <button id="load">Load</button>
+        <button id="load">Load video</button>
       </div>
       <div id="player"></div>
     </div>
@@ -556,38 +593,6 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         <button id="demoline" title="seven invented players, to try the tool">demo line</button>
       </div>
       <div class="line" id="line" style="margin-top:.5rem"></div>
-    </div>
-    <div class="panel trainonly" id="trainPanel">
-      <div class="row">
-        <strong>Training</strong>
-<?php if ($gamePack) : ?>
-        <label for="packGame">Reference game</label>
-        <select id="packGame" title="A reference game, with both squads">
-<?php if (count($gamePack) !== 1) : ?>
-          <option value="">choose a game…</option>
-<?php endif; ?>
-<?php foreach ($gamePack as $i => $g) : ?>
-          <option value="<?= (int) $i ?>"><?= $e((string) ($g['name'] ?? $g['id'] ?? ('game ' . $i))) ?></option>
-<?php endforeach; ?>
-        </select>
-        <?php
-        // Choosing is not loading. Loading wipes the session, so it gets its
-        // own button: a spotter who only wants to look a shirt number up
-        // should not have to destroy a capture to reach the link.
-        ?>
-        <button id="packLoad">Load</button>
-        <?php
-        // The tournament's own record, one click away: the roster to settle a
-        // shirt number mid-point, the statistics to compare a finished capture
-        // against. Links, not imports - nothing is fetched and nothing stored.
-        ?>
-        <span id="packLinks" class="packlinks"></span>
-<?php endif; ?>
-        <label class="file">Load a tagged game<input id="ref" type="file" accept=".json"></label>
-        <button id="scoreme" disabled>Score me</button>
-        <span class="sub" id="refinfo">no reference loaded</span>
-      </div>
-      <div id="scorecard"></div>
     </div>
     <div class="panel" id="reviewPanel">
       <div class="row">

@@ -2110,6 +2110,26 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     });
 
     // ---- modes -------------------------------------------------------------
+    /*
+     * The address bar says which mode is in force, so it can be copied.
+     *
+     * `?mode=training` was already read on load but never written back, so a
+     * spotter who switched had a URL describing the page they left - and the
+     * obvious thing to do with a training session is send somebody the link.
+     *
+     * replaceState, not pushState: the toggle is not a navigation, and making
+     * it one would turn the back button into an mode-undo nobody asked for.
+     */
+    function syncModeUrl(m) {
+        if (!window.history || !window.history.replaceState) { return; }
+        try {
+            var u = new URL(window.location.href);
+            if (u.searchParams.get('mode') === m) { return; }
+            u.searchParams.set('mode', m);
+            window.history.replaceState(null, '', u.toString());
+        } catch (e) { /* a URL the browser will not parse is not worth a throw */ }
+    }
+
     function setMode(m, adopt) {
         // Anything else came from a URL somebody typed.
         if (m !== 'training') { m = 'live'; }
@@ -2127,6 +2147,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             if (m === 'live' && liveFrom === null) { liveFrom = Date.now(); }
             el('blurb').textContent = BLURB[m];
             el('blurb').hidden = !BLURB[m];
+            syncModeUrl(m);
             render();
             return;
         }
@@ -2141,6 +2162,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         document.body.dataset.mode = m;
         el('modeLive').className = m === 'live' ? 'on' : '';
         el('modeTrain').className = m === 'training' ? 'on' : '';
+        syncModeUrl(m);
         // After MODE is set, so a fresh clock belongs to the mode being
         // switched TO rather than the one being left.
         if (changed) { wipe(true); }

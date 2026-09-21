@@ -473,6 +473,20 @@ $hasEvent = \Overlays\Event::load() !== null;
                target="_blank" rel="noopener"
                title="Capture throws, turnovers and the play clock by voice or by hand">
                 <?= \Overlays\Brand::img('spot', $base, 16) ?>the spotter</a>
+            <?php
+            /*
+             * Training is a second front door, not a setting to find.
+             *
+             * It is the mode somebody trying the tool actually wants: a video
+             * as the clock, a reference game to load, and no pitch to stand
+             * on. Reaching it meant opening the spotter and knowing to press
+             * a toggle, which is a poor way to hand the thing to a volunteer
+             * over a link.
+             */
+            ?>
+            <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('spotter') . '&mode=training', ENT_QUOTES) ?>"
+               target="_blank" rel="noopener"
+               title="Spot a game from YouTube, with video time as the clock">training mode</a>
             <span>Per-throw statistics from the sideline, by voice.</span>
         </p>
     <?php

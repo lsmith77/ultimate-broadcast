@@ -747,7 +747,6 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
   </div>
 
   <div class="side">
-<?php if ($gameId) : ?>
     <?php
     /*
      * The scoreboard, for a spotter who has replaced the scorekeeper.
@@ -756,13 +755,21 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
      * board is plain and the buttons are folded away. They are still there,
      * because a goal can be wrong, called back, or scored while nobody was
      * saying anything - and "say it again" is not a correction.
+     *
+     * SHOWN EVERYWHERE, WRITTEN ONLY WITH A GAME. The board was gated on
+     * `?game=` along with the controls, which left training mode - the mode
+     * somebody is most likely to be learning in - with no score at all. A
+     * capture already knows the goals, so training reads the board off its own
+     * events. It is the same number either way; what a game buys is somewhere
+     * to send it.
      */
     ?>
     <div class="panel" id="scorePanel">
       <div class="row">
         <span class="board" id="board">— : —</span>
-        <span class="sub" id="scoreState">not linked</span>
+        <span class="sub" id="scoreState"></span>
       </div>
+<?php if ($gameId) : ?>
       <details id="scoreMore">
         <summary>Score controls</summary>
         <div class="row">
@@ -774,8 +781,8 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
           <button id="scoreUndo" disabled>undo</button>
         </div>
       </details>
-    </div>
 <?php endif; ?>
+    </div>
     <div class="panel" id="linePanel">
       <div class="row">
         <label class="file">Squad<input id="file" type="file" accept=".json"></label>
@@ -2182,9 +2189,21 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     function renderBoard() {
         var board = el('board');
         if (!board) { return; }
-        if (!keeper) { board.textContent = '\u2014 : \u2014'; return; }
-        var v = keeper.view();
-        board.textContent = teamName('O') + ' ' + v.home + ' : ' + v.away + ' ' + teamName('D');
+        /*
+         * Linked, the store is the truth and its outbox may be ahead of the
+         * server. Unlinked, the capture is all there is - and it already knows,
+         * because a goal is an event here before it is a number anywhere else.
+         */
+        var home, away;
+        if (keeper) {
+            var v = keeper.view();
+            home = v.home;
+            away = v.away;
+        } else {
+            home = events.filter(function (e) { return e.type === 'goal'; }).length;
+            away = events.filter(function (e) { return e.type === 'conceded'; }).length;
+        }
+        board.textContent = teamName('O') + ' ' + home + ' : ' + away + ' ' + teamName('D');
     }
 
     function linkScore() {
@@ -4586,6 +4605,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 
     function render() {
         if (replaying) { return; }
+        renderBoard();
         renderLine();
         renderLog();
         if (document.body.dataset.view === 'stats') { renderStats(); renderCoach(); }

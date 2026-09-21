@@ -104,7 +104,37 @@ Video timestamps are the clock, so two people spotting the same footage produce 
 - **A reference game** loads in one press, with links to the tournament's roster and statistics. Squads are fetched at load rather than shipped, so a pack contains no personal data.
 - **When you stop**, press *Save* and email the file. The address is next to the button. Scoring happens on the collected captures, not in the page.
 
-## 9. Limitations
+## 9. Coaches
+
+A coach is the other person who might use this, and they use it differently from a tournament spotter. The data is the same shape; who may write what is not.
+
+### At practice
+
+The obvious case: a coach records a scrimmage to see who threw what, with no video and no tournament behind it.
+
+**This does not work yet.** Both routes fail, for different reasons:
+
+- **Live mode requires `game=`** and returns 400 without it. There is no game at a practice.
+- **Training mode works without a video**, but the clock is video time, so with nothing loaded every event is stamped `0:00`. The order is kept, the timing is not, and anything per-minute is meaningless.
+
+What it needs is a third mode: a wall clock with no game and no store to write to. That is a small change and it is not made.
+
+### At an official game, with the other team spotting too
+
+Two coaches spotting the same game produce two independent captures. They will disagree, and the disagreements are informative rather than a defect. The rules for handling that are in [`MATCHCONTROL.md`](MATCHCONTROL.md) §10a, *Two spotters, one from each team* — the two that matter most:
+
+- **Do not merge at write time.** Each capture stays its own; merging is a decision the reader makes, per consumer.
+- **Separate the event from the attribution.** Both may agree a turnover happened at that moment and disagree about whose it was. Store one and dispute the other.
+
+A coach must not also keep the tournament's score. They are partisan about exactly the calls a capture records, and the scoresheet is the tournament's record. The scoreboard here is already split so the board can be shown without the controls, but **nothing yet distinguishes a coach from a tournament spotter**, so that split is not enforced.
+
+### Notes during a game
+
+Not built. The idea is in [`MATCHCONTROL.md`](MATCHCONTROL.md) §10a, *A bookmark button, which is the cheap half of it*: a mark with a tag, optionally against a player, said in the moment and read afterwards. A coach cannot write "watch this again" now, and it is the thing they would reach for most.
+
+Connecting a note to the footage is the harder half, and it is not specific to notes. In **training mode** it is already solved — events carry video time, so anything recorded can be seeked to. In **live mode** events carry wall time, and matching that to a camera is the subject of [`POSTPRODUCTION.md`](POSTPRODUCTION.md), which calls alignment the whole problem. A note taken live is findable in footage only as accurately as the two clocks are related, so the practical answer is to record what [`OFFLINE.md`](OFFLINE.md) §6 asks for at the pitch.
+
+## 10. Limitations
 
 - **Nothing reads a capture yet.** It is a file you download. The commentary desk and overlays cannot use it until a transport exists. [`MATCHCONTROL.md`](MATCHCONTROL.md) §10a lists what that would unlock.
 - **No spatial data.** No field coordinates, so nothing about position or cuts. Coarse terms (`under`, `deep`, a distance, a force) are possible as vocabulary but deferred.
@@ -112,7 +142,7 @@ Video timestamps are the clock, so two people spotting the same footage produce 
 - **No mid-game start.** The pull can only be declared on point one, so a spotter joining late cannot set it.
 - **Unproven.** Used against footage by its author, not by other people against a live game.
 
-## 10. The recogniser
+## 11. The recogniser
 
 About 40MB. Not in the repository; `spotter/get-model.sh` fetches it.
 

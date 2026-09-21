@@ -249,6 +249,14 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                  padding: .12rem .45rem; border-radius: 99px; }
     .startpill.o { background: #10382a; color: #7df0bd; }
     .startpill.d { background: #3a2540; color: #e0b3ff; }
+    .ratiobox { display: inline-flex; gap: .35rem; align-items: center; }
+    .ratiobox label { display: inline-flex; gap: .2rem; align-items: center; }
+    .ratiochip { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+                 padding: .1rem .4rem; border-radius: .6rem;
+                 background: #123043; color: #8fd8ff; }
+    /* "Not said" is a state to notice, not a value to read past. */
+    .ratiochip.unset { background: transparent; color: var(--mute);
+                       font-weight: 500; letter-spacing: 0; }
     .namerisk { margin: 0 0 .5rem; font-size: .78rem; color: var(--warn);
                 border-left: 3px solid var(--warn); padding-left: .55rem; }
     /* Wrap BETWEEN links, never inside one: "Ann Arbor Hybrid roster" broken
@@ -453,6 +461,19 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
  */
 ?>
 <script src="<?= $e($assetUrl('shared/provider.js')) ?>"></script>
+<?php
+/*
+ * The ratio rule and the declared-value shape, not restated here.
+ *
+ * `shared/ratio.js` exists because the commentator page and the stage card had
+ * each written the ABBA pattern out and drifted; a third copy in the spotter
+ * would be the same mistake with the same ending. `shared/declared.js` is the
+ * local-or-shared reconciliation both desks already use for exactly this value.
+ */
+?>
+<script src="<?= $e($assetUrl('shared/ratio.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/declared.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/ratio-ui.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-game="<?= $gameId === false || $gameId === null ? '' : (int) $gameId ?>">
@@ -2506,6 +2527,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         pill.textContent = starting === 'D' ? 'D point \u2014 we pull' : 'O point \u2014 we receive';
         head.append(pill);
 
+        renderRatio(head);
+
         // One tap fills the line from a tagged group, which is the press this
         // whole panel exists to save: seven chips, every point.
         ['O', 'D'].forEach(function (which) {
@@ -4430,6 +4453,98 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 
 
     /** Everyone tagged for one line, which is what a preset fills from. */
+    /*
+     * The gender ratio, as a spotter responsibility - optional, because it is
+     * one somebody else may already be holding.
+     *
+     * MATCHCONTROL.md section 11 left open whether the ratio moves to whoever
+     * is watching closely enough to press a button per point. That is this
+     * person. But taking it is a CHOICE: two desks declaring the same value is
+     * worse than one declaring it, and a spotter on a single-gender game has
+     * nothing to declare at all.
+     *
+     * No rule is restated here. `Ratio` owns which points repeat point one's
+     * ratio and what the pair at a given size even is; `Declared` owns local
+     * versus shared. This function does no arithmetic, which is the whole
+     * reason both files exist.
+     */
+    var ratioOn = (function () {
+        try { return window.localStorage.getItem('uo-spot-ratio-on') === '1'; }
+        catch (e) { return false; }      // private mode: off, and settable
+    }());
+    var firstRatio = null;
+
+    function ratioValue() {
+        if (!window.Declared || !window.Ratio) { return null; }
+        if (!firstRatio) {
+            firstRatio = window.Declared.value({
+                key: 'uo-spot-ratio1-' + (videoId(el('url').value) || 'session'),
+                /*
+                 * Nothing to ride yet: this page has no possession store, so
+                 * there is no shared value to read and nowhere to push one.
+                 * When the spotter gains the desk's code, `read` becomes the
+                 * store and `canShare` its capability - and Declared already
+                 * knows how to let an arriving shared value displace a local
+                 * one, with the note that says so.
+                 */
+                read: function () { return null; },
+                parse: function (raw) {
+                    var v = String(raw || '');
+                    return (window.Ratio.pairForSize(lineSize) || []).indexOf(v) !== -1
+                        ? v : null;
+                },
+                push: function () { return Promise.resolve(null); },
+                canShare: function () { return false; }
+            });
+        }
+        return firstRatio;
+    }
+
+    function renderRatio(head) {
+        if (!window.Ratio || !window.Declared || !window.RatioUI) { return; }
+
+        var wrap = document.createElement('span');
+        wrap.className = 'ratiobox';
+
+        var opt = document.createElement('label');
+        opt.className = 'sub';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = ratioOn;
+        box.title = 'Call the gender ratio too \u2014 leave it off if a desk holds it';
+        box.addEventListener('change', function () {
+            ratioOn = box.checked;
+            try {
+                window.localStorage.setItem('uo-spot-ratio-on', ratioOn ? '1' : '');
+            } catch (e) { /* private mode: the choice lasts this session */ }
+            render();
+        });
+        opt.append(box, document.createTextNode(' ratio'));
+        wrap.append(opt);
+
+        if (ratioOn) {
+            var v = ratioValue();
+            // The SAME picker the commentary desk shows, from shared/ratio-ui.js.
+            var sel = window.RatioUI.select({
+                size: lineSize,
+                current: v.get(),
+                canShare: false,
+                className: 'ratiosel',
+                onChange: function (value) { v.set(value); render(); }
+            });
+            if (sel) { wrap.append(sel); }
+
+            var chip = window.RatioUI.chip({
+                size: lineSize,
+                first: v.get(),
+                point: point
+            });
+            if (chip) { wrap.append(chip); }
+        }
+
+        head.append(wrap);
+    }
+
     function roleGroup(which) {
         return squad.filter(function (p) { return p.role === which; });
     }

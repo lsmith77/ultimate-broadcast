@@ -266,6 +266,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .gcount.full { color: #7df0bd; }
     .gcount.over { color: var(--warn); font-weight: 700; }
     .mtwarn { margin: .2rem 0 .4rem; font-size: .75rem; color: var(--mute); }
+    .howto > summary { cursor: pointer; font-size: .8rem; color: var(--mute); }
+    .howto ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .8rem;
+                color: var(--mute); }
+    .howto li { margin: .25rem 0; }
+    .howto strong { color: var(--ink); font-weight: 700; }
     #pedit { border: 1px solid var(--line); border-radius: .6rem;
              background: var(--panel); color: var(--ink); min-width: 15rem; }
     #pedit::backdrop { background: rgba(0, 0, 0, .55); }
@@ -585,6 +590,45 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         <button id="scoreme" disabled>Score me</button>
         <span class="sub" id="refinfo">no reference loaded</span>
       </div>
+      <?php
+      /*
+       * Collapsed, because none of it is needed to start.
+       *
+       * The two mixed steps are OPTIONAL and unlock a check rather than a
+       * feature: without them every call is still captured, and with them a
+       * called line can be counted against the point's ratio. Presenting them
+       * as setup would imply a spotter must do them before they may begin,
+       * which is exactly backwards - the tool has to work for somebody who
+       * just pressed record.
+       */
+      ?>
+      <details class="howto" id="trainHow">
+        <summary>How training mode works</summary>
+        <ul>
+          <li><strong>Video time is the clock</strong>, so nothing drifts — and two
+            people spotting the same video produce captures that line up exactly.
+            Click any captured line to jump the video to it.</li>
+          <li><strong>Point 1’s gender ratio</strong>, optional. Tick <em>ratio</em>
+            beside the line and pick it; every later point follows from it.</li>
+          <li><strong>Each player’s MMP/FMP</strong>, optional. Right-click a player
+            (long-press on a phone), or enter the commentary desk’s code and press
+            <em>Get matchings</em> to inherit what they already typed.</li>
+          <li>Neither is required. Together they let the picker count each matching
+            against the point’s quota and mark a line that goes over it.</li>
+          <li><strong>Spot a few points, not the whole game.</strong> A final runs
+            well over an hour; three or four points is a useful contribution and
+            a realistic sitting. Stop whenever you like and do not note the
+            times: every event carries its video timestamp, so the capture
+            already says which passage you covered and two captures that overlap
+            can be lined up on it.</li>
+          <li><strong>When you stop</strong>, press <em>Save</em> under Captured and
+            send the file on. Scoring happens on the collected captures, not here:
+            agreement between people who spotted the same passage is the measure,
+            and no single capture is the right answer to check the others against.
+            <em>Score me</em> stays for checking yourself against a capture you
+            already trust, and needs one loaded before it does anything.</li>
+        </ul>
+      </details>
       <div id="scorecard"></div>
     </div>
     <div class="panel trainonly">
@@ -2024,6 +2068,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             el('modeTrain').className = m === 'training' ? 'on' : '';
             if (m === 'live' && liveFrom === null) { liveFrom = Date.now(); }
             el('blurb').textContent = BLURB[m];
+            el('blurb').hidden = !BLURB[m];
             render();
             return;
         }
@@ -2042,7 +2087,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         // switched TO rather than the one being left.
         if (changed) { wipe(true); }
         if (m === 'live' && liveFrom === null) { liveFrom = Date.now(); }
-        el('blurb').textContent = BLURB[m] || BLURB.live;
+        // `|| BLURB.live` would resurrect the live line for training, whose
+        // text is deliberately empty now that it lives in the instructions.
+        // Only an UNKNOWN mode falls back.
+        el('blurb').textContent = BLURB[m] === undefined ? BLURB.live : BLURB[m];
+        el('blurb').hidden = !el('blurb').textContent;
         /*
          * The grammar folds away in training, because there the video is what
          * needs the height and the spotter is watching it rather than reading
@@ -6380,7 +6429,9 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     // ---- mode, play clock, flag, pocket ------------------------------------
     var BLURB = {
         live: 'Wall clock. Say the call; flag anything that lands wrong and settle it at the next stoppage.',
-        training: 'Video time is the clock, so nothing drifts. Click any captured line to jump the video to it.'
+        // Training's line moved into the "How training mode works" block, so
+        // the one sentence is not on screen twice.
+        training: ''
     };
 
     /**

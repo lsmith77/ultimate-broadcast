@@ -270,6 +270,10 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                  color: var(--warn); }
     #peditRisk .pill { font-size: .72rem; padding: .1rem .45rem;
                        border-color: var(--warn); color: #ffdca8; }
+    #legend .alias { color: var(--mute); }
+    #legend u { text-decoration: none; text-transform: uppercase;
+                font-size: .66rem; letter-spacing: .08em; color: var(--mute); }
+    #legend .suggest { display: inline-block; margin-top: .4rem; color: #7fd4ff; }
     .howto > summary { cursor: pointer; font-size: .8rem; color: var(--mute); }
     .howto ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .8rem;
                 color: var(--mute); }
@@ -4094,9 +4098,45 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 '<b>no …</b> — replaces the last event with whatever follows',
                 '<b>missed · afk · undo</b>'
             ];
+            /*
+             * EVERY word, not just the terms.
+             *
+             * This listed the term keys alone, which is the half a reviewer
+             * cannot check: that `huck` exists is obvious, that "hook" and
+             * "deep" also reach it is the part somebody can confirm or argue
+             * with. A closed grammar only earns trust if the whole of it can
+             * be read.
+             */
             Object.keys(SAY).forEach(function (kind) {
-                lines.push('<b>' + kind + ':</b> ' + Object.keys(SAY[kind]).join(', '));
+                var terms = Object.keys(SAY[kind]).map(function (t) {
+                    var said = SAY[kind][t].filter(function (a) { return a !== t; });
+                    return '<b>' + t + '</b>'
+                        + (said.length ? ' <span class="alias">' + said.join(', ')
+                            + '</span>' : '');
+                });
+                lines.push('<u>' + kind + '</u> \u2014 ' + terms.join(' &middot; '));
             });
+
+            /*
+             * Suggestions go to the tracker, not into a page nobody reads.
+             *
+             * A word somebody wants is a change to a decoding grammar shared
+             * by every spotter, so it needs discussing before it is added -
+             * and every addition risks colliding with what is already there.
+             * An issue is where that argument can happen and be found again.
+             */
+            lines.push('<a class="suggest" target="_blank" rel="noopener" href="'
+                + 'https://github.com/lsmith77/ultimate-broadcast/issues/new'
+                + '?labels=' + encodeURIComponent('spotter,vocabulary')
+                + '&title=' + encodeURIComponent('Spotter vocabulary: ')
+                + '&body=' + encodeURIComponent(
+                    '**What would you say?** (the exact words, at most three)\n\n'
+                    + '**What does it mean?**\n\n'
+                    + '**Why do the existing words not cover it?**\n\n'
+                    + '**Could it be confused with anything already in the '
+                    + 'grammar above?**\n')
+                + '">Suggest a word \u2192</a>');
+
             leg.innerHTML = lines.join('<br>');
         }
     }

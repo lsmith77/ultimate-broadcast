@@ -1049,6 +1049,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             blade: ['blade'],
             inside: ['inside', 'inside out', 'io'],
             'outside in': ['outside in', 'oi'],
+            /*
+             * OIIO: starts outside-in, finishes inside-out, to reach the break
+             * side. A distinct shape from either of its halves, so it is its
+             * own term rather than an alias of one of them.
+             *
+             * The obvious spoken forms are both unusable. "OIIO" is not an
+             * English word and the recogniser's lexicon is English, so it can
+             * never be decoded; "oi io" is worse than useless, because `oi` and
+             * `io` are already aliases of `outside in` and `inside` and the
+             * splitter would hear two throws where one was thrown. Hence a
+             * three-word form - and three is the ceiling, since the splitter
+             * only ever tries windows of three, two and one.
+             */
+            oiio: ['outside inside out'],
             around: ['around'],
             'push pass': ['push pass'],
             thumber: ['thumber'],

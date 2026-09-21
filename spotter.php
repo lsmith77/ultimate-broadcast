@@ -1241,6 +1241,16 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
              */
             pickup: ['picks up', 'pick up', 'picked up', 'picks it up'],
             newpoint: ['new point', 'next point'],
+            /*
+             * Half time, which is a possession change nothing else explains.
+             *
+             * The second half reverses the opening pull, so the side that
+             * receives after the break does NOT follow from who scored last -
+             * the one case `nextStart()` cannot derive from the goal before
+             * it. Said once, it makes the rest derivable; unsaid, every point
+             * of the second half starts on the wrong side.
+             */
+            half: ['half time', 'halftime'],
             gap: ['missed', 'miss', 'unknown'],
             afk: ['afk', 'stopping', 'pause'],
             undo: ['undo', 'scratch'],
@@ -4848,12 +4858,39 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
      * means we receive. Inferred rather than asked, and overridable, because
      * it is right every time except the first point of a half.
      */
+    /** Which side received the very first point, as declared at the time. */
+    function openingStart() {
+        for (var i = 0; i < events.length; i += 1) {
+            if (events[i].type === 'point') { return events[i].starting || 'O'; }
+        }
+        return starting;
+    }
+
     function nextStart() {
         for (var i = events.length - 1; i >= 0; i -= 1) {
+            /*
+             * Checked BEFORE the goals, because it sits after the last goal of
+             * the first half and overrides it. The second half reverses the
+             * opening pull, so whoever pulled to start the game receives now -
+             * derived from point one rather than declared again.
+             */
+            if (events[i].type === 'half') { return other(openingStart()); }
             if (events[i].type === 'goal') { return 'D'; }
             if (events[i].type === 'conceded') { return 'O'; }
         }
         return starting;
+    }
+
+    /**
+     * Mark the break. It records nothing about play, only about the clock.
+     *
+     * Half time happens BETWEEN points, so this does not end one: the next
+     * "new point" reads it and starts on the reversed side.
+     */
+    function callHalf() {
+        push('half', { after: point });
+        setPlay(false, 'said', 'half time');
+        render();
     }
 
     /**
@@ -5834,6 +5871,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
                 return;
             }
             if (act.value === 'newpoint') { startPoint(); return; }
+            if (act.value === 'half') { callHalf(); return; }
             if (act.value === 'oline') { setLine(roleGroup('O')); return; }
             if (act.value === 'dline') { setLine(roleGroup('D')); return; }
             if (act.value === 'flag') { flag(lastEvent(), 'the spotter said so'); return; }

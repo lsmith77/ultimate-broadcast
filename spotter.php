@@ -561,12 +561,21 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
       <div class="row">
         <strong>Training</strong>
 <?php if ($gamePack) : ?>
+        <label for="packGame">Reference game</label>
         <select id="packGame" title="A reference game, with both squads">
+<?php if (count($gamePack) !== 1) : ?>
           <option value="">choose a game…</option>
+<?php endif; ?>
 <?php foreach ($gamePack as $i => $g) : ?>
           <option value="<?= (int) $i ?>"><?= $e((string) ($g['name'] ?? $g['id'] ?? ('game ' . $i))) ?></option>
 <?php endforeach; ?>
         </select>
+        <?php
+        // Choosing is not loading. Loading wipes the session, so it gets its
+        // own button: a spotter who only wants to look a shirt number up
+        // should not have to destroy a capture to reach the link.
+        ?>
+        <button id="packLoad">Load</button>
         <?php
         // The tournament's own record, one click away: the roster to settle a
         // shirt number mid-point, the statistics to compare a finished capture
@@ -5675,10 +5684,43 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     var packGame = null;
 
     if (el('packGame')) {
-        el('packGame').addEventListener('change', function () {
+        // What the select points at, which is not yet what is loaded.
+        var packPick = function () {
             var pack = window.SPOTTER_PACK || [];
-            var g = pack[Number(el('packGame').value)];
-            if (!g) { packGame = null; render(); return; }
+            return pack[Number(el('packGame').value)] || null;
+        };
+
+        var showPackLinks = function (g) {
+            var box = el('packLinks');
+            if (!box) { return; }
+            box.replaceChildren();
+            ((g && g.links) || []).forEach(function (l) {
+                if (!l || !l.url) { return; }
+                var a = document.createElement('a');
+                a.href = l.url;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                a.textContent = l.label || 'link';
+                a.title = 'The tournament’s own ' + (l.label || 'record')
+                    + ', in a new tab';
+                box.append(a);
+            });
+        };
+
+        el('packGame').addEventListener('change', function () {
+            showPackLinks(packPick());
+        });
+        showPackLinks(packPick());
+
+        el('packLoad').addEventListener('click', function () {
+            var g = packPick();
+            if (!g) { return; }
+            // Loading throws the session away, so say so while it can still
+            // be kept.
+            if (events.length && !confirm('Load ' + (g.name || 'the game')
+                + '? This clears ' + events.length + ' captured events.')) {
+                return;
+            }
             packGame = g;
 
             wipe(true);
@@ -5694,22 +5736,6 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                     if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
                 });
             });
-            var box = el('packLinks');
-            if (box) {
-                box.replaceChildren();
-                (g.links || []).forEach(function (l) {
-                    if (!l || !l.url) { return; }
-                    var a = document.createElement('a');
-                    a.href = l.url;
-                    a.target = '_blank';
-                    a.rel = 'noopener';
-                    a.textContent = l.label || 'link';
-                    a.title = 'The tournament\u2019s own ' + (l.label || 'record')
-                        + ', in a new tab';
-                    box.append(a);
-                });
-            }
-
             if (MODE !== 'training') { setMode('training'); }
             if (g.video) {
                 el('url').value = g.video;

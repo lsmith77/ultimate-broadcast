@@ -29,12 +29,13 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 
 [`docs/DEPLOY.md`](docs/DEPLOY.md) is how to put one of your own on a domain, and most of its sharper notes came from putting that one there rather than from planning it.
 
-## Four surfaces, for four different jobs
+## Five surfaces, for five different jobs
 
 - **Scoreboard** — a broadcast bug on a transparent 1920×1080 canvas. One URL, point a browser source at it, done.
 - **Studio** — a full-frame stage hosting several cards at once, plus the control page that decides what is on it.
 - **Commentator** — a second screen, never on air: rosters, stats, who is on the field.
 - **Match control** — the score and the clock, kept from a phone at the pitch and tolerant of a connection that comes and goes.
+- **Spotter** — what actually happened: every throw, who caught it, turnovers and calls, recorded by voice from the sideline. It can keep the score too, so one person can do both. [`docs/SPOTTER.md`](docs/SPOTTER.md).
 
 ![A full frame, as a switcher receives it](docs/images/stage.png)
 
@@ -54,6 +55,10 @@ The surfaces are the same in both. Nothing above [`shared/provider.js`](shared/p
 | **Studio** — what is on air, and where | **Commentator** — daylight by default, because the job happens beside a pitch |
 | ![Player sheet](docs/images/player-sheet.png) | ![Commentator at night](docs/images/commentator-night.png) |
 | **Player sheet** — everything the event publishes about one player | **Night** — for a booth or an evening game |
+
+![The spotter](docs/images/spotter.png)
+
+*The spotter, in training mode: a video as the clock, both lines on the field with their matchings, the scorekeeping board it can write, and every call recorded as it was said.*
 
 ![Play by play](docs/images/commentator-play.png)
 

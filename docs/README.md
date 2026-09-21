@@ -186,6 +186,14 @@ It opens with the observation that governs the whole document: **the incompleten
 
 **Go here for:** what a commentator needs, how line sharing works and why its write is unauthenticated, and the pronunciation and pronoun questions.
 
+### [`SPOTTER.md`](SPOTTER.md) — per-throw capture, by voice
+
+The surface that records what happened rather than only the score: every throw, who caught it, turnovers, calls, and whether the disc was live. Input is spoken, because a spotter's hands are busy and their eyes are on the field.
+
+Its central constraint is that a grammar-constrained recogniser always returns a legal word, so legality proves nothing. Validation comes from the sport — a pull cannot happen while the disc is live, possession does not change without a cause — and anything impossible is recorded as a question rather than an observation.
+
+**Go here for:** the URLs and which one needs a game, how voice input works and what it cannot hear, name clashes and calling names, the play clock, mixed-game ratio and matchings, keeping the score, training mode, and what it does not do yet. The reasoning behind the surface is [`MATCHCONTROL.md`](MATCHCONTROL.md) §10a.
+
 ### [`UPSTREAM.md`](UPSTREAM.md) — what is wanted from upstream
 
 The digest of asks against UltiOrganizer and Live! by BULA — one entry per ask with what it unlocks, roughly what it costs, and a link to its full case in the documents above. The page to hand to an upstream maintainer, and the text to paste from when opening an issue.

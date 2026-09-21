@@ -286,7 +286,18 @@ There is no auto-deploy from CI and that is deliberate for now: this is a demo i
 
 ## 10. What is deliberately not deployed
 
-`docs/` and the Markdown, the test suite (except `tests/selftest.php`, the switcher diagnostic, which has to be loadable by the device it is diagnosing), the development fixtures that seed a database there is none of, `package.json` and `node_modules` — the project has no build step and npm is only ever the test runner. The exclude list in [`../deploy.sh`](../deploy.sh) is annotated one line at a time.
+`docs/` and the Markdown, the test suite (except `tests/selftest.php`, the switcher diagnostic, which has to be loadable by the device it is diagnosing), the development fixtures that seed a database there is none of, `package.json` and `node_modules` — the project has no build step and npm is only ever the test runner. The spotter's recogniser used to be on this list and no longer is; see §10a. The exclude list in [`../deploy.sh`](../deploy.sh) is annotated one line at a time.
+
+## 10a. The spotter's recogniser, which is deployed
+
+The speech model is about 40MB and is not in the repository. `spotter/get-model.sh` fetches it into `spotter/`, and `deploy.sh` then sends it.
+
+Two consequences worth knowing before a deploy:
+
+- **Run `spotter/get-model.sh` locally first.** If the model is not in your working directory, the deploy says so and the spotter goes up mute — it still accepts typed calls, but there is no voice. It is sent from the working directory rather than from a tag's temporary worktree, because it is untracked and a worktree never has it; that is what makes `./deploy.sh` and `./deploy.sh --latest` put the same files on the server.
+- **It adds about 40MB to a deploy** that changes it. rsync skips it when it has not changed, so only the first deploy after fetching a model pays for it.
+
+It travels with `spotter/NOTICE.md` and `spotter/LICENSE-Apache-2.0.txt`. Serving the model and the library makes the installation a redistributor of somebody else's Apache-2.0 work, so the licence and the notices go with them, and the imprint page credits both.
 
 ## 11. The three copies of one rule
 

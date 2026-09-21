@@ -255,7 +255,16 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
        across two lines beside "game stats" reads as four links, not three. */
     .packlinks { display: inline-flex; gap: .45rem; flex-wrap: wrap; }
     .packlinks a { font-size: .8rem; color: #7fd4ff; white-space: nowrap; }
-    .namerisk div { padding: .12rem 0; display: flex; gap: .3rem;
+    /* Collapsed by default: with a full tournament roster loaded this is a
+       dozen rows of advice about names that may never be called, sitting on
+       top of the line picker. The summary keeps the count visible, so it is
+       still findable when a name does turn out to be unsayable. */
+    .namerisk > summary { cursor: pointer; padding: .12rem 0; }
+    /* The rows sit in a wrapper, and the flex lives on THEM rather than on a
+       direct child of the <details>: `display` set on a closed details' own
+       child overrides the hiding, and the block stayed fully visible with
+       `open` false. */
+    .namerisk .riskbody > div { padding: .12rem 0; display: flex; gap: .3rem;
                     align-items: baseline; flex-wrap: wrap; }
     .namerisk button { font-size: .72rem; padding: .1rem .45rem;
                        border-color: var(--warn); color: #ffdca8; }
@@ -2564,9 +2573,19 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
          */
         var risks = nameRisks();
         if (risks.length) {
-            var warn = document.createElement('div');
+            var warn = document.createElement('details');
             warn.className = 'namerisk';
-            risks.slice(0, 4).forEach(function (r) {
+            var sum = document.createElement('summary');
+            sum.textContent = risks.length === 1
+                ? '1 name sounds like something else'
+                : risks.length + ' names sound like something else';
+            warn.append(sum);
+            var riskBody = document.createElement('div');
+            riskBody.className = 'riskbody';
+            // No cap now that it is folded away: the four-row limit existed to
+            // stop this swamping the picker, and a spotter who opens it wants
+            // the name they are stuck on, which may not be in the first four.
+            risks.forEach(function (r) {
                 var d = document.createElement('div');
                 var said = document.createElement('span');
                 said.textContent = '\u201c' + r.bad[0].alias + '\u201d sounds like \u201c'
@@ -2583,8 +2602,9 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                         pick.addEventListener('click', function () { setCallName(r.player, safe); });
                         d.append(pick);
                     });
-                warn.append(d);
+                riskBody.append(d);
             });
+            warn.append(riskBody);
             box.append(warn);
         }
 
@@ -4373,7 +4393,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             if (first) {
                 ['O', 'D'].forEach(function (w) {
                     var preset = roleGroup(w);
-                    if (preset.length && !sides[w].length) {
+                    /*
+                     * Only when the group IS a line, not when it merely
+                     * contains one.
+                     *
+                     * This took the first `lineSize` of the group, which was
+                     * right while a squad was seven people typed in to try the
+                     * tool. A reference pack carries a tournament roster of
+                     * twenty-six, ordered by whatever the source listed first
+                     * - for the WFDF stats table, by scoring - so the "line"
+                     * it put out was the seven highest scorers, a line nobody
+                     * played, presented as though somebody had called it.
+                     */
+                    if (preset.length && preset.length <= lineSize
+                        && !sides[w].length) {
                         sides[w] = preset.slice(0, lineSize);
                     }
                 });

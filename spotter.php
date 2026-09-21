@@ -5700,16 +5700,25 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             var box = el('packLinks');
             if (!box) { return; }
             box.replaceChildren();
-            ((g && g.links) || []).forEach(function (l) {
+
+            var add = function (l, prefix) {
                 if (!l || !l.url) { return; }
+                var what = ((prefix ? prefix + ' ' : '') + (l.label || 'link')).trim();
                 var a = document.createElement('a');
                 a.href = l.url;
                 a.target = '_blank';
                 a.rel = 'noopener';
-                a.textContent = l.label || 'link';
-                a.title = 'The tournament’s own ' + (l.label || 'record')
-                    + ', in a new tab';
+                a.textContent = what;
+                a.title = 'The tournament’s own ' + what + ', in a new tab';
                 box.append(a);
+            };
+
+            ((g && g.links) || []).forEach(function (l) { add(l, ''); });
+            // A roster belongs to a team, not to the game, so it is stored on
+            // the team and named after it - two links both labelled "roster"
+            // would tell a spotter nothing about which one to open.
+            ((g && g.teams) || []).forEach(function (t) {
+                (t.links || []).forEach(function (l) { add(l, t.name || ''); });
             });
         };
 

@@ -8,11 +8,35 @@ A release is a git tag and the source archive GitHub builds from it. There is no
 
 ## Unreleased
 
-- **The spotter** — a new surface at `?view=spotter` or `/p/<game>`, for capturing what actually happened: every throw, who caught it, turnovers, blocks, calls and whether the disc was live. Spoken rather than typed, because a spotter's hands are busy and their eyes are on the field. Recognition runs **in the browser** through a WASM build of Vosk that takes the call grammar as a decoding constraint, so nothing is sent anywhere and the engine cannot return a word that is not a legal call. Rosters and team names come from the event through the same reader every other surface uses. The ~40MB acoustic model is fetched by `spotter/get-model.sh` rather than shipped; without it the surface runs on typed calls and says which engine it has. [`docs/MATCHCONTROL.md`](docs/MATCHCONTROL.md) §10a.
-- **It refuses to invent.** A grammar-constrained recogniser always returns something legal, so legality is no evidence — the sport is. A pull cannot happen while the disc is live, a team cannot catch its own pull, a pass between opponents is not a pass, and a possession never changes without a stated cause. Anything impossible is recorded as a **question** rather than an observation, and settled at the next stoppage with the audio of the word available to replay. The line is also checked against the vocabulary before a game: "Hawk" and "huck" are identical to a phonetic matcher, so the picker says which name to use instead.
-- **Phase 0 ran, and moved the design.** Seven games of published commentary — 8h36m — measured from auto-captions: goals are narrated near-completely, turnovers about one time in five, and two thirds of event utterances name no usable player. That falsified the assumption the section was built on and pivoted the direction from commentary to a dedicated spotter. `tools/capture-poc/` holds the annotator and reporter that settled it; no AI, nothing downloaded, and no footage committed.
-- **Play time, honestly.** The spotter tracks whether the disc is live, which is a fact about the game and not about the capture — kept separate from "nobody was watching", because a stoppage means nothing was missed and an AFK means nobody knows. That gives throws per minute of live play and time on the field per player, and every figure carries its denominator. Live time is *presence*, not work, and the table says so.
-- **Fixed: deploying from a tag took the site down.** (`--show`'s mode readout needed a follow-up: `stat -f` means *filesystem status* to GNU and succeeds, so the BSD-first order printed a literal `%OLp` on Linux and the check could not see it.) `rsync --archive` copies the source directory's permissions to the destination, and the temporary worktree `--version`/`--latest` build was `0700` — so the document root became unreadable by the web server and every URL 404ed with every file present. The worktree is now `0755` before use, `--show` prints the mode, and a test asserts it. The same deploy also published a `.git` file naming a path on the deploying machine, because a worktree's `.git` is a file and the exclude only matched a directory.
+## v0.9.0 — 2026-09-21
+
+The spotter arrives: a surface for recording what actually happened in a game, not just the score. Read the deployment note at the end before upgrading.
+
+### The spotter
+
+- **A new surface**, at `?view=spotter&game=<id>` for a live game or `?view=spotter&mode=training` for footage. It captures every throw, who caught it, turnovers, blocks, calls, and whether the disc was live. Spoken rather than typed, because a spotter's hands are busy and their eyes are on the field. Recognition runs **in the browser** — nothing is sent anywhere — through a speech engine that takes the call grammar as a constraint, so it cannot return a word that is not a legal call.
+- **It refuses to invent.** A constrained recogniser always returns something legal, so legality is no evidence; the sport is. A pull cannot happen while the disc is live, a team cannot catch its own pull, and possession never changes without a stated cause. Anything impossible is recorded as a **question** rather than an observation, and settled at the next stoppage. Names are checked against the vocabulary before a game, so a player whose name sounds like a throw can be given one the recogniser can hear.
+- **Training mode** uses a video's own timestamps as the clock, so two people spotting the same footage produce captures that line up exactly — which is how a capture can be checked without anybody holding the right answer. It ships with a reference game and links to the tournament's own roster and statistics.
+- **Play time, honestly.** It tracks whether the disc is live, kept separate from "nobody was watching": a stoppage means nothing was missed, an absence means nobody knows. Every figure carries its denominator.
+- **Mixed games.** The spotter can take the gender ratio as a responsibility: declare the first point's, and the rest follows the prescribed pattern, including after half time. With each player's MMP/FMP known, the line picker groups by matching and counts each against the point's quota — the same picker the commentary desk shows, now drawn from shared code so the two cannot drift.
+- **It can keep the score.** A tournament spotter most likely replaces the scorekeeper rather than joining them, so the spotter shows the scorekeeping scoreboard itself — the same two tiles as the match control phone — and a spoken goal counts exactly as a pressed one. Writing the score needs the scorekeeping code; without one the board still shows the score from the capture.
+
+### Changed
+
+- **The commentary desk draws its gender-ratio picker, matching colours and quota counts from shared code** rather than its own. Nothing about it should look or behave differently; it is the same control in one place instead of two.
+- **The recogniser is now deployed** rather than fetched again on each server. It travels with its licence and notices, since serving it makes an installation a redistributor of somebody else's Apache-2.0 work.
+
+### Fixed
+
+- **Deploying was broken entirely.** A comment written between two continued lines of `deploy.sh` silently truncated its own command, dropping the source and destination, so every deploy failed with an rsync usage error. A check now refuses that shape.
+- **The speech model was re-downloaded on every load** — 40MB each time, before a spotter could say a word — because the host sets no cache policy for that file type. It is now cached for a year and its address carries a version, so a new model still reaches everybody.
+- **Deploying from a tag took the site down.** `rsync --archive` copied the temporary build directory's permissions, which were `0700`, making the document root unreadable and 404ing every URL with every file present.
+
+### Not there yet
+
+- Nothing consumes a capture: it is a file the spotter downloads, and no other surface reads it. The commentary desk and the overlays cannot show anything from it until that changes.
+- A coach acting as spotter should see the score without being able to write it. The scoreboard is already split that way, but nothing yet distinguishes a coach from a tournament spotter.
+- The spotter is unproven. It has been used by its author against footage, not by strangers against a real game.
 
 ## v0.8.0 — 2026-09-20
 

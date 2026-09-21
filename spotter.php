@@ -266,6 +266,17 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .gcount.full { color: #7df0bd; }
     .gcount.over { color: var(--warn); font-weight: 700; }
     .mtwarn { margin: .2rem 0 .4rem; font-size: .75rem; color: var(--mute); }
+    #pedit { border: 1px solid var(--line); border-radius: .6rem;
+             background: var(--panel); color: var(--ink); min-width: 15rem; }
+    #pedit::backdrop { background: rgba(0, 0, 0, .55); }
+    #pedit form { display: flex; flex-direction: column; gap: .5rem; margin: 0; }
+    .peditrow { display: flex; gap: .4rem; align-items: center;
+                font-size: .8rem; color: var(--mute); }
+    .peditrow input { flex: 1; }
+    .peditmt { display: inline-flex; gap: .25rem; }
+    .peditmt button[aria-pressed="true"] { border-color: var(--ink); }
+    #pedit menu { display: flex; gap: .4rem; justify-content: flex-end;
+                  margin: 0; padding: 0; }
     .ratiobox { display: inline-flex; gap: .35rem; align-items: center; }
     .ratiobox label { display: inline-flex; gap: .2rem; align-items: center; }
     .ratiochip { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
@@ -653,6 +664,26 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
       </div>
       <div class="line" id="line" style="margin-top:.5rem"></div>
     </div>
+    <?php
+    // Long-press on a phone raises the same `contextmenu` event a right-click
+    // does, so one dialog serves both - and shift-click stays for a keyboard.
+    ?>
+    <dialog id="pedit">
+      <form method="dialog">
+        <strong id="peditWho"></strong>
+        <label class="peditrow">Call them
+          <input id="peditCall" type="text" size="14"
+                 placeholder="as spoken"></label>
+        <div class="peditrow">Matching
+          <span class="peditmt" id="peditMt"></span>
+        </div>
+        <p class="sub" id="peditWhy"></p>
+        <menu>
+          <button value="cancel">Cancel</button>
+          <button id="peditSave" value="save">Save</button>
+        </menu>
+      </form>
+    </dialog>
     <div class="panel" id="reviewPanel">
       <div class="row">
         <strong>To review</strong>
@@ -2488,6 +2519,61 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         rebuildGrammar();
     }
 
+    /** Both spotter-local fields in one pass, so the page renders once. */
+    function setPlayerFields(p, call, matching) {
+        [squad, line, sides.O, sides.D].forEach(function (list) {
+            list.forEach(function (q) {
+                if (q.label !== p.label) { return; }
+                q.call = call || '';
+                q.matching = matching || '';
+            });
+        });
+        render();
+        rebuildGrammar();
+    }
+
+    /*
+     * One editor for the two things a spotter learns too late.
+     *
+     * A calling name, because a roster name turns out to be unsayable or to
+     * collide with another; and a matching, because the source the squad came
+     * from usually has none - tournament results sites do not publish it. Both
+     * are THIS PAGE'S: the calling name never reaches the commentary desk, and
+     * a matching typed here fills a gap rather than overruling the desk, which
+     * owns that field and is only ever read from.
+     */
+    function openPlayerEdit(p) {
+        var dlg = el('pedit');
+        if (!dlg || !dlg.showModal) { return; }
+        var chosen = matchingOf(p);
+
+        el('peditWho').textContent = (p.num ? p.num + ' ' : '') + p.label;
+        el('peditCall').value = callName(p) === p.label ? '' : callName(p);
+        el('peditWhy').textContent = 'Both are kept on this page only.';
+
+        var mt = el('peditMt');
+        mt.replaceChildren();
+        [['MMP', 'MMP'], ['FMP', 'FMP'], ['', 'not set']].forEach(function (o) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = o[1];
+            if (o[0]) { b.className = 'mt ' + o[0].toLowerCase(); }
+            b.setAttribute('aria-pressed', chosen === o[0] ? 'true' : 'false');
+            b.addEventListener('click', function () {
+                chosen = o[0];
+                [].forEach.call(mt.children, function (c) {
+                    c.setAttribute('aria-pressed', c === b ? 'true' : 'false');
+                });
+            });
+            mt.append(b);
+        });
+
+        el('peditSave').onclick = function () {
+            setPlayerFields(p, (el('peditCall').value || '').trim(), chosen);
+        };
+        dlg.showModal();
+    }
+
     function nameRisks() {
         var out = [];
         var vocab = vocabulary();
@@ -2808,17 +2894,17 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             }
             b.title = p.label + (at !== -1 ? ' \u2014 on, key ' + (at + 1) : ' \u2014 off')
                 + (at !== -1 && holder === at ? ' \u00b7 has the disc' : '')
-                + ' \u00b7 shift-click to rename for this page';
+                + ' \u00b7 right-click or shift-click to edit';
             b.addEventListener('click', function (ev) {
                 // Shift renames rather than substitutes, so the ordinary
                 // click keeps doing the ordinary thing.
-                if (ev.shiftKey) {
-                    var next = window.prompt('What should this page call '
-                        + p.label + '?', callName(p));
-                    if (next !== null) { setCallName(p, next.trim()); }
-                    return;
-                }
+                if (ev.shiftKey) { openPlayerEdit(p); return; }
                 toggleInLine(p);
+            });
+            // Right-click on a desk, long-press on a phone.
+            b.addEventListener('contextmenu', function (ev) {
+                ev.preventDefault();
+                openPlayerEdit(p);
             });
             row.append(b);
         });

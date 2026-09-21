@@ -134,6 +134,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 <?= Brand::head('spot', $base) ?>
 <title>Spotter</title>
 <link rel="stylesheet" href="<?= $e($assetUrl('shared/matching.css')) ?>">
+<link rel="stylesheet" href="<?= $e($assetUrl('shared/scoreboard.css')) ?>">
 <style>
     :root {
         --bg: #0f1a30; --panel: #16203a; --line: #26324e; --ink: #e8eefb;
@@ -325,7 +326,6 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     .peditmt button[aria-pressed="true"] { border-color: var(--ink); }
     #pedit menu { display: flex; gap: .4rem; justify-content: flex-end;
                   margin: 0; padding: 0; }
-    .board { font-size: 1.5rem; font-weight: 800; letter-spacing: .04em; }
     #scoreMore > summary { cursor: pointer; font-size: .78rem; color: var(--mute); }
     .ratiobox { display: inline-flex; gap: .35rem; align-items: center; }
     .ratiobox label { display: inline-flex; gap: .2rem; align-items: center; }
@@ -563,6 +563,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 ?>
 <script src="<?= $e($assetUrl('shared/score-client.js')) ?>"></script>
 <script src="<?= $e($assetUrl('shared/gameclock.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/score-ui.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-model-version="<?= $e($modelVersion) ?>"
@@ -766,10 +767,8 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
      */
     ?>
     <div class="panel" id="scorePanel">
-      <div class="row">
-        <span class="board" id="board">— : —</span>
-        <span class="sub" id="scoreState"></span>
-      </div>
+      <div id="board"></div>
+      <div class="row"><span class="sub" id="scoreState"></span></div>
     <?php
     /*
      * The board is a READOUT and the controls are a separate block, which is
@@ -789,12 +788,14 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 <?php if ($gameId) : ?>
       <details id="scoreMore">
         <summary>Score controls</summary>
+        <?php
+        // The tiles above ARE the goal buttons, as they are on the phone, so
+        // what folds away is only what a scorekeeper reaches for rarely.
+        ?>
         <div class="row">
           <input id="scoreCode" type="text" size="7" placeholder="code"
                  title="The scorekeeping code, as match control nominates it">
           <button id="scoreLink">Link</button>
-          <button id="goalHome" disabled>+ home</button>
-          <button id="goalAway" disabled>+ away</button>
           <button id="scoreUndo" disabled>undo</button>
         </div>
       </details>
@@ -2203,24 +2204,36 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         return (document.body.dataset.game || '').trim();
     }
 
+    var boardTiles = null;
+
     function renderBoard() {
-        var board = el('board');
-        if (!board) { return; }
+        var box = el('board');
+        if (!box || !window.ScoreUI) { return; }
+        if (!boardTiles) {
+            boardTiles = window.ScoreUI.tiles({
+                compact: true,
+                // The same press either way: a tapped tile and a said goal go
+                // through the one client, so they cannot disagree.
+                onGoal: function (isHome) {
+                    if (!keeper) { return; }
+                    keeper.goal(isHome);
+                    renderBoard();
+                }
+            });
+            box.append(boardTiles.node);
+        }
         /*
          * Linked, the store is the truth and its outbox may be ahead of the
          * server. Unlinked, the capture is all there is - and it already knows,
          * because a goal is an event here before it is a number anywhere else.
          */
-        var home, away;
-        if (keeper) {
-            var v = keeper.view();
-            home = v.home;
-            away = v.away;
-        } else {
-            home = events.filter(function (e) { return e.type === 'goal'; }).length;
-            away = events.filter(function (e) { return e.type === 'conceded'; }).length;
-        }
-        board.textContent = teamName('O') + ' ' + home + ' : ' + away + ' ' + teamName('D');
+        var view = keeper ? keeper.view() : {
+            home: events.filter(function (e) { return e.type === 'goal'; }).length,
+            away: events.filter(function (e) { return e.type === 'conceded'; }).length
+        };
+        window.ScoreUI.paint(boardTiles, view,
+            { home: teamName('O'), away: teamName('D') },
+            Boolean(keeper));
     }
 
     function linkScore() {
@@ -2237,9 +2250,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         });
         keeper.onChange(function () { renderBoard(); });
         keeper.refresh();
-        ['goalHome', 'goalAway', 'scoreUndo'].forEach(function (b) {
-            if (el(b)) { el(b).disabled = false; }
-        });
+        if (el('scoreUndo')) { el('scoreUndo').disabled = false; }
         el('scoreState').textContent = 'linked';
         renderBoard();
     }
@@ -7204,12 +7215,6 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
 
     if (el('scoreLink')) {
         el('scoreLink').addEventListener('click', linkScore);
-        el('goalHome').addEventListener('click', function () {
-            if (keeper) { keeper.goal(true); renderBoard(); }
-        });
-        el('goalAway').addEventListener('click', function () {
-            if (keeper) { keeper.goal(false); renderBoard(); }
-        });
         el('scoreUndo').addEventListener('click', function () {
             if (keeper) { keeper.undo(); renderBoard(); }
         });

@@ -1,0 +1,81 @@
+/*
+ * The scorekeeper's scoreboard: two tiles, where the score IS the button.
+ *
+ * This is the match-control phone's design and it is deliberate. Somebody
+ * keeping score is not reading a display and then hunting for a control - they
+ * tap the team that scored, and the number they tapped is the number they were
+ * already looking at. A separate readout with "+1" buttons beside it is a
+ * different interaction, and a spotter who has replaced the scorekeeper should
+ * not have to learn one.
+ *
+ * Shared so the two surfaces cannot drift apart visually. The colours live here
+ * for the same reason the FMP/MMP tints do in matching.css: a token defined in
+ * one page is a token the other page will eventually redefine differently.
+ *
+ * The tiles are sized from the viewport, so the same markup is a phone's whole
+ * screen in match control and a panel in the spotter without either page
+ * restating the rules.
+ */
+
+:root {
+    --home: #2f6fdb;
+    --away: #b8462f;
+}
+
+.teams {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+    padding: 0 .5rem;
+    min-height: 9rem;
+}
+
+.team {
+    border: 0;
+    border-radius: 12px;
+    color: #fff;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .3rem;
+    padding: .5rem;
+    cursor: pointer;
+    min-height: 0;
+}
+
+.team.home { background: var(--home); }
+.team.away { background: var(--away); }
+
+/* Not "nothing happened": a tile you may not press still shows the score. */
+.team:disabled { opacity: .45; cursor: default; }
+
+.team .name {
+    font-size: .95rem;
+    font-weight: 700;
+    text-align: center;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.team .n {
+    font-size: clamp(3rem, 22vw, 7rem);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.team:active { filter: brightness(1.18); }
+
+/*
+ * The spotter gives the tiles a panel rather than a screen, so the digits that
+ * fill a phone would fill the page. Same markup, same colours, less height.
+ */
+.teams.compact { min-height: 0; padding: 0; }
+.teams.compact .n { font-size: clamp(1.8rem, 7vw, 3rem); }
+.teams.compact .name { font-size: .8rem; }
+.teams.compact .team { border-radius: 8px; padding: .35rem; }

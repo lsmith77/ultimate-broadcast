@@ -134,10 +134,11 @@ $swScope = $base . '/k/';
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Score">
 <meta name="theme-color" content="#0d1420">
+<link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/scoreboard.css'), ENT_QUOTES) ?>">
 <style>
     :root {
         --bg: #0d1420; --panel: #16202f; --line: #2a3a52; --ink: #f2f6fb;
-        --ink-mute: #9fb0c6; --home: #2f6fdb; --away: #b8462f;
+        --ink-mute: #9fb0c6;   /* --home / --away: shared/scoreboard.css */
         --ok: #1f7a44; --warn: #8a5a12; --bad: #8c1d1d;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -269,21 +270,7 @@ $swScope = $base . '/k/';
        presses vanished and the clock row was painted over what remained of
        them, so a tap meant for the home team hit the clock. Measured at
        720px, not guessed at. Whatever else has to give, these do not. */
-    .teams { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
-        padding: 0 .5rem; min-height: 9rem; }
-    .team { border: 0; border-radius: 12px; color: #fff; font: inherit;
-        display: flex; flex-direction: column; align-items: center;
-        justify-content: center; gap: .3rem; padding: .5rem; cursor: pointer;
-        min-height: 0; }
-    .team.home { background: var(--home); }
-    .team.away { background: var(--away); }
-    .team:disabled { opacity: .45; }
-    .team .name { font-size: .95rem; font-weight: 700; text-align: center;
-        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical; }
-    .team .n { font-size: clamp(3rem, 22vw, 7rem); font-weight: 800;
-        line-height: 1; font-variant-numeric: tabular-nums; }
-    .team:active { filter: brightness(1.18); }
+    /* .teams / .team: shared/scoreboard.css, so the spotter matches. */
 
     .clock { display: flex; align-items: center; gap: .5rem; padding: .6rem .7rem .2rem; }
     .clock .t { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums;

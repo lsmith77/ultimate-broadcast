@@ -248,6 +248,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .startpill.d { background: #3a2540; color: #e0b3ff; }
     .namerisk { margin: 0 0 .5rem; font-size: .78rem; color: var(--warn);
                 border-left: 3px solid var(--warn); padding-left: .55rem; }
+    .packlinks { display: inline-flex; gap: .45rem; }
+    .packlinks a { font-size: .8rem; color: #7fd4ff; }
     .namerisk div { padding: .12rem 0; display: flex; gap: .3rem;
                     align-items: baseline; flex-wrap: wrap; }
     .namerisk button { font-size: .72rem; padding: .1rem .45rem;
@@ -565,6 +567,12 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
           <option value="<?= (int) $i ?>"><?= $e((string) ($g['name'] ?? $g['id'] ?? ('game ' . $i))) ?></option>
 <?php endforeach; ?>
         </select>
+        <?php
+        // The tournament's own record, one click away: the roster to settle a
+        // shirt number mid-point, the statistics to compare a finished capture
+        // against. Links, not imports - nothing is fetched and nothing stored.
+        ?>
+        <span id="packLinks" class="packlinks"></span>
 <?php endif; ?>
         <label class="file">Load a tagged game<input id="ref" type="file" accept=".json"></label>
         <button id="scoreme" disabled>Score me</button>
@@ -5686,6 +5694,22 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                     if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
                 });
             });
+            var box = el('packLinks');
+            if (box) {
+                box.replaceChildren();
+                (g.links || []).forEach(function (l) {
+                    if (!l || !l.url) { return; }
+                    var a = document.createElement('a');
+                    a.href = l.url;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    a.textContent = l.label || 'link';
+                    a.title = 'The tournament\u2019s own ' + (l.label || 'record')
+                        + ', in a new tab';
+                    box.append(a);
+                });
+            }
+
             if (MODE !== 'training') { setMode('training'); }
             if (g.video) {
                 el('url').value = g.video;

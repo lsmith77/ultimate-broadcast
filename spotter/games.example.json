@@ -4,7 +4,8 @@
   "_schema": {
     "video": "YouTube id. Training mode stamps events with VIDEO time, so captures from different people align exactly.",
     "teams": "Two, in the order they should appear. `side` is O or D and only sets which group a player starts in; which side is on offence follows the point.",
-    "score": "The tournament's own final score, if known. Not used to fill anything in - it is checked against what the capture recorded, and a disagreement means goals were missed."
+    "score": "The tournament's own final score, if known. Not used to fill anything in - it is checked against what the capture recorded, and a disagreement means goals were missed.",
+    "links": "Where the tournament's own record lives: the roster, to settle a shirt number the footage will not show, and whatever statistics the event itself published, to compare a finished capture against. Any number of them, in the order a spotter would reach for them. Opened in a new tab - nothing is fetched and nothing is stored."
   },
   "games": [
     {
@@ -13,6 +14,10 @@
       "video": "",
       "size": 7,
       "score": { "home": 15, "away": 13 },
+      "links": [
+        { "label": "roster", "url": "https://example.org/tournament/team/123/roster" },
+        { "label": "game stats", "url": "https://example.org/tournament/game/456" }
+      ],
       "teams": [
         {
           "name": "Example Club",

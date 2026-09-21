@@ -507,7 +507,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     window.SPOTTER_CONFIG = {
         api: <?= $json($base . '/index.php?view=live/api') ?>,
         captureBase: <?= $json(Mode::captureBase($base)) ?>,
-        rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : Mode::viewUrl('roster', $base)) ?>
+        rosterUrl: <?= $json(\Overlays\Auth::isHosted() ? null : Mode::viewUrl('roster', $base)) ?>,
+        notesUrl: <?= $json(Mode::viewUrl('notes', $base)) ?>
     };
 </script>
 
@@ -640,6 +641,15 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
       <div class="row">
         <label class="file">Squad<input id="file" type="file" accept=".json"></label>
         <button id="demoline" title="seven invented players, to try the tool">demo line</button>
+        <?php
+        // The desk's code, not a game id: shared/notes.php files notes under
+        // the code alone, so a spotter handed the commentary desk's code
+        // inherits whatever it has already typed about these players.
+        ?>
+        <input id="deskcode" type="text" size="8" placeholder="desk code"
+               title="The commentary desk&#39;s sync code — pulls the matchings they typed">
+        <button id="desknotes">Get matchings</button>
+        <span class="sub" id="deskinfo"></span>
       </div>
       <div class="line" id="line" style="margin-top:.5rem"></div>
     </div>
@@ -2131,10 +2141,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 // sorting seven times a point.
                 role: /^[od]$/i.test(String(entry.role || entry.line || ''))
                     ? String(entry.role || entry.line).toUpperCase() : '',
+                /*
+                 * UltiOrganizer's own player id, when the squad came from
+                 * somewhere that knows it.
+                 *
+                 * It is the ONLY key the commentary desk's notes can be joined
+                 * on - `shared/notes.php` files everything under a player id -
+                 * so a squad without ids cannot inherit anything the desk
+                 * typed, however well the names match. Number-and-name joins
+                 * were not attempted: two teams share most numbers.
+                 */
+                id: entry.id === 0 || entry.id ? String(entry.id) : '',
                 // Mixed only, and nothing upstream records it, so it survives
-                // only if whatever built the squad said it. Nothing reads it
-                // yet; dropping it here would mean retyping a roster when
-                // something does. See MATCHCONTROL.md section 10a.
+                // only if whatever built the squad said it. See
+                // MATCHCONTROL.md section 10a.
                 matching: /^(MMP|FMP)$/i.test(String(entry.matching || ''))
                     ? String(entry.matching).toUpperCase() : ''
             };
@@ -4637,6 +4657,54 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         head.append(wrap);
     }
 
+    /*
+     * Matchings the commentary desk already typed.
+     *
+     * `shared/notes.php` is keyed by CODE rather than by game - a desk that
+     * keeps its code keeps its notes for the whole tournament - so a spotter
+     * given that code inherits them with nobody typing a roster twice. This
+     * is the answer to "who supplies the matchings": not the spotter.
+     *
+     * READ ONLY. The desk owns this material; a spotter quietly rewriting a
+     * commentator's note is not a trade worth making, and the one field taken
+     * here is the one the picker needs.
+     */
+    function pullNotes() {
+        var code = (el('deskcode').value || '').trim();
+        var say = function (t) { el('deskinfo').textContent = t; };
+        if (!code) { say('enter the desk\u2019s code'); return; }
+        if (!SPOTTER_CONFIG.notesUrl) { say('no notes store on this install'); return; }
+        if (!squad.some(function (p) { return p.id; })) {
+            // Said plainly rather than reported as "nothing found": a squad
+            // typed by hand or built from a pack has no ids, and no code will
+            // ever make this work until it does.
+            say('this squad has no player ids, so notes cannot be matched to it');
+            return;
+        }
+        say('asking\u2026');
+        fetch(SPOTTER_CONFIG.notesUrl + '&code=' + encodeURIComponent(code),
+            { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (body) {
+                var players = body && body.players;
+                if (!players) { say('no room with that code'); return; }
+                var filled = 0;
+                squad.forEach(function (p) {
+                    var note = p.id ? players[p.id] : null;
+                    var m = note ? String(note.matching || '').toUpperCase() : '';
+                    if ((m === 'MMP' || m === 'FMP') && p.matching !== m) {
+                        p.matching = m;
+                        filled += 1;
+                    }
+                });
+                say(filled ? filled + ' matchings from the desk'
+                    : 'that room has no matchings for this squad');
+                rebuildGrammar();
+                render();
+            });
+    }
+
     function roleGroup(which) {
         return squad.filter(function (p) { return p.role === which; });
     }
@@ -5993,7 +6061,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 (t.players || []).forEach(function (q) {
                     var pl = asPlayer({ firstname: q.firstname, lastname: q.lastname,
                                         nickname: q.nickname, num: q.num, role: slot,
-                                        matching: q.matching });
+                                        matching: q.matching, id: q.id });
                     if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
                 });
             });
@@ -6390,6 +6458,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         { firstname: 'Mira', lastname: 'Kovac', matching: 'FMP', nickname: 'Kova', role: 'D', num: 12 },
         { firstname: 'Emil', lastname: 'Roth', matching: 'MMP', nickname: 'Piper', role: 'D', num: 14 }
     ];
+
+    el('desknotes').addEventListener('click', pullNotes);
 
     el('demoline').addEventListener('click', function () {
         // The squad is five and five, so the size comes with it - otherwise

@@ -2076,7 +2076,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 // picker that cannot express it makes the spotter do the
                 // sorting seven times a point.
                 role: /^[od]$/i.test(String(entry.role || entry.line || ''))
-                    ? String(entry.role || entry.line).toUpperCase() : ''
+                    ? String(entry.role || entry.line).toUpperCase() : '',
+                // Mixed only, and nothing upstream records it, so it survives
+                // only if whatever built the squad said it. Nothing reads it
+                // yet; dropping it here would mean retyping a roster when
+                // something does. See MATCHCONTROL.md section 10a.
+                matching: /^(MMP|FMP)$/i.test(String(entry.matching || ''))
+                    ? String(entry.matching).toUpperCase() : ''
             };
         }
         // "8 Ari Ace" or "Ari Ace" typed by hand.
@@ -5732,7 +5738,8 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 teamNames[slot] = t.name || teamName(slot);
                 (t.players || []).forEach(function (q) {
                     var pl = asPlayer({ firstname: q.firstname, lastname: q.lastname,
-                                        nickname: q.nickname, num: q.num, role: slot });
+                                        nickname: q.nickname, num: q.num, role: slot,
+                                        matching: q.matching });
                     if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
                 });
             });

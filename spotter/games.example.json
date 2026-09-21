@@ -5,7 +5,8 @@
     "video": "YouTube id. Training mode stamps events with VIDEO time, so captures from different people align exactly.",
     "teams": "Two, in the order they should appear. `side` is O or D and only sets which group a player starts in; which side is on offence follows the point.",
     "score": "The tournament's own final score, if known. Not used to fill anything in - it is checked against what the capture recorded, and a disagreement means goals were missed.",
-    "links": "Where the tournament's own record lives: the roster, to settle a shirt number the footage will not show, and whatever statistics the event itself published, to compare a finished capture against. Any number of them, in the order a spotter would reach for them. Opened in a new tab - nothing is fetched and nothing is stored."
+    "links": "Where the tournament's own record lives: the roster, to settle a shirt number the footage will not show, and whatever statistics the event itself published, to compare a finished capture against. Any number of them, in the order a spotter would reach for them. Opened in a new tab - nothing is fetched and nothing is stored.",
+    "matching": "MMP or FMP, per player. Nothing upstream records it - not shared/roster.php and not UltiOrganizer - so a mixed game has to be told here. It is what lets a called line be checked against the point's prescribed ratio; see shared/ratio.js and MATCHCONTROL.md section 10a. Leave it out outside mixed, where there is no ratio and nothing to check."
   },
   "games": [
     {
@@ -23,16 +24,16 @@
           "name": "Example Club",
           "side": "O",
           "players": [
-            { "firstname": "Ada", "lastname": "Weber", "nickname": "Ace", "num": 7 },
-            { "firstname": "Hana", "lastname": "Lehner", "nickname": "Robin", "num": 11 }
+            { "firstname": "Ada", "lastname": "Weber", "nickname": "Ace", "num": 7, "matching": "FMP" },
+            { "firstname": "Hana", "lastname": "Lehner", "nickname": "Robin", "num": 11, "matching": "MMP" }
           ]
         },
         {
           "name": "Second Example",
           "side": "D",
           "players": [
-            { "firstname": "Sky", "lastname": "Thaler", "nickname": "Tiny", "num": 2 },
-            { "firstname": "Jo", "lastname": "Moser", "nickname": "Mo", "num": 9 }
+            { "firstname": "Sky", "lastname": "Thaler", "nickname": "Tiny", "num": 2, "matching": "FMP" },
+            { "firstname": "Jo", "lastname": "Moser", "nickname": "Mo", "num": 9, "matching": "MMP" }
           ]
         }
       ]

@@ -568,6 +568,21 @@ Four things it inherits, and one it does not:
 
 **What it does not inherit is the per-throw cost.** Formations are the cheapest high-value thing on this list — two utterances a point, no attribution, no timing — which makes them a plausible FIRST thing for a spotter who cannot yet keep up with every throw, rather than a refinement after everything else works. A capture that records only the line, the formations and the outcome of each point is already worth more to a coach than most tournaments collect, and it is within reach of somebody watching a game normally.
 
+### In mixed, a called line can be checked against the prescribed ratio
+
+**A line call in a mixed game carries one more criterion than a line call anywhere else**: the gender ratio. Seven names is not enough to be a legal line — four MMP and three FMP is a different line from three and four, and which one this point takes is fixed by rule rather than by choice.
+
+**Most of this is already built, in `shared/ratio.js`.** That helper exists because the commentator page and the stage's progression card had each stated the rule separately and drifted apart. It holds the ABBA pattern (`slot()`, so points 1, 4, 5, 8 … repeat the first point's ratio), the ratios available at each line size (`pairForSize()` — two at an odd size, one at an even, since the prescription is only ever about who gets the odd player), and the arithmetic a check actually needs: `counts()` turns `4MMP/3FMP` into `{MMP: 4, FMP: 3}`. The spotter should reach for it rather than restate the rule a third time.
+
+**Two inputs are missing, and only one of them is cheap.**
+
+- **The first point's ratio**, which decides every later point through the ABBA pattern. It is already a declared value the desk holds, reachable from the More panel on the scorekeeping phone. For the spotter it is one declaration at the start of a game.
+- **Per-player matching**, which nothing upstream records. `shared/roster.php` has no such field, and neither does UltiOrganizer — the same gap the size default already works around. So it has to come from wherever the squad came from: a reference game pack can carry it per player, and a hand-built squad has to be told.
+
+**What the check buys is a second kind of evidence.** Everything else the spotter validates comes from the sport's causality — a pull cannot happen while the disc is live, a turnover needs a holder. The ratio is the first criterion that can falsify a line call from **outside** the capture: a heard line of five MMP on a seven-a-side mixed point is wrong no matter how confidently it was recognised, and it is wrong in a way that says *which* name to doubt. That makes it worth more as a prompt than as a rejection — the same posture as `implausible()`, which marks and never refuses.
+
+**It is scoped to mixed.** `Ratio.isMixed()` decides that from the division name, and outside mixed there is no ratio and no check.
+
 ### Calls and how they resolved
 
 **An idea, noted rather than designed.** Record the call as well as the moment: *foul*, *travel*, *pick*, *strip*, and then how it ended — contested or uncontested, and what happened to the disc.

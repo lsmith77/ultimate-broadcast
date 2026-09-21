@@ -609,9 +609,19 @@ The spotter is built and nothing consumes it. **A capture is currently a file th
 
 **For a coach.** Per-player **live** time is not the same number as `shared/playingtime.js` computes: that is time on the field by line, this is time with the disc in play, which is the one that tracks workload. And a spotter covering both teams makes the cross-tab possible — completion rate *against* a named defensive look — which is the question throws alone cannot answer and the reason the formations note above exists.
 
-**What it does not unlock.** Nothing spatial: there are no field coordinates in a capture, so anything about space, field position or cuts is out of reach by construction. And a spotter is now encouraged to do a few points rather than a whole game, so partial coverage is the normal case rather than the exception.
+**What it does not unlock.** No continuous position: a capture holds no field coordinates, so anything needing to know *where* on the field something happened is out of reach for a spoken grammar. Coarse space is a different matter and is discussed below. And a spotter is now encouraged to do a few points rather than a whole game, so partial coverage is the normal case rather than the exception.
 
 **The rules are already written, and they are the hard part.** Everything here is a derived number reaching air, which is exactly where this project's characteristic bug lives — a graphic quietly asserting something untrue. The doctrine above applies unchanged: coverage is declared per event class, a derived number inherits the worst coverage of its inputs, a denominator travels with every rate, and a point nobody spotted is unknown rather than zero. A capture covering four points of a final is a complete record of four points, and any fact built from it has to say so.
+
+### Space, which voice can approximate and touch could capture
+
+"Nothing spatial" is too strong, and the 26-game measurement above already says so: `under` and `deep` appear more often than almost any throw name, and they are **the largest dimension the grammar has no slot for**. They describe where the receiver went. That is spatial information arriving as one appended word.
+
+**The vocabulary route is cheap and deliberately deferred.** A throw could take a qualifier — *short*, *long*, a distance like *20m*, *break side*, or the mark it beat, *force forehand*. Each costs one more word on a call a spotter is already making, and `force` direction in particular is worth noting because commentary never says it: the corpus above found it absent, so a spotter is the only plausible source. The reason not to build it yet is sequencing rather than doubt. The grammar already has forty-odd terms and a collision problem that gets worse with every addition, and until per-throw capture is solid in the hands of people who are not the author, adding a dimension makes the thing harder to test without making it more trustworthy. Get the rest right, then see whether a spotter can really carry another word per throw.
+
+**Fine-grained space needs a different input, not a bigger vocabulary.** Voice was chosen because a spotter's hands are busy and their eyes are on the field — but a finger tracing the disc's path on a phone in a pocket satisfies the same constraint, and arguably better: a direction and a distance are awkward to say and natural to draw. A gesture that can be made **without looking** is the version worth designing; anything needing the spotter to watch the screen spends the attention the whole design exists to protect.
+
+**Statto has already solved this input.** It has an elegant interface for exactly this capture, and its development appears to have stalled. §10a's staffing argument above already points at apps like Statto for a different reason; this is a second one. Adopting that interface, or collaborating rather than reinventing it, would be a better use of effort than a second attempt at a problem somebody has already worked out — and it does not change the conclusion that the piece this project has to build is **the join**, not the collector.
 
 ## 11. Open questions
 

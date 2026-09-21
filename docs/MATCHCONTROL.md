@@ -530,6 +530,25 @@ Counted by **breadth** rather than frequency. A term used sixty times in one gam
 - **Force is named, its direction is not.** `force` appears in 21 games and `force flick`, `force backhand`, `force home` and `force away` appear in none. So a spotter who wants the direction has to volunteer it; commentary will never supply it, and neither will a crowd.
 - **Effort is discussed constantly and is not collectable.** `pressure` appears in all 26 games. It is a judgement, and the coverage rules mean a judgement dressed as a measurement is worse than nothing.
 
+### Two tiers of defensive vocabulary, and only one is in the commentary
+
+Probing the same 26 games for the *instructions* a defence gives itself returns almost nothing: `face guard` appears **0** times, `no under` in 1 game, `no long` in 5, and `no deep`, `no huck` and `no unders` in none. Marking detail is similar — `straight up` in 6 games, `flat mark` in 2.
+
+**That is a finding about the source, not about the terms.** They are ordinary things to say on a sideline; they are simply not what a broadcast commentator says, because a commentator is describing what a viewer can see and these are decisions a viewer cannot. Reading the zeros as "not worth collecting" would be exactly the wrong inference — and the measurement above is only safe to act on for the things commentary *can* supply.
+
+So the defensive vocabulary splits in two, and the split follows who is holding the microphone:
+
+| | what it needs | examples |
+|---|---|---|
+| **Visible to anyone** | a neutral spotter watching the field | `zone`, `match`, `cup`, `poach`, `bracket`, `switch` — named in nearly every game |
+| **Known only to the team** | a spotter attached to that team | `face guard`, `no under`, `no long`, the force direction, the called look |
+
+The second tier is the strongest argument yet for **a spotter per team** rather than one neutral spotter. Two spotters were proposed here as a disagreement model — one side scores a throwaway, the other scores a block, and the difference is detectable. This is a second and better reason: a team's own spotter hears the sideline call and knows the system, so they can record a defensive intent that no neutral observer could ever reconstruct, and that no commentator says out loud.
+
+It also means the two captures are not redundant halves of one record. Each side sees things the other structurally cannot, which is a different shape of data from two people watching the same thing — and it argues for merging them by *claim* rather than by vote.
+
+One term from this group is well attested and belongs in the visible tier: `over the top` appears in 18 of 26 games, which makes it a throw description rather than a tactic.
+
 **One caveat that cuts against the zeros.** These are machine transcripts, so a term the recogniser cannot spell is under-counted rather than absent: `scoober` appears zero times across 26 games and is also missing from the acoustic model's lexicon, which are not independent facts. A zero here means *not reliably transcribed*, which is weaker than *not said*.
 
 ### Formations, which are two words a point and answer questions throws cannot

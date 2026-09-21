@@ -6299,6 +6299,26 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 
             var add = function (l, prefix) {
                 if (!l || !l.url) { return; }
+                /*
+                 * http(s) only, and refused visibly rather than silently.
+                 *
+                 * These hrefs come from a pack file, and `javascript:` in one
+                 * executes in this page's context the moment a spotter clicks
+                 * what looks like a roster link - which is the whole point of
+                 * a link that says "roster". `data:` is the same trick with a
+                 * document attached. A pack is usually trusted, but "usually"
+                 * is not a security property: packs are meant to be passed
+                 * around with a reference game, so the file is exactly the
+                 * thing an attacker would hand you.
+                 */
+                if (!/^https?:\/\//i.test(String(l.url))) {
+                    var bad = document.createElement('span');
+                    bad.className = 'sub';
+                    bad.textContent = (l.label || 'link') + ' (refused: not http)';
+                    bad.title = 'A pack link must be http:// or https://.';
+                    box.append(bad);
+                    return;
+                }
                 var what = ((prefix ? prefix + ' ' : '') + (l.label || 'link')).trim();
                 var a = document.createElement('a');
                 a.href = l.url;

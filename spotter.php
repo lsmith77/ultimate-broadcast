@@ -6171,7 +6171,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 reference = doc.events || [];
                 el('refinfo').textContent = reference.length + ' tagged events'
                     + (doc.video ? ' · video ' + doc.video : '');
-                el('scoreme').disabled = false;
+                // Any valid JSON used to enable it, so a file that was
+                // not a capture scored an empty reference against a real one
+                // and called every event a miss. Nothing to compare is not a
+                // zero.
+                el('scoreme').disabled = reference.length === 0;
                 // Load the same footage, or the timestamps compare nothing.
                 if (doc.video && !el('url').value) {
                     el('url').value = doc.video;

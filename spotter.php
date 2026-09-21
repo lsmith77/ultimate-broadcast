@@ -2195,6 +2195,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
             if (m === 'live' && liveFrom === null) { liveFrom = Date.now(); }
             el('blurb').textContent = BLURB[m];
             el('blurb').hidden = !BLURB[m];
+            applyRatioDefault(m);
             syncModeUrl(m);
             render();
             return;
@@ -2210,6 +2211,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         document.body.dataset.mode = m;
         el('modeLive').className = m === 'live' ? 'on' : '';
         el('modeTrain').className = m === 'training' ? 'on' : '';
+        applyRatioDefault(m);
         syncModeUrl(m);
         // After MODE is set, so a fresh clock belongs to the mode being
         // switched TO rather than the one being left.
@@ -2895,8 +2897,11 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         pill.disabled = !settable;
         pill.title = settable
             ? 'Switch the pull: ' + teamName(other(starting)) + ' would receive instead'
-            : 'The point has started, so this would rewrite what is already '
-                + 'recorded. Say "new point" to begin again.';
+            : (point !== 1
+                ? 'Only the first point is declared. After that the pull '
+                    + 'follows from who scored.'
+                : 'The point has started, so this would rewrite what is '
+                    + 'already recorded. Say "new point" to begin again.');
         pill.addEventListener('click', function () { setStarting(other(starting)); });
         head.append(pill);
 
@@ -4861,6 +4866,18 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
      * history rather than a correction.
      */
     function startIsSettable() {
+        /*
+         * Point one only. After it, who pulls follows from who scored, so a
+         * control here would offer an edit that can only make things wrong -
+         * the same reason the ratio is declared once and derived thereafter.
+         *
+         * KNOWN GAP, deliberately not handled: a spotter who joins a game in
+         * progress starts at point one of THEIR capture, which is some later
+         * point of the game, and the same is true after half time - the pull
+         * there does not follow from the last goal. Both need a declaration
+         * this refuses to offer. Left alone until the common case is proven.
+         */
+        if (point !== 1) { return false; }
         for (var i = events.length - 1; i >= 0; i -= 1) {
             if (events[i].type === 'point') { return i === events.length - 1; }
         }
@@ -4982,10 +4999,28 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
      * versus shared. This function does no arithmetic, which is the whole
      * reason both files exist.
      */
-    var ratioOn = (function () {
-        try { return window.localStorage.getItem('uo-spot-ratio-on') === '1'; }
-        catch (e) { return false; }      // private mode: off, and settable
-    }());
+    /*
+     * Three states, not two: on, off, and never answered.
+     *
+     * The stored value is '1' for on and '' for off, so `null` means nobody
+     * has chosen - which is what lets training mode default the ratio ON
+     * without overruling a spotter who deliberately turned it off.
+     */
+    function ratioPreference() {
+        try { return window.localStorage.getItem('uo-spot-ratio-on'); }
+        catch (e) { return null; }       // private mode: unanswered, every time
+    }
+
+    var ratioOn = ratioPreference() === '1';
+
+    /*
+     * Training is where the ratio is worth having on by default: there is a
+     * reference game with a known ratio, no desk holding it, and time to set
+     * it. Live is somebody on a sideline who may well not be carrying it.
+     */
+    function applyRatioDefault(m) {
+        if (m === 'training' && ratioPreference() === null) { ratioOn = true; }
+    }
     var firstRatio = null;
 
     function ratioValue() {

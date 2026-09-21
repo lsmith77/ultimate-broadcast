@@ -107,6 +107,7 @@ try {
     }
 } catch (e) { /* private window, blocked storage: day is the default anyway */ }
 </script>
+<link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/matching.css'), ENT_QUOTES) ?>">
 <style>
     /* ---- palette -------------------------------------------------------
        Two themes, and DAY IS THE DEFAULT, because this page is used at the
@@ -164,8 +165,7 @@ try {
            the tag, never the tint.
            The inks are the part that has to measure: teal-900 rather than
            teal-800, which came to 6.73:1 here and missed this page's AAA bar. */
-        --fmp-bg: #ccfbf1;  --fmp-ink: #134e4a;
-        --mmp-bg: #ede9fe;  --mmp-ink: #5b21b6;
+        /* --fmp-* / --mmp-* now come from shared/matching.css. */
 
         /* Glare eats thin strokes before it eats thick ones. */
         --rule: 1px;
@@ -200,8 +200,6 @@ try {
         --badge-soon-bg: #1e3a5f;  --badge-soon-ink: #7dd3fc;
         --err-bg: #3f1d1d;         --err-ink: #fecaca;   --err-edge: #ef4444;
 
-        --fmp-bg: #134e4a;  --fmp-ink: #99f6e4;
-        --mmp-bg: #312e81;  --mmp-ink: #ddd6fe;
 
         --rule: 1px;
         --rule-strong: 1px;
@@ -781,6 +779,7 @@ prepared notes and the shared line cannot be saved.</div>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio-ui.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/lineup.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/lineup-ui.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/playingtime.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
@@ -3770,14 +3769,7 @@ prepared notes and the shared line cannot be saved.</div>
         var count = el('span', 'count' + (line.length === size ? ' ok' : (line.length > size ? ' over' : '')),
             line.length + ' / ' + size);
         head.append(count);
-        if (assist) {
-            assist.groups.forEach(function (g) {
-                var gc = el('span', 'gcount');
-                gc.append(el('span', 'mt ' + g.matching.toLowerCase(), g.matching));
-                gc.append(document.createTextNode(' ' + g.picked + ' of ' + g.quota));
-                head.append(gc);
-            });
-        }
+        head.append(window.LineupUI.counts({ groups: assist && assist.groups }));
         panel.append(head);
 
         if (!list.length) {
@@ -3786,10 +3778,10 @@ prepared notes and the shared line cannot be saved.</div>
         }
 
         if (mixed && !hasMatchings) {
-            panel.append(el('p', 'muted mtwarn',
-                'No FMP/MMP data for this team, so nothing here can group, count '
-                + 'or hide. Import the team’s sheet on the prep screen, or check '
-                + 'the sync code — matchings live in the room the code names.'));
+            panel.append(window.LineupUI.missingNote({
+                remedy: 'Import the team’s sheet on the prep screen, or check '
+                    + 'the sync code — matchings live in the room the code names.'
+            }));
         }
 
         // Who went off, and what the replacement has to be. The line is one

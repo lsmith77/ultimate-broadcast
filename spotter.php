@@ -770,6 +770,22 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         <span class="board" id="board">— : —</span>
         <span class="sub" id="scoreState"></span>
       </div>
+    <?php
+    /*
+     * The board is a READOUT and the controls are a separate block, which is
+     * the split the coach view will need rather than a tidiness preference.
+     *
+     * A coach acting as spotter sees the score and must not write it: they are
+     * partisan about exactly the calls a capture records, and MATCHCONTROL.md
+     * section 10a holds that the scoresheet stays the tournament's record. So
+     * the coach view hides these controls and keeps the board above.
+     *
+     * NOT BUILT: nothing here yet distinguishes a tournament spotter from a
+     * coach. When it does, this condition becomes "may this person write"
+     * rather than "is there a game" - one condition, because the markup is
+     * already divided along that line.
+     */
+    ?>
 <?php if ($gameId) : ?>
       <details id="scoreMore">
         <summary>Score controls</summary>

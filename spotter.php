@@ -729,15 +729,27 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
       <div class="row">
         <label class="file">Squad<input id="file" type="file" accept=".json"></label>
         <button id="demoline" title="seven invented players, to try the tool">demo line</button>
+<?php if ($gameId) : ?>
         <?php
-        // The desk's code, not a game id: shared/notes.php files notes under
-        // the code alone, so a spotter handed the commentary desk's code
-        // inherits whatever it has already typed about these players.
+        /*
+         * The desk's code, not a game id: shared/notes.php files notes under
+         * the code alone, so a spotter handed the commentary desk's code
+         * inherits whatever it has already typed about these players.
+         *
+         * ONLY WITH A GAME. Training mode deliberately needs no game and is
+         * therefore reachable by anyone, and this control talks to a store
+         * whose only key is a five-character code - so leaving it on the open
+         * path would put an unauthenticated query box in front of every
+         * commentary room on the installation. It would also do nothing there:
+         * notes are filed under UltiOrganizer player ids and a pack squad has
+         * none.
+         */
         ?>
         <input id="deskcode" type="text" size="8" placeholder="desk code"
                title="The commentary desk&#39;s sync code — pulls the matchings they typed">
         <button id="desknotes">Get matchings</button>
         <span class="sub" id="deskinfo"></span>
+<?php endif; ?>
       </div>
       <div class="line" id="line" style="margin-top:.5rem"></div>
     </div>
@@ -6815,7 +6827,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         { firstname: 'Emil', lastname: 'Roth', matching: 'MMP', nickname: 'Piper', role: 'D', num: 14 }
     ];
 
-    el('desknotes').addEventListener('click', pullNotes);
+    if (el('desknotes')) { el('desknotes').addEventListener('click', pullNotes); }
 
     el('demoline').addEventListener('click', function () {
         // The squad is five and five, so the size comes with it - otherwise

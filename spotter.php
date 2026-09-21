@@ -2680,13 +2680,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             groups.push(['', squad]);
         }
 
-        // Opted into the ratio but nobody has a matching: say why the counts
-        // are absent, rather than leaving a picker that silently does less.
-        if (ratioOn && squad.length && !anyMatching() && window.LineupUI) {
+        /*
+         * A mixed game with no matchings says so, whether or not the ratio was
+         * taken.
+         *
+         * This was gated behind the ratio opt-in, which meant the common case -
+         * a mixed game loaded from a pack, ratio left to the desk - showed
+         * neither tints nor any word about why. Silence reads as "this tool
+         * does not do that", when the truth is that nobody supplied the data.
+         */
+        if (isMixedGame() && squad.length && !anyMatching() && window.LineupUI) {
             box.append(window.LineupUI.missingNote({
                 className: 'mtwarn',
-                remedy: 'Add "matching": "MMP" or "FMP" per player to the game '
-                    + 'pack, or pick the line without it.'
+                remedy: 'Tournament results sites rarely publish it, so add '
+                    + '"matching": "MMP" or "FMP" per player to the game pack.'
             }));
         }
 
@@ -2714,6 +2721,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 
     function anyMatching() {
         return squad.some(function (p) { return matchingOf(p); });
+    }
+
+    /**
+     * Whether this game is mixed, and so has matchings worth showing.
+     *
+     * The pack may say so outright; failing that the game's own name usually
+     * does, which is the same test the scoresheet applies. Taking the ratio is
+     * also an answer: nobody opts into declaring a ratio for a game that has
+     * none.
+     */
+    function isMixedGame() {
+        if (ratioOn) { return true; }
+        if (!packGame || !window.Ratio) { return false; }
+        return window.Ratio.isMixed(packGame.division || packGame.name);
     }
 
     /**

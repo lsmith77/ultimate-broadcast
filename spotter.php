@@ -562,6 +562,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
  */
 ?>
 <script src="<?= $e($assetUrl('shared/score-client.js')) ?>"></script>
+<script src="<?= $e($assetUrl('shared/gameclock.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
       data-model-version="<?= $e($modelVersion) ?>"
@@ -2420,8 +2421,31 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         });
     }
 
+    /*
+     * Which clock the header shows, which is not the same question as which
+     * clock stamps events.
+     *
+     * Events are always stamped with the CAPTURE clock - video time in
+     * training, wall time live - because that is what makes two captures of
+     * one video line up. The header is a different job: a spotter who has
+     * replaced the scorekeeper needs the GAME clock, the one with the halves
+     * and the pauses in it, and showing capture time beside a scoreboard would
+     * be a second clock disagreeing with the first.
+     *
+     * Training keeps the capture clock, deliberately: there the video timestamp
+     * IS the clock, and a game clock from a store nobody is writing to would be
+     * a stopped clock on a game that finished months ago.
+     */
+    function headerClock() {
+        if (MODE !== 'training' && keeper && window.GameClock) {
+            var game = window.GameClock.elapsed(keeper.view());
+            if (game !== null) { return window.GameClock.format(game); }
+        }
+        return mmss(at());
+    }
+
     setInterval(function () {
-        el('clock').textContent = mmss(at());
+        el('clock').textContent = headerClock();
         el('focuswarn').textContent = MODE === 'training' && document.activeElement
             && document.activeElement.tagName === 'IFRAME'
             ? 'click outside the video — keys are going to YouTube' : '';

@@ -32,6 +32,3 @@ version.json
 # whole property is that the directory is the installation.
 spotter/vosk.js
 spotter/model.tar.gz
-# A reference game pack holds a real squad. Invented people only in the
-# repository; see spotter/games.example.json.
-spotter/games.json

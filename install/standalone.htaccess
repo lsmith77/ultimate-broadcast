@@ -40,6 +40,27 @@ DirectoryIndex app.php
     </FilesMatch>
 </IfModule>
 
+# ---------------------------------------------------------------------------
+# The recogniser, cached hard because it is 40MB and never changes.
+#
+# The host sets a week's Cache-Control on .js by itself but knows nothing about
+# .tar.gz, so the acoustic model was re-fetched on every load: forty megabytes,
+# each time, before a spotter could say a word. It is safe to cache for a year
+# because the URL carries the file's mtime as ?v= - a new model is a new URL,
+# so there is no stale copy to evict and no way to pin somebody to an old one.
+#
+# Not compressed: a .tar.gz is already deflated, and asking the server to
+# gzip it again spends CPU to make it slightly bigger.
+#
+# Guarded, because a directive from an absent module is a 500 on every page of
+# the site, not a missing header.
+# ---------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    <FilesMatch "\.tar\.gz$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
 RedirectMatch 404 (^|/)conf/(?!(show\.json|possession-[0-9]+\.json|score-[0-9]+\.json)$).*$
 
 # Nothing under `install/` is a page. `make-config.php` refuses to run under a

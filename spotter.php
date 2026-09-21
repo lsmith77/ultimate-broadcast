@@ -107,6 +107,16 @@ if (is_file(__DIR__ . '/spotter/games.json')) {
 $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter/model.tar.gz');
 
 /*
+ * The model's version, so the URL can change when the model does.
+ *
+ * It is 40MB and is fetched over the network, so it wants to be cached hard -
+ * and a hard-cached URL that never changes is a model nobody can ever upgrade.
+ * The mtime is the cheapest thing that changes exactly when the file does,
+ * which is the same trick `$assetUrl()` uses for scripts.
+ */
+$modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz') : '';
+
+/*
  * Where the model is, put on the document rather than into the script.
  *
  * The library resolves a relative URL inside a blob: worker, whose base is
@@ -544,6 +554,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
 <script src="<?= $e($assetUrl('shared/lineup-ui.js')) ?>"></script>
 </head>
 <body data-mode="live" data-model="<?= $e(Mode::assetBase($base)) ?>/spotter/"
+      data-model-version="<?= $e($modelVersion) ?>"
       data-game="<?= $gameId === false || $gameId === null ? '' : (int) $gameId ?>">
 <script>
     window.SPOTTER_PACK = <?= $gamePack ? $json($gamePack) : 'null' ?>;
@@ -6164,7 +6175,12 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
      * as this one nearly was, it opens a PHP tag right here in the file.
      */
     var MODEL_BASE = document.body.dataset.model || 'spotter/';
-    var MODEL_URL = new URL(MODEL_BASE + 'model.tar.gz', window.location.href).href;
+    // Versioned so the file can be cached for a year and still be replaceable:
+    // a new model has a new mtime, so a new URL, so no stale copy to evict.
+    var MODEL_VERSION = document.body.dataset.modelVersion || '';
+    var MODEL_URL = new URL(MODEL_BASE + 'model.tar.gz'
+        + (MODEL_VERSION ? '?v=' + encodeURIComponent(MODEL_VERSION) : ''),
+        window.location.href).href;
 
     /**
      * A load that cannot finish has to say so.

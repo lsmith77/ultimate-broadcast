@@ -679,7 +679,12 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
             already says which passage you covered and two captures that overlap
             can be lined up on it.</li>
           <li><strong>When you stop</strong>, press <em>Save</em> under Captured and
-            send the file on. Scoring happens on the collected captures, not here:
+            email the file to
+            <a href="mailto:smith@pooteeweet.org?subject=Spotter%20capture"
+               rel="noopener">smith@pooteeweet.org</a>. Say which game and which
+            passage you covered if it is not obvious \u2014 though the file already
+            carries the video and the timestamps, so it can be worked out.
+            Scoring happens on the collected captures, not here:
             agreement between people who spotted the same passage is the measure,
             and no single capture is the right answer to check the others against.
             <em>Score me</em> stays for checking yourself against a capture you

@@ -868,6 +868,18 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         <span class="sub" id="info"></span>
         <button id="save">Save</button>
         <label class="file">Open<input id="open" type="file" accept=".json"></label>
+        <?php
+        /*
+         * Where the file goes, beside the button that makes it.
+         *
+         * This was written in the training instructions, which are collapsed by
+         * default - so somebody who pressed Save had a JSON file and no idea it
+         * was wanted anywhere. The ask has to be where the artefact appears.
+         */
+        ?>
+        <span class="sub">then email it to
+          <a href="mailto:smith@pooteeweet.org?subject=Spotter%20capture"
+             rel="noopener">smith@pooteeweet.org</a></span>
       </div>
       <div class="log"><table id="log"><tbody></tbody></table></div>
     </div>

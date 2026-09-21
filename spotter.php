@@ -51,6 +51,31 @@ use Overlays\Brand;
 use Overlays\Mode;
 
 $gameId = filter_input(INPUT_GET, 'game', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+/*
+ * Live spotting is reached the way the scoreboard is: with a game.
+ *
+ * The scoreboard takes no password - it is a browser source - but it is not an
+ * open door either: it refuses without `?game=`, and the front controller has
+ * already applied Live!'s event-publication boundary by the time it runs. The
+ * spotter now sits behind the same door, which matters more here than there,
+ * because this page reads a squad and can be pointed at the commentary desk's
+ * notes.
+ *
+ * TRAINING MODE SIDESTEPS IT, because there is nothing to gate: the clock is a
+ * YouTube video, the squad comes from a local pack, and no game, event or
+ * store is touched. Requiring a game there would mean inventing one to spot
+ * footage.
+ */
+$wantsTraining = ((string) (filter_input(INPUT_GET, 'mode') ?: '')) === 'training';
+if (!$wantsTraining && !$gameId) {
+    http_response_code(400);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo "Missing or invalid ?game=<id>.\n\n"
+        . "Live spotting follows a game, like the scoreboard does. To spot "
+        . "footage instead, add ?mode=training - that needs no game.\n";
+    exit;
+}
 $base = rtrim(defined('UO_URL_PREFIX') ? UO_URL_PREFIX : '/', '/');
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
 

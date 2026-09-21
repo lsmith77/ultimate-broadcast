@@ -460,34 +460,25 @@ $hasEvent = \Overlays\Event::load() !== null;
     </p>
     <?php
     /*
-     * The spotter, which is a surface now rather than a tool.
+     * The spotter, offered here in TRAINING mode.
      *
-     * Unlike the surfaces above it needs no game: a spotter names a line and
-     * starts, so it is offered even on an installation with nothing in it.
+     * Live spotting follows a game, the way the scoreboard does, and refuses
+     * without one - so a bare link from a welcome page would hand a visitor a
+     * 400. Training needs no game: the clock is a video and the squad comes
+     * from a local pack, which is also the mode somebody trying the tool
+     * actually wants, and the one to send a volunteer over a link.
+     *
      * The 40MB recogniser model is NOT shipped - `spotter/get-model.sh`
      * fetches it - and without it the page runs on typed calls and says so.
      */
     ?>
         <p class="introdemo introtools">
-            <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('spotter'), ENT_QUOTES) ?>"
-               target="_blank" rel="noopener"
-               title="Capture throws, turnovers and the play clock by voice or by hand">
-                <?= \Overlays\Brand::img('spot', $base, 16) ?>the spotter</a>
-            <?php
-            /*
-             * Training is a second front door, not a setting to find.
-             *
-             * It is the mode somebody trying the tool actually wants: a video
-             * as the clock, a reference game to load, and no pitch to stand
-             * on. Reaching it meant opening the spotter and knowing to press
-             * a toggle, which is a poor way to hand the thing to a volunteer
-             * over a link.
-             */
-            ?>
             <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('spotter') . '&mode=training', ENT_QUOTES) ?>"
                target="_blank" rel="noopener"
-               title="Spot a game from YouTube, with video time as the clock">training mode</a>
-            <span>Per-throw statistics from the sideline, by voice.</span>
+               title="Spot a game from YouTube, with video time as the clock">
+                <?= \Overlays\Brand::img('spot', $base, 16) ?>the spotter</a>
+            <span>Per-throw statistics, by voice. Opens in training mode, which
+                needs no game; live spotting follows one.</span>
         </p>
     <?php
     /*

@@ -45,9 +45,17 @@
 # lose voice depending on which flag was used, so both exclude it, and
 # `spotter/get-model.sh` is run on the server to enable it there.
 #
+# `--exclude='/.git'` has NO trailing slash on purpose: a worktree's .git is a
+# FILE, not a directory, and the pattern with one matched only the directory -
+# so a deploy from a worktree published a .git naming a path on the deploying
+# machine.
+#
 # Note for anyone editing the rsync flags below: a comment between two
 # backslash-continued lines comments out every argument after it, silently.
-# Explanations go here, not in the middle of the list.
+# Explanations go here, not in the middle of the list. This is not theoretical:
+# the commit that added the .git exclude put its reasoning inline and truncated
+# the command at that line, dropping the source and destination with it, so
+# every deploy failed with an rsync usage error.
 
 set -euo pipefail
 
@@ -307,9 +315,6 @@ fi
   --exclude='/.well-known/' \
   --exclude='/error_log' \
   --exclude='/.htaccess' \
-  # No trailing slash: a worktree's .git is a FILE, not a directory, and the
-  # pattern with one matched only the directory — so a deploy from a worktree
-  # published a .git naming a path on the deploying machine.
   --exclude='/.git' \
   --exclude='/.github/' \
   --exclude='/.gitignore' \

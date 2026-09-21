@@ -130,6 +130,27 @@ if (versionAfter !== versionBefore) {
     + 'is the record of the last real deploy');
 }
 
+/*
+ * No comment inside a backslash-continued command.
+ *
+ * `foo \` followed by `# why` joins the two lines, and the `#` then comments
+ * out the rest of the LOGICAL line - which ends the command there. Every
+ * argument below it, source and destination included, is discarded in silence:
+ * bash -n sees nothing wrong and the script runs, so the only symptom is rsync
+ * printing its usage. That is not hypothetical. The commit that added the
+ * `--exclude='/.git'` rule put its reasoning inline and broke every deploy.
+ */
+const lines = readFileSync(SCRIPT, 'utf8').split('\n');
+let continued = false;
+for (let i = 0; i < lines.length; i += 1) {
+  const line = lines[i];
+  if (continued && line.trim().startsWith('#')) {
+    fail(`deploy.sh:${i + 1} is a comment inside a continued command, which `
+      + 'silently truncates it: ' + line.trim().slice(0, 60));
+  }
+  continued = /\\$/.test(line);
+}
+
 if (failed) {
   console.error(`\n${failed} problem${failed === 1 ? '' : 's'} with deploy.sh --version.`);
   process.exit(1);

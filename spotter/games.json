@@ -1,0 +1,44 @@
+{
+  "games": [
+    {
+      "id": "example",
+      "name": "Hybrid vs XIST \u2014 Mixed Gold Medal Match (2026 WUCC)",
+      "video": "zH1tQCnpZLU",
+      "size": 7,
+      "score": {
+        "home": 15,
+        "away": 9
+      },
+      "links": [
+        {
+          "label": "game stats",
+          "url": "https://results.wfdf.sport/wucc-2026/game/mixed/hybrid-xist-1448"
+        }
+      ],
+      "teams": [
+        {
+          "name": "Ann Arbor Hybrid",
+          "side": "O",
+          "links": [
+            {
+              "label": "roster",
+              "url": "https://results.wfdf.sport/wucc-2026/team/mixed/hybrid-1131/stats"
+            }
+          ],
+          "roster": "https://results.wfdf.sport/wucc-2026/live/data/WUCC2026_teams_1131.json"
+        },
+        {
+          "name": "New York XIST",
+          "side": "D",
+          "links": [
+            {
+              "label": "roster",
+              "url": "https://results.wfdf.sport/wucc-2026/team/mixed/xist-1132/stats"
+            }
+          ],
+          "roster": "https://results.wfdf.sport/wucc-2026/live/data/WUCC2026_teams_1132.json"
+        }
+      ]
+    }
+  ]
+}

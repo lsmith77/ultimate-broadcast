@@ -1,0 +1,49 @@
+{
+  "_": "The pack schema, with invented people. games.json beside this file is the real one.",
+  "_why_not_committed": "No longer true, and kept as a warning: a pack used to carry rosters inline, which is why it was held out of the repository. A team now names a `roster` URL and the browser fetches the squad when the game is loaded, so a pack holds no personal data and games.json is committed. Inline `players` is for invented people only - put real ones there and the file stops being publishable.",
+  "_schema": {
+    "video": "YouTube id. Training mode stamps events with VIDEO time, so captures from different people align exactly.",
+    "teams": "Two, in the order they should appear. `side` is O or D and only sets which group a player starts in; which side is on offence follows the point.",
+    "score": "The tournament's own final score, if known. Not used to fill anything in - it is checked against what the capture recorded, and a disagreement means goals were missed.",
+    "roster": "Per team, and the reason a pack needs no names in it. A URL returning {\"players\":[{player_id, firstname, lastname, num}]} - Live! publishes one per team under live/data/ and serves it with Access-Control-Allow-Origin: *, so the browser reads it directly on 'Load squads and video' and nothing is stored. `player_id` is the key shared/notes.php files matchings under, so a fetched squad can inherit them. Inline `players` still works, for invented people.",
+    "links": "Where the tournament's own record lives: whatever statistics the event published, to compare a finished capture against, and per team the roster, to settle a shirt number the footage will not show. Put a link on the game when it is about the game and on the team when it is about the team - a team's link is shown under its own name, so two rosters do not both read 'roster'. Any number of either, in the order a spotter would reach for them. Opened in a new tab - nothing is fetched and nothing is stored.",
+    "division": "Optional. Only read to decide whether the game is mixed, and so whether matchings are worth showing; the game's own name is used when this is absent, which is usually enough.",
+    "matching": "MMP or FMP, per player. Nothing upstream records it - not shared/roster.php and not UltiOrganizer - so a mixed game has to be told here. It is what lets a called line be checked against the point's prescribed ratio; see shared/ratio.js and MATCHCONTROL.md section 10a. Leave it out outside mixed, where there is no ratio and nothing to check."
+  },
+  "games": [
+    {
+      "id": "example",
+      "name": "Example Club vs Second Example — Mixed Final",
+      "video": "",
+      "size": 7,
+      "score": { "home": 15, "away": 13 },
+      "links": [
+        { "label": "game stats", "url": "https://example.org/tournament/game/456" }
+      ],
+      "teams": [
+        {
+          "name": "Example Club",
+          "side": "O",
+          "links": [
+            { "label": "roster", "url": "https://example.org/tournament/team/123/roster" }
+          ],
+          "players": [
+            { "firstname": "Ada", "lastname": "Weber", "nickname": "Ace", "num": 7, "matching": "FMP" },
+            { "firstname": "Hana", "lastname": "Lehner", "nickname": "Robin", "num": 11, "matching": "MMP" }
+          ]
+        },
+        {
+          "name": "Second Example",
+          "side": "D",
+          "links": [
+            { "label": "roster", "url": "https://example.org/tournament/team/789/roster" }
+          ],
+          "players": [
+            { "firstname": "Sky", "lastname": "Thaler", "nickname": "Tiny", "num": 2, "matching": "FMP" },
+            { "firstname": "Jo", "lastname": "Moser", "nickname": "Mo", "num": 9, "matching": "MMP" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "name": "ultimate-broadcast",
   "private": true,
   "license": "AGPL-3.0-only",
-  "description": "Broadcast overlays for Ultimate, hosted on Live! by BULA or standalone — development tooling only; the project itself has no build step.",
+  "description": "Broadcast overlays for Ultimate, hosted on Live! by BULA or standalone \u2014 development tooling only; the project itself has no build step.",
   "engines": {
     "node": ">=18"
   },
@@ -10,7 +10,7 @@
     "test": "playwright test --config tests/playwright.config.js --project=overlays",
     "test:unit": "playwright test --config tests/playwright.unit.config.js",
     "test:standalone": "playwright test --config tests/playwright.standalone.config.js",
-    "check": "node tests/modules.mjs && node tests/suites.mjs && node tests/links.mjs && node tests/capture-check.mjs && node tests/htaccess.mjs && node tests/gamestate.mjs && node tests/params.mjs && node tests/visitors.mjs && node tests/deploy.mjs",
+    "check": "node tests/modules.mjs && node tests/suites.mjs && node tests/links.mjs && node tests/capture-check.mjs && node tests/htaccess.mjs && node tests/gamestate.mjs && node tests/params.mjs && node tests/visitors.mjs && node tests/deploy.mjs && node tests/capture-poc.mjs && node tests/spotter.mjs",
     "test:ui": "playwright test --config tests/playwright.config.js --project=overlays --ui",
     "shots": "playwright test --config tests/playwright.config.js --project=shots"
   },

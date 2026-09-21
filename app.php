@@ -89,7 +89,7 @@ if (PHP_SAPI === 'cli-server') {
     // defaults to the picker — so a mistyped script URL answered 200 with a
     // page of HTML, and the browser reported it as "Unexpected token '<'".
     if ($path !== '/' && $path !== '/app.php'
-        && preg_match('#^/(s|c|k)(/|$)#', $path) !== 1) {
+        && preg_match('#^/(s|c|k|p)(/|$)#', $path) !== 1) {
         http_response_code(404);
         exit;
     }
@@ -140,6 +140,7 @@ $views = [
     'event' => 'event.php',
     'imprint' => 'imprint.php',
     'matchcontrol' => 'matchcontrol.php',
+    'spotter' => 'spotter.php',
     'manifest' => 'manifest.php',
     'login' => 'login.php',
     'tests/selftest' => 'tests/selftest.php',
@@ -191,10 +192,12 @@ $short = [
     // With no game: the games this phone is carrying. This is where a home
     // screen icon lands, so it has to be a route rather than a 404.
     ['#^/k/?$#', 'matchcontrol', []],
+    ['#^/p/([0-9]+)/?$#', 'spotter', ['game' => 1]],
+    ['#^/p/?$#', 'spotter', []],
 ];
 
 $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (preg_match('#^/(s|c|k)(/|$)#', $requestPath) === 1) {
+if (preg_match('#^/(s|c|k|p)(/|$)#', $requestPath) === 1) {
     foreach ($short as [$pattern, $view, $params]) {
         if (preg_match($pattern, $requestPath, $m) !== 1) {
             continue;

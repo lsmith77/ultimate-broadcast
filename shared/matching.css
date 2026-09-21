@@ -1,0 +1,36 @@
+/*
+ * The FMP/MMP tints, for every surface that shows a mixed line.
+ *
+ * These lived in the commentary desk's stylesheet until the spotter grew a
+ * line picker of its own. Two copies of a colour pair is how one desk ends up
+ * calling a player teal and the other calling them something else while both
+ * describe the same point - so the values live here and each page keeps only
+ * its own typography.
+ *
+ * WHY THE TWO ARE NEARLY THE SAME BRIGHTNESS, DELIBERATELY.
+ *
+ * FMP and MMP are a competition designation, not a stereotyped pair, and they
+ * are not a ranking. The term carries the meaning; colour only lets a line be
+ * scanned. That is the whole basis on which these two are allowed to sit at
+ * 1.05:1 in luminance against each other - red-green colour blindness
+ * collapses them further still, and nothing may depend on telling them apart
+ * by hue. Read the tag, never the tint.
+ *
+ * The INKS are the part that has to measure: teal-900 rather than teal-800,
+ * which came to 6.73:1 and missed the desk's AAA bar.
+ */
+
+:root {
+    --fmp-bg: #ccfbf1;  --fmp-ink: #134e4a;
+    --mmp-bg: #ede9fe;  --mmp-ink: #5b21b6;
+}
+
+/*
+ * Stamped, not sniffed. The desk carries a theme switch and the spotter is
+ * permanently dark; both say which they are on the root element, so neither
+ * depends on the reader's system setting to get legible tints.
+ */
+:root[data-theme="night"] {
+    --fmp-bg: #134e4a;  --fmp-ink: #99f6e4;
+    --mmp-bg: #312e81;  --mmp-ink: #ddd6fe;
+}

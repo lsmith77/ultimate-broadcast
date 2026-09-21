@@ -32,6 +32,9 @@ if (!defined('UO_ROUTED_VIEW')) {
 require_once __DIR__ . '/shared/mode.php';
 require_once __DIR__ . '/shared/auth.php';
 require_once __DIR__ . '/shared/brand.php';
+// Whether anything has been authored here, which the introduction needs before
+// any fetch has had a chance to fail.
+require_once __DIR__ . '/shared/event.php';
 
 if (is_file(__DIR__ . '/../conf/LocalConfig.php')) {
     require_once __DIR__ . '/../conf/LocalConfig.php';
@@ -165,6 +168,31 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
                                 border-radius: 50%;
                                 box-shadow: 0 0 0 1px rgba(255, 255, 255, .3); }
     .intro .introdemo a:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+    /* The empty state's one action, which has to outrank the prose round it. */
+    .introsetup[hidden] { display: none; }
+    .introsetup { display: flex; flex-wrap: wrap; gap: .5rem .8rem; align-items: center;
+                  margin: 0 0 .9rem !important; }
+    .introsetup a { background: #15803d; color: #fff; text-decoration: none;
+                    font-weight: 600; padding: .45rem 1rem; border-radius: 4px;
+                    white-space: nowrap; }
+    .introsetup a:hover { background: #16a34a; }
+    .introsetup a:focus-visible { outline: 2px solid #86efac; outline-offset: 2px; }
+    /* A command is not a button: nothing here is clickable, and it should not
+       look as though pressing it would do something. */
+    .introsetup > code { background: #0b1220; border: 1px solid #1e293b;
+                         padding: .4rem .7rem; border-radius: 4px; color: #e2e8f0;
+                         font-size: .88rem; white-space: nowrap; }
+    .introsetup span { font-size: .85rem; color: #94a3b8; }
+    /* A tool rather than a surface: same launcher shape, quieter. */
+    .intro .introtools a { background: #7c4a03; }
+    .intro .introtools a:hover { background: #9a5c04; }
+    .intro .introtools span { font-size: .8rem; color: #94a3b8; }
+    .intro .intromore { margin: 0 0 .6rem; }
+    .intro .intromore > summary { cursor: pointer; font-size: .85rem; color: #94a3b8;
+                                  margin-bottom: .5rem; }
+    .intro .intromore[open] > summary { margin-bottom: .6rem; }
+    /* Configured: the operator wants the launcher, not the sales pitch. */
+    .intro[data-state="ready"] .intropitch { display: none; }
     /* Who it is for, as running text rather than a third list — three bullets
        here would compete with the four above them for the same attention. */
     .intro .introwho { border-left: 2px solid #1e293b; padding-left: .8rem; }
@@ -345,7 +373,20 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
   than a notice — an operator who reads it once should not read it every time
   they open the page on a broadcast day.
 -->
-<aside class="intro" id="intro">
+<?php
+/*
+ * The introduction's state, decided here rather than only in script.
+ *
+ * It was set from the game list, which arrives over a fetch - and on a fresh
+ * installation that fetch is exactly what fails, so the chain went to its
+ * catch and the state was never set at all. The one page that must work on an
+ * installation where nothing works yet cannot depend on a successful request.
+ * The server knows whether an event exists; script refines it afterwards for
+ * the case of an event with no games in it.
+ */
+$hasEvent = \Overlays\Event::load() !== null;
+?>
+<aside class="intro" id="intro" data-state="<?= $hasEvent ? 'ready' : 'empty' ?>">
     <button type="button" class="introclose" id="introClose" aria-label="Hide this">×</button>
     <?php
     /*
@@ -362,14 +403,95 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         <?= \Overlays\Brand::img('studio', $base, 30) ?>
         <span>Ultimate Broadcast</span>
     </p>
-    <h2>A scoreboard for your Ultimate stream</h2>
-    <p>
+    <h2 class="intropitch">A scoreboard for your Ultimate stream</h2>
+    <p class="intropitch">
         Put a live scoreboard, team statistics and player graphics over your video — or
         add them to a game you have already filmed. <strong>Free and open source, and
-        there is nothing to sign up for.</strong> Everything described here is running on this page
-        now; the links below play a real game through, start to finish.
+        there is nothing to sign up for.</strong>
+        <?php // Only true once there is a game to link to. ?>
+        <?php if ($hasEvent) : ?>
+            Everything described here is running on this page now; the links below play a
+            real game through, start to finish.
+        <?php endif; ?>
     </p>
     <p class="introdemo" id="introDemo"></p>
+    <?php
+    /*
+     * The way out of an empty installation.
+     *
+     * The surface links above need a game and correctly hide themselves when
+     * there is none - but that left a fresh install showing four surfaces it
+     * described and no way to reach any of them, and this page linked to the
+     * authoring view exactly nowhere. An installation with nothing in it has
+     * one sensible next action, so it is the only one offered.
+     */
+    ?>
+    <p class="introsetup" id="introSetup"<?= $hasEvent ? ' hidden' : '' ?>>
+        <?php
+        /*
+         * Three rungs, and only the last one is a link.
+         *
+         * An installation with no event is not always at the same point: it
+         * may have no administrator password, or one nobody has signed in
+         * with, or an administrator and simply nothing authored. Offering
+         * "Create an event" at the first two sends somebody to a read-only
+         * form or a login they cannot pass - dead ends of exactly the kind
+         * the surface links above already refuse to be.
+         */
+        if (!\Overlays\Auth::isConfigured()) : ?>
+            <code>php install/make-config.php</code>
+            <span>No administrator password is set. Run that on the server — it writes
+                  <code>conf/local-config.php</code> with a hash of the password you give
+                  it. Then sign in and create an event.</span>
+        <?php elseif (!\Overlays\Auth::isAdmin()) : ?>
+            <a href="<?= htmlspecialchars(\Overlays\Mode::loginUrl(), ENT_QUOTES) ?>">Sign in</a>
+            <span>Nothing is set up here yet. Sign in as the administrator to create an
+                  event — the teams and games everything else draws from.</span>
+        <?php else : ?>
+            <?php // An event with no games in it is a fourth rung, not the first. ?>
+            <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('event'), ENT_QUOTES) ?>"><?=
+                $hasEvent ? 'Add a game' : 'Create an event' ?></a>
+            <span><?= $hasEvent
+                ? 'This event has no games yet. The surfaces all address one game, so '
+                    . 'there is nothing for them to show until there is one.'
+                : 'Nothing is set up here yet. An event holds the teams and the games '
+                    . 'everything else draws from.' ?></span>
+        <?php endif; ?>
+    </p>
+    <?php
+    /*
+     * The spotter, offered here in TRAINING mode.
+     *
+     * Live spotting follows a game, the way the scoreboard does, and refuses
+     * without one - so a bare link from a welcome page would hand a visitor a
+     * 400. Training needs no game: the clock is a video and the squad comes
+     * from a local pack, which is also the mode somebody trying the tool
+     * actually wants, and the one to send a volunteer over a link.
+     *
+     * The 40MB recogniser model is NOT shipped - `spotter/get-model.sh`
+     * fetches it - and without it the page runs on typed calls and says so.
+     */
+    ?>
+        <p class="introdemo introtools">
+            <a href="<?= htmlspecialchars(\Overlays\Mode::viewUrl('spotter') . '&mode=training', ENT_QUOTES) ?>"
+               target="_blank" rel="noopener"
+               title="Spot a game from YouTube, with video time as the clock">
+                <?= \Overlays\Brand::img('spot', $base, 16) ?>the spotter</a>
+            <span>Per-throw statistics, by voice. Opens in training mode, which
+                needs no game; live spotting follows one.</span>
+        </p>
+    <?php
+    /*
+     * Demoted once the installation is configured.
+     *
+     * On a running install the visitor is the operator, not somebody deciding
+     * whether to try it, and they open this page on a broadcast day to reach a
+     * surface. So the pitch folds away and the launcher leads. It stays
+     * reachable rather than removed: the same page is also the public one.
+     */
+    ?>
+    <details class="intromore" id="introMore"<?= $hasEvent ? '' : ' open' ?>>
+    <summary>What this is</summary>
     <ul>
         <li><strong>Streaming a game</strong> — the scoreboard sits over your picture in
             OBS, or any streaming software that can show a web page, and keeps itself up
@@ -415,6 +537,7 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
         Ultimate and would be willing to try it, or simply to tell me what looked wrong,
         that is worth more to this project right now than any new feature.
     </p>
+    </details>
     <p class="introfoot">
         <a href="https://github.com/lsmith77/ultimate-broadcast" rel="noopener">Source and
         documentation on GitHub</a>
@@ -2567,7 +2690,26 @@ $json = static fn ($v): string => json_encode($v, JSON_UNESCAPED_SLASHES | JSON_
      */
     function introLinks() {
         var box = document.getElementById('introDemo');
-        if (!box || !gamesList.length) { return; }
+        if (!box) { return; }
+
+        /*
+         * Two states, and the empty one used to be silent.
+         *
+         * Every surface link needs a game id, so with no event there is
+         * nothing honest to link to and they stay hidden. That was right and
+         * incomplete: it left the page describing four surfaces and offering
+         * no way to reach any of them, on the one installation where the
+         * visitor is certainly the person who has to set it up.
+         */
+        var intro = document.getElementById('intro');
+        var setup = document.getElementById('introSetup');
+        var more = document.getElementById('introMore');
+        var ready = gamesList.length > 0;
+        if (intro) { intro.dataset.state = ready ? 'ready' : 'empty'; }
+        if (setup) { setup.hidden = ready; }
+        // Folded away once configured, open while there is nothing else to read.
+        if (more) { more.open = !ready; }
+        if (!ready) { return; }
 
         function pick(wantMixed) {
             var found = null;

@@ -37,6 +37,18 @@
 #    --delete would take the whole installation apart on every deploy. rsync
 #    does not delete excluded paths, so excluding them is what protects them.
 
+# WHAT IS DELIBERATELY NOT DEPLOYED
+#
+# The spotter's recogniser model. It is fetched rather than shipped - a
+# worktree deploy would not carry it anyway, since it is gitignored and so
+# untracked, while a working-directory deploy would. The site would gain or
+# lose voice depending on which flag was used, so both exclude it, and
+# `spotter/get-model.sh` is run on the server to enable it there.
+#
+# Note for anyone editing the rsync flags below: a comment between two
+# backslash-continued lines comments out every argument after it, silently.
+# Explanations go here, not in the middle of the list.
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -310,6 +322,8 @@ fi
   --exclude='/fixtures/*.sh' \
   --exclude='/fixtures/*.log' \
   --exclude='/tools/' \
+  --exclude='/spotter/vosk.js' \
+  --exclude='/spotter/model.tar.gz' \
   --exclude='/package.json' \
   --exclude='/package-lock.json' \
   --exclude='/node_modules/' \

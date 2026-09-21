@@ -107,6 +107,7 @@ try {
     }
 } catch (e) { /* private window, blocked storage: day is the default anyway */ }
 </script>
+<link rel="stylesheet" href="<?= htmlspecialchars($assetUrl('shared/matching.css'), ENT_QUOTES) ?>">
 <style>
     /* ---- palette -------------------------------------------------------
        Two themes, and DAY IS THE DEFAULT, because this page is used at the
@@ -164,8 +165,7 @@ try {
            the tag, never the tint.
            The inks are the part that has to measure: teal-900 rather than
            teal-800, which came to 6.73:1 here and missed this page's AAA bar. */
-        --fmp-bg: #ccfbf1;  --fmp-ink: #134e4a;
-        --mmp-bg: #ede9fe;  --mmp-ink: #5b21b6;
+        /* --fmp-* / --mmp-* now come from shared/matching.css. */
 
         /* Glare eats thin strokes before it eats thick ones. */
         --rule: 1px;
@@ -200,8 +200,6 @@ try {
         --badge-soon-bg: #1e3a5f;  --badge-soon-ink: #7dd3fc;
         --err-bg: #3f1d1d;         --err-ink: #fecaca;   --err-edge: #ef4444;
 
-        --fmp-bg: #134e4a;  --fmp-ink: #99f6e4;
-        --mmp-bg: #312e81;  --mmp-ink: #ddd6fe;
 
         --rule: 1px;
         --rule-strong: 1px;
@@ -779,7 +777,9 @@ prepared notes and the shared line cannot be saved.</div>
 
 <script src="<?= htmlspecialchars($assetUrl('shared/possession.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/ratio.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/ratio-ui.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/lineup.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars($assetUrl('shared/lineup-ui.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/playingtime.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/facts.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($assetUrl('shared/score-source.js'), ENT_QUOTES) ?>"></script>
@@ -3082,13 +3082,10 @@ prepared notes and the shared line cannot be saved.</div>
      */
     function currentRatioFull() {
         if (!isMixedDivision()) { return null; }
-        var pair = ratioPair();
-        if (!pair.length) { return null; }
-        if (pair.length === 1) { return pair[0]; }
-        var first = firstRatioValue();
-        if (!first) { return null; }
-        var other = pair[0] === first ? pair[1] : pair[0];
-        return abbaSlot(currentPointNumber()) === 'A' ? first : other;
+        // The arithmetic is Ratio's; this only says which point is being asked
+        // about. It was written out here until the spotter needed it too.
+        return window.Ratio.forPoint(firstRatioValue(), lineSize(),
+            currentPointNumber());
     }
 
     function setFirstRatio(v) {
@@ -3772,13 +3769,17 @@ prepared notes and the shared line cannot be saved.</div>
         var count = el('span', 'count' + (line.length === size ? ' ok' : (line.length > size ? ' over' : '')),
             line.length + ' / ' + size);
         head.append(count);
-        if (assist) {
-            assist.groups.forEach(function (g) {
-                var gc = el('span', 'gcount');
-                gc.append(el('span', 'mt ' + g.matching.toLowerCase(), g.matching));
-                gc.append(document.createTextNode(' ' + g.picked + ' of ' + g.quota));
-                head.append(gc);
-            });
+        /*
+         * Guarded, because this page goes to air.
+         *
+         * These moved to shared/ modules loaded over the network. A stale
+         * cache or a prefix that resolves wrongly would make the global
+         * undefined, and an unguarded call throws inside pickPanel - which is
+         * the LINE PICKER, so a missing count would cost the desk the whole
+         * control rather than the trim on it. Degrade to no counts instead.
+         */
+        if (window.LineupUI) {
+            head.append(window.LineupUI.counts({ groups: assist && assist.groups }));
         }
         panel.append(head);
 
@@ -3787,11 +3788,11 @@ prepared notes and the shared line cannot be saved.</div>
             return panel;
         }
 
-        if (mixed && !hasMatchings) {
-            panel.append(el('p', 'muted mtwarn',
-                'No FMP/MMP data for this team, so nothing here can group, count '
-                + 'or hide. Import the team’s sheet on the prep screen, or check '
-                + 'the sync code — matchings live in the room the code names.'));
+        if (mixed && !hasMatchings && window.LineupUI) {
+            panel.append(window.LineupUI.missingNote({
+                remedy: 'Import the team’s sheet on the prep screen, or check '
+                    + 'the sync code — matchings live in the room the code names.'
+            }));
         }
 
         // Who went off, and what the replacement has to be. The line is one
@@ -4611,31 +4612,18 @@ prepared notes and the shared line cannot be saved.</div>
         renderSizeControl(box);
         if (!ratioIsChoice()) { return; }
 
-        var pair = ratioPair();
-        var current = firstRatioValue();
-
-        var sel = document.createElement('select');
-        sel.className = 'tsel ratiosel';
-        sel.title = possession.canTrack
-            ? (current
-                ? 'Gender ratio on point 1. Everything else follows the ABBA pattern from it.'
-                : 'Set the gender ratio on point 1, from the paper scoresheet.')
-            : 'Gender ratio on point 1 — kept on this screen only until the desk is '
-                + 'linked; a shared value replaces it.';
-        sel.setAttribute('aria-label', 'Gender ratio on point 1');
-
-        var opts = [['', 'ratio pt 1']].concat(pair.map(function (r) {
-            return [r, shortRatio(r) + ' pt 1'];
-        }));
-        opts.forEach(function (o) {
-            var opt = document.createElement('option');
-            opt.value = o[0];
-            opt.textContent = o[1];
-            if (o[0] === (current || '')) { opt.selected = true; }
-            sel.append(opt);
+        // The SAME picker the spotter shows, from shared/ratio-ui.js. Guarded
+        // for the same reason as the counts above: no ratio selector is a
+        // worse desk, a thrown TypeError is no desk at all.
+        if (!window.RatioUI) { return; }
+        var sel = window.RatioUI.select({
+            size: lineSize(),
+            current: firstRatioValue(),
+            canShare: possession.canTrack,
+            className: 'tsel ratiosel',
+            onChange: function (value) { setFirstRatio(value); }
         });
-        sel.addEventListener('change', function () { setFirstRatio(sel.value || null); });
-        box.append(sel);
+        if (sel) { box.append(sel); }
     }
 
     /**

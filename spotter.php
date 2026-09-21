@@ -6402,6 +6402,43 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         });
         showPackLinks(packPick());
 
+        /*
+         * A team's squad, fetched rather than shipped.
+         *
+         * The pack used to carry the roster inline, which meant a file of real
+         * people's names sitting in the deployed tree and served to anybody who
+         * opened training mode. Live! publishes the same roster as a static
+         * JSON file with `Access-Control-Allow-Origin: *`, so the browser can
+         * read it directly: no proxy, nothing at rest here, and the pack itself
+         * holds no personal data at all.
+         *
+         * It also arrives with `player_id`, which is the key `shared/notes.php`
+         * files matchings under - so a fetched squad can inherit what the
+         * commentary desk typed, which a hand-written one never could.
+         */
+        var fetchRoster = function (t) {
+            if (!t.roster) { return Promise.resolve(t.players || []); }
+            // Same rule as the pack's links: a pack is a file people pass
+            // around, so it does not get to name any scheme it likes.
+            if (!/^https?:\/\//i.test(String(t.roster))) {
+                return Promise.reject(new Error('roster URL must be http(s)'));
+            }
+            return fetch(t.roster, { credentials: 'omit' })
+                .then(function (r) {
+                    if (!r.ok) { throw new Error('roster ' + r.status); }
+                    return r.json();
+                })
+                .then(function (doc) {
+                    return (doc.players || []).map(function (q) {
+                        return {
+                            firstname: q.firstname, lastname: q.lastname,
+                            num: q.num, id: q.player_id,
+                            nickname: q.nickname, matching: q.matching
+                        };
+                    });
+                });
+        };
+
         el('packLoad').addEventListener('click', function () {
             var g = packPick();
             if (!g) { return; }
@@ -6411,29 +6448,55 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 + '? This clears ' + events.length + ' captured events.')) {
                 return;
             }
-            packGame = g;
 
-            wipe(true);
-            if (g.size) { lineSize = Number(g.size) || lineSize; }
-            sides = { O: [], D: [] };
-            squad = [];
-            (g.teams || []).forEach(function (t, i) {
-                var slot = t.side === 'D' || i === 1 ? 'D' : 'O';
-                teamNames[slot] = t.name || teamName(slot);
-                (t.players || []).forEach(function (q) {
-                    var pl = asPlayer({ firstname: q.firstname, lastname: q.lastname,
-                                        nickname: q.nickname, num: q.num, role: slot,
-                                        matching: q.matching, id: q.id });
-                    if (!squad.some(function (r) { return r.label === pl.label; })) { squad.push(pl); }
+            var teams = g.teams || [];
+            var btn = el('packLoad');
+            btn.disabled = true;
+            btn.textContent = 'Loading\u2026';
+            var done = function () {
+                btn.disabled = false;
+                btn.textContent = 'Load squads and video';
+            };
+
+            /*
+             * Nothing is torn down until every roster is in hand.
+             *
+             * Wiping first and fetching after would leave a spotter with an
+             * empty session and no squad when the network is the thing that
+             * failed - which, on a sideline, it will be.
+             */
+            Promise.all(teams.map(fetchRoster)).then(function (rosters) {
+                packGame = g;
+                wipe(true);
+                if (g.size) { lineSize = Number(g.size) || lineSize; }
+                sides = { O: [], D: [] };
+                squad = [];
+                teams.forEach(function (t, i) {
+                    var slot = t.side === 'D' || i === 1 ? 'D' : 'O';
+                    teamNames[slot] = t.name || teamName(slot);
+                    (rosters[i] || []).forEach(function (q) {
+                        var pl = asPlayer({ firstname: q.firstname, lastname: q.lastname,
+                                            nickname: q.nickname, num: q.num, role: slot,
+                                            matching: q.matching, id: q.id });
+                        if (!squad.some(function (r) { return r.label === pl.label; })) {
+                            squad.push(pl);
+                        }
+                    });
                 });
+                if (MODE !== 'training') { setMode('training'); }
+                if (g.video) {
+                    el('url').value = g.video;
+                    el('load').click();
+                }
+                startPoint(null, 'O');
+                done();
+                render();
+            }).catch(function (e) {
+                done();
+                alert('Could not load the squads: ' + e.message
+                    + '\n\nThe session is untouched. Check the connection, or '
+                    + 'pick the line by hand.');
             });
-            if (MODE !== 'training') { setMode('training'); }
-            if (g.video) {
-                el('url').value = g.video;
-                el('load').click();
-            }
-            startPoint(null, 'O');
-            render();
         });
     }
 

@@ -1301,6 +1301,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                 });
             });
         });
+        callWords().forEach(function (w) { out.push(w); });
+        return out;
+    }
+
+    /** Every non-player word, which is in the vocabulary whoever is on. */
+    function callWords() {
+        var out = [];
         Object.keys(SAY).forEach(function (kind) {
             Object.keys(SAY[kind]).forEach(function (term) {
                 SAY[kind][term].forEach(function (alias) {
@@ -1314,6 +1321,34 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
             });
         });
         return out;
+    }
+
+    /*
+     * The vocabulary as the RISK CHECK sees it: the whole squad.
+     *
+     * This is what the recogniser already decodes. `grammarWords()` puts every
+     * squad member's aliases into the word list, because a line is called
+     * before the line exists and a grammar built from the current seven cannot
+     * decode the substitute being named. The risk check, though, compared each
+     * name against the LINE - so it could report no clashes while the engine
+     * was perfectly able to confuse two squad members. It was under-reporting
+     * against its own decoder, not merely scoped inconveniently.
+     *
+     * Matching that also puts the warning where the work happens: names get
+     * fixed once, before the pull, not seven at a time as lines change.
+     *
+     * Keyed by LABEL rather than by line position, because a squad has no
+     * positions - and because keying by index is what once made every player
+     * collide with themselves.
+     */
+    function riskVocabulary(players) {
+        var out = [];
+        players.forEach(function (p) {
+            aliasesOf(p).forEach(function (a) {
+                out.push({ kind: 'player', value: p.label, word: a.alias, form: a.form });
+            });
+        });
+        return out.concat(callWords());
     }
 
     /*
@@ -2615,16 +2650,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
          */
         var why = el('peditRisk');
         why.replaceChildren();
-        var state = riskFor(p);
-        if (!state) {
+        var r = riskFor(p);
+        if (!r) {
             why.append(document.createTextNode(
-                'Clashes are only known for players on the field \u2014 the '
-                + 'recogniser\u2019s vocabulary is the line.'));
-        } else if (!state.risk) {
-            why.append(document.createTextNode(
-                'Nothing on this line sounds like them.'));
+                'Nothing in this squad or the call grammar sounds like them.'));
         } else {
-            var r = state.risk;
             why.append(document.createTextNode('\u201c' + r.bad[0].alias
                 + '\u201d sounds like \u201c' + r.bad[0].with + '\u201d. Safer:'));
             // Shortest first: under time pressure a spotter says the short
@@ -2666,11 +2696,13 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         dlg.showModal();
     }
 
-    function nameRisks() {
+    function nameRisks(players) {
         var out = [];
-        var vocab = vocabulary();
+        var who = players || squad;
+        var vocab = riskVocabulary(who);
 
-        line.forEach(function (p, self) {
+        who.forEach(function (p) {
+            var self = p.label;
             var forms = aliasesOf(p);
             var bad = [];
             var good = [];
@@ -2683,11 +2715,11 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
                     /*
                      * A player's own other forms are not a clash.
                      *
-                     * The vocabulary keys a player by their POSITION on the
-                     * line, not by name, so comparing against the label
-                     * matched nothing and every player collided with
-                     * themselves - "kovac sounds like kova", which is one
-                     * person and two ways of saying so.
+                     * "kovac sounds like kova" is one person and two ways of
+                     * saying so. The risk vocabulary keys players by LABEL for
+                     * exactly this test; it was once keyed by line position,
+                     * which no squad-wide list has, and every player duly
+                     * collided with themselves.
                      */
                     var mine = v.kind === 'player' && v.value === self;
                     if (mine || v.word.replace(/\s/g, '') === flat) { return; }
@@ -2708,19 +2740,20 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     /**
      * What the recogniser is likely to confuse THIS player with.
      *
-     * Only ever answerable for somebody on the field: the decoding grammar
-     * contains the line and nothing else, so a player off it has no word in
-     * the vocabulary and therefore nothing to collide with. Saying "no
-     * clashes" about them would be a promise the grammar has not made.
+     * Asked against the whole squad, which is what the recogniser decodes:
+     * every squad name is in the grammar so that a line call can name somebody
+     * not yet on. Renaming is also a thing done once before the pull, so a
+     * line-scoped answer arrived when it was least fixable - mid-point, about
+     * a player who had just come on.
      */
     function riskFor(p) {
-        var on = line.some(function (q) { return q.label === p.label; });
-        if (!on) { return null; }
         var found = null;
-        nameRisks().forEach(function (r) {
+        nameRisks([p].concat(squad.filter(function (q) {
+            return q.label !== p.label;
+        }))).forEach(function (r) {
             if (!found && r.player.label === p.label) { found = r; }
         });
-        return { on: true, risk: found };
+        return found;
     }
 
     function renderLine() {

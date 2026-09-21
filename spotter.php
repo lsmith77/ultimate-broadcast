@@ -266,6 +266,10 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
     .gcount.full { color: #7df0bd; }
     .gcount.over { color: var(--warn); font-weight: 700; }
     .mtwarn { margin: .2rem 0 .4rem; font-size: .75rem; color: var(--mute); }
+    #peditRisk { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center;
+                 color: var(--warn); }
+    #peditRisk .pill { font-size: .72rem; padding: .1rem .45rem;
+                       border-color: var(--warn); color: #ffdca8; }
     .howto > summary { cursor: pointer; font-size: .8rem; color: var(--mute); }
     .howto ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .8rem;
                 color: var(--mute); }
@@ -721,6 +725,7 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         <div class="peditrow">Matching
           <span class="peditmt" id="peditMt"></span>
         </div>
+        <p class="sub" id="peditRisk"></p>
         <p class="sub" id="peditWhy"></p>
         <menu>
           <button value="cancel">Cancel</button>
@@ -2600,6 +2605,44 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         el('peditCall').value = callName(p) === p.label ? '' : callName(p);
         el('peditWhy').textContent = 'Both are kept on this page only.';
 
+        /*
+         * The clashes, where the fix is - not in a panel somewhere else.
+         *
+         * A spotter discovers a name is unsayable at the moment it is misheard,
+         * and the thing they want then is a different word, immediately. The
+         * folded warning list says WHICH names collide; this says it about the
+         * player already open and turns each safe alternative into one tap.
+         */
+        var why = el('peditRisk');
+        why.replaceChildren();
+        var state = riskFor(p);
+        if (!state) {
+            why.append(document.createTextNode(
+                'Clashes are only known for players on the field \u2014 the '
+                + 'recogniser\u2019s vocabulary is the line.'));
+        } else if (!state.risk) {
+            why.append(document.createTextNode(
+                'Nothing on this line sounds like them.'));
+        } else {
+            var r = state.risk;
+            why.append(document.createTextNode('\u201c' + r.bad[0].alias
+                + '\u201d sounds like \u201c' + r.bad[0].with + '\u201d. Safer:'));
+            // Shortest first: under time pressure a spotter says the short
+            // form or none at all.
+            r.good.slice().sort(function (x, y) { return x.length - y.length; })
+                .slice(0, 4).forEach(function (safe) {
+                    var pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = 'pill';
+                    pill.textContent = safe;
+                    pill.title = 'Call them \u201c' + safe + '\u201d on this page';
+                    pill.addEventListener('click', function () {
+                        el('peditCall').value = safe;
+                    });
+                    why.append(pill);
+                });
+        }
+
         var mt = el('peditMt');
         mt.replaceChildren();
         [['MMP', 'MMP'], ['FMP', 'FMP'], ['', 'not set']].forEach(function (o) {
@@ -2660,6 +2703,24 @@ $hasModel = is_file(__DIR__ . '/spotter/vosk.js') && is_file(__DIR__ . '/spotter
         });
 
         return out;
+    }
+
+    /**
+     * What the recogniser is likely to confuse THIS player with.
+     *
+     * Only ever answerable for somebody on the field: the decoding grammar
+     * contains the line and nothing else, so a player off it has no word in
+     * the vocabulary and therefore nothing to collide with. Saying "no
+     * clashes" about them would be a promise the grammar has not made.
+     */
+    function riskFor(p) {
+        var on = line.some(function (q) { return q.label === p.label; });
+        if (!on) { return null; }
+        var found = null;
+        nameRisks().forEach(function (r) {
+            if (!found && r.player.label === p.label) { found = r; }
+        });
+        return { on: true, risk: found };
     }
 
     function renderLine() {

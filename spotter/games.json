@@ -39,6 +39,153 @@
           "roster": "https://results.wfdf.sport/wucc-2026/live/data/WUCC2026_teams_1132.json"
         }
       ]
+    },
+    {
+      "id": "bananacup",
+      "name": "Banana Cup 4.0 \u2014 test (fours)",
+      "video": "",
+      "size": 4,
+      "division": "mixed",
+      "links": [
+        {
+          "label": "matches",
+          "url": "https://scorillaz.ch/app/m/8/matches"
+        }
+      ],
+      "teams": [
+        {
+          "name": "Team A",
+          "side": "O",
+          "players": [
+            {
+              "firstname": "Nova",
+              "lastname": "",
+              "num": 1,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Quill",
+              "lastname": "",
+              "num": 2,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Fenn",
+              "lastname": "",
+              "num": 4,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Garnet",
+              "lastname": "",
+              "num": 5,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Hollis",
+              "lastname": "",
+              "num": 6,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Jarvis",
+              "lastname": "",
+              "num": 7,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Kestrel",
+              "lastname": "",
+              "num": 8,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Lumen",
+              "lastname": "",
+              "num": 9,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Orson",
+              "lastname": "",
+              "num": 10,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Tamsin",
+              "lastname": "",
+              "num": 11,
+              "matching": "MMP"
+            }
+          ]
+        },
+        {
+          "name": "Team B",
+          "side": "D",
+          "players": [
+            {
+              "firstname": "Bramble",
+              "lastname": "",
+              "num": 12,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Clover",
+              "lastname": "",
+              "num": 13,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Dunlin",
+              "lastname": "",
+              "num": 14,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Ember",
+              "lastname": "",
+              "num": 15,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Fable",
+              "lastname": "",
+              "num": 16,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Juniper",
+              "lastname": "",
+              "num": 17,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Marlow",
+              "lastname": "",
+              "num": 18,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Rowan",
+              "lastname": "",
+              "num": 19,
+              "matching": "MMP"
+            },
+            {
+              "firstname": "Sorrel",
+              "lastname": "",
+              "num": 26,
+              "matching": "FMP"
+            },
+            {
+              "firstname": "Wren",
+              "lastname": "",
+              "num": 27,
+              "matching": "MMP"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

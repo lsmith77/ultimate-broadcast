@@ -841,6 +841,16 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     <dialog id="pedit">
       <form method="dialog">
         <strong id="peditWho"></strong>
+        <?php
+        // The shirt number is editable because a squad is often guessed before
+        // a game and learned during it: with no roster published, a spotter
+        // starts with placeholders and fixes each number as they read it off a
+        // shirt. The number is also an ALIAS the recogniser listens for, so
+        // changing it rebuilds the grammar rather than only the label.
+        ?>
+        <label class="peditrow">Number
+          <input id="peditNum" type="text" size="3" inputmode="numeric"
+                 placeholder="##"></label>
         <label class="peditrow">Call them
           <input id="peditCall" type="text" size="14"
                  placeholder="as spoken"></label>
@@ -2899,12 +2909,13 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
     }
 
     /** Both spotter-local fields in one pass, so the page renders once. */
-    function setPlayerFields(p, call, matching) {
+    function setPlayerFields(p, call, matching, num) {
         [squad, line, sides.O, sides.D].forEach(function (list) {
             list.forEach(function (q) {
                 if (q.label !== p.label) { return; }
                 q.call = call || '';
                 q.matching = matching || '';
+                if (num !== undefined) { q.num = num; }
             });
         });
         render();
@@ -2927,6 +2938,7 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         var chosen = matchingOf(p);
 
         el('peditWho').textContent = (p.num ? p.num + ' ' : '') + p.label;
+        el('peditNum').value = p.num || '';
         el('peditCall').value = callName(p) === p.label ? '' : callName(p);
         el('peditWhy').textContent = 'Both are kept on this page only.';
 
@@ -2981,7 +2993,10 @@ $modelVersion = $hasModel ? (string) filemtime(__DIR__ . '/spotter/model.tar.gz'
         });
 
         el('peditSave').onclick = function () {
-            setPlayerFields(p, (el('peditCall').value || '').trim(), chosen);
+            // Digits only: the spoken form is derived from the number, and a
+            // number with anything else in it has no spoken form at all.
+            var num = (el('peditNum').value || '').replace(/[^0-9]/g, '');
+            setPlayerFields(p, (el('peditCall').value || '').trim(), chosen, num);
         };
         dlg.showModal();
     }
